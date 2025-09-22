@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
+#include <algorithm>
 
 namespace ecliptix::security::opaque {
 
@@ -103,5 +105,25 @@ struct ServerCredentials {
 
     ServerCredentials();
 };
+
+namespace oprf {
+    Result hash_to_group(const uint8_t* input, size_t input_length, uint8_t* point);
+    Result evaluate(const uint8_t* blinded_element, const uint8_t* server_private_key, uint8_t* evaluated_element);
+    Result finalize(const uint8_t* input, size_t input_length, const uint8_t* blind_scalar, const uint8_t* evaluated_element, uint8_t* output);
+    Result blind(const uint8_t* input, size_t input_length, uint8_t* blinded_element, uint8_t* blind_scalar);
+}
+
+namespace crypto {
+    bool init();
+    Result random_bytes(uint8_t* buffer, size_t length);
+    Result kdf_extract(const uint8_t* salt, size_t salt_length, const uint8_t* ikm, size_t ikm_length, uint8_t* prk);
+    Result kdf_expand(const uint8_t* prk, size_t prk_length, const uint8_t* info, size_t info_length, uint8_t* okm, size_t okm_length);
+    Result hmac(const uint8_t* key, size_t key_length, const uint8_t* data, size_t data_length, uint8_t* mac);
+}
+
+namespace envelope {
+    Result seal(const uint8_t* randomized_pwd, size_t pwd_length, const uint8_t* server_public_key, const uint8_t* client_private_key, const uint8_t* client_public_key, Envelope& envelope);
+    Result open(const Envelope& envelope, const uint8_t* randomized_pwd, size_t pwd_length, const uint8_t* server_public_key, uint8_t* client_private_key, uint8_t* client_public_key);
+}
 
 }

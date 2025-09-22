@@ -196,10 +196,11 @@ Result encrypt_envelope(const uint8_t* key, size_t key_length,
         return Result::InvalidInput;
     }
 
-    crypto_secretbox_state state;
-    crypto_secretbox_easy(ciphertext, plaintext, plaintext_length, nonce, key);
+    secure_bytes combined(plaintext_length + crypto_secretbox_MACBYTES);
+    crypto_secretbox_easy(combined.data(), plaintext, plaintext_length, nonce, key);
 
-    std::copy(ciphertext + plaintext_length, ciphertext + plaintext_length + crypto_secretbox_MACBYTES, auth_tag);
+    std::copy(combined.begin(), combined.begin() + plaintext_length, ciphertext);
+    std::copy(combined.begin() + plaintext_length, combined.end(), auth_tag);
 
     return Result::Success;
 }

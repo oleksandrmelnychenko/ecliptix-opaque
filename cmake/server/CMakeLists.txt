@@ -38,6 +38,12 @@ target_link_libraries(${SERVER_TARGET}
     ${SODIUM_LIBRARIES}
 )
 
+target_link_directories(${SERVER_TARGET} PRIVATE ${SODIUM_LIBRARY_DIRS})
+
+if(NOT SODIUM_LIBRARIES)
+    target_link_libraries(${SERVER_TARGET} sodium)
+endif()
+
 target_compile_definitions(${SERVER_TARGET} PRIVATE
     OPAQUE_SERVER_BUILD
 )

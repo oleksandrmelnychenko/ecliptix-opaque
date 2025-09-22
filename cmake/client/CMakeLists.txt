@@ -1,11 +1,6 @@
 set(CLIENT_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/core/oprf.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/envelope.cpp
     ${CMAKE_SOURCE_DIR}/src/core/memory.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/crypto.cpp
-    ${CMAKE_SOURCE_DIR}/src/client/registration.cpp
-    ${CMAKE_SOURCE_DIR}/src/client/authentication.cpp
-    ${CMAKE_SOURCE_DIR}/src/client/key_management.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/opaque_client.cpp
 )
 
 if(BUILD_DOTNET_INTEROP)
@@ -37,6 +32,12 @@ target_include_directories(${CLIENT_TARGET} PUBLIC
 target_link_libraries(${CLIENT_TARGET}
     ${SODIUM_LIBRARIES}
 )
+
+target_link_directories(${CLIENT_TARGET} PRIVATE ${SODIUM_LIBRARY_DIRS})
+
+if(NOT SODIUM_LIBRARIES)
+    target_link_libraries(${CLIENT_TARGET} sodium)
+endif()
 
 target_compile_definitions(${CLIENT_TARGET} PRIVATE
     OPAQUE_CLIENT_BUILD

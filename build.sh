@@ -19,7 +19,7 @@ case "${TARGET}" in
     "client"|"client-macos")
         echo "🖥️  Building CLIENT library for Avalonia Desktop (macOS)..."
 
-        BUILD_DIR="build-client-macos-${BUILD_TYPE,,}"
+        BUILD_DIR="build-client-macos-$(echo ${BUILD_TYPE} | tr '[:upper:]' '[:lower:]')"
         INSTALL_DIR="dist/client/macos"
 
         mkdir -p "${BUILD_DIR}" "${INSTALL_DIR}"
@@ -157,7 +157,7 @@ case "${TARGET}" in
             exit 1
         fi
 
-        BUILD_DIR="build-macos-${BUILD_TYPE,,}"
+        BUILD_DIR="build-macos-$(echo ${BUILD_TYPE} | tr '[:upper:]' '[:lower:]')"
         INSTALL_DIR="dist/macos"
 
         mkdir -p "${BUILD_DIR}" "${INSTALL_DIR}"

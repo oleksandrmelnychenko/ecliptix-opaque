@@ -1,4 +1,10 @@
-find_package(Catch2 3 REQUIRED PATHS ${CMAKE_SOURCE_DIR}/extern/Catch2)
+set(CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/extern/Catch2 ${CMAKE_PREFIX_PATH})
+find_package(Catch2 3 QUIET PATHS ${CMAKE_SOURCE_DIR}/extern/Catch2)
+
+if(NOT Catch2_FOUND)
+    message(STATUS "Catch2 not found via find_package, using local build")
+    add_subdirectory(${CMAKE_SOURCE_DIR}/extern/Catch2 extern/Catch2)
+endif()
 
 set(TEST_SOURCES_CORE
     unit/core/secure_memory_test.cpp

@@ -114,4 +114,31 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
+// Internal implementation functions
+Result create_registration_response_impl(
+    const uint8_t* registration_request,
+    size_t request_length,
+    const secure_bytes& server_private_key,
+    const secure_bytes& server_public_key,
+    RegistrationResponse& response,
+    ServerCredentials& credentials
+);
+
+Result generate_ke2_impl(
+    const uint8_t* ke1_data,
+    size_t ke1_length,
+    const ServerCredentials& credentials,
+    const secure_bytes& server_private_key,
+    const secure_bytes& server_public_key,
+    KE2& ke2,
+    ServerState& state
+);
+
+Result server_finish_impl(
+    const uint8_t* ke3_data,
+    size_t ke3_length,
+    const ServerState& state,
+    secure_bytes& session_key
+);
+
 }

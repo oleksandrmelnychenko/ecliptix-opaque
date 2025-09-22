@@ -2,13 +2,13 @@
 #include <sodium.h>
 #include <algorithm>
 
-namespace ecliptix::security::opaque::client {
-
-namespace {
-    namespace oprf = ecliptix::security::opaque::oprf;
-    namespace crypto = ecliptix::security::opaque::crypto;
-    namespace envelope = ecliptix::security::opaque::envelope;
+extern "C" {
+    Result oprf_blind(const uint8_t* input, size_t input_length, uint8_t* blinded_element, uint8_t* blind_scalar);
+    Result oprf_finalize(const uint8_t* input, size_t input_length, const uint8_t* blind_scalar, const uint8_t* evaluated_element, uint8_t* oprf_output);
+    Result crypto_random_bytes(uint8_t* buffer, size_t length);
 }
+
+namespace ecliptix::security::opaque::client {
 
 RegistrationRequest::RegistrationRequest() : data(REGISTRATION_REQUEST_LENGTH) {}
 
