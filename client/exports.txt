@@ -1,0 +1,9 @@
+_opaque_client_create
+_opaque_client_destroy
+_opaque_client_state_create
+_opaque_client_state_destroy
+_opaque_client_create_registration_request
+_opaque_client_finalize_registration
+_opaque_client_generate_ke1
+_opaque_client_generate_ke3
+_opaque_client_finish
