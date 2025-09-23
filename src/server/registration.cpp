@@ -16,7 +16,6 @@ Result create_registration_response_impl(const uint8_t* registration_request, si
     if (!registration_request || request_length != REGISTRATION_REQUEST_LENGTH) {
         return Result::InvalidInput;
     }
-    // Generate OPRF private key first
     crypto::random_bytes(credentials.masking_key.data(), PRIVATE_KEY_LENGTH);
 
     const uint8_t* blinded_element = registration_request;
@@ -36,7 +35,6 @@ Result create_registration_response_impl(const uint8_t* registration_request, si
     offset += PUBLIC_KEY_LENGTH;
     std::copy(masking_nonce, masking_nonce + NONCE_LENGTH,
              response.data.begin() + offset);
-    // Server doesn't create envelope - client will send it later for storage
     credentials.envelope.clear();
     return Result::Success;
 }

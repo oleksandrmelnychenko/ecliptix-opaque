@@ -6,7 +6,6 @@
 #include <cstring>
 
 extern "C" {
-    // Client exports
     int opaque_client_create(const uint8_t* server_public_key, size_t key_length, void** handle);
     void opaque_client_destroy(void* handle);
     int opaque_client_state_create(void** handle);
@@ -17,7 +16,6 @@ extern "C" {
     int opaque_client_generate_ke3(void* client_handle, const uint8_t* ke2, size_t ke2_length, void* state_handle, uint8_t* ke3_out, size_t ke3_length);
     int opaque_client_finish(void* client_handle, void* state_handle, uint8_t* session_key_out, size_t session_key_length);
 
-    // Server exports
     struct opaque_server_handle_t;
     struct server_state_handle_t;
     struct server_keypair_handle_t;
@@ -42,21 +40,18 @@ extern "C" {
 using namespace ecliptix::security::opaque;
 
 TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
-    REQUIRE(sodium_init() >= 0); // 0 = success, 1 = already initialized
+    REQUIRE(sodium_init() >= 0);
 
     const char* password = "super_secret_password";
     const char* user_id = "test_user";
 
-    // Step 1: Generate server keypair
     server_keypair_handle_t* server_keypair = nullptr;
     REQUIRE(opaque_server_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
     REQUIRE(server_keypair != nullptr);
 
-    // Get server public key
     uint8_t server_public_key[PUBLIC_KEY_LENGTH];
     REQUIRE(opaque_server_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-    // Step 2: Create server and client
     opaque_server_handle_t* server = nullptr;
     REQUIRE(opaque_server_create(server_keypair, &server) == static_cast<int>(Result::Success));
     REQUIRE(server != nullptr);
@@ -65,17 +60,14 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
     REQUIRE(opaque_client_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
     REQUIRE(client != nullptr);
 
-    // Step 3: REGISTRATION FLOW
     void* client_state = nullptr;
     REQUIRE(opaque_client_state_create(&client_state) == static_cast<int>(Result::Success));
 
-    // 3a. Client creates registration request
     uint8_t registration_request[REGISTRATION_REQUEST_LENGTH];
     REQUIRE(opaque_client_create_registration_request(
         client, reinterpret_cast<const uint8_t*>(password), strlen(password),
         client_state, registration_request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
-    // 3b. Server creates registration response
     uint8_t registration_response[REGISTRATION_RESPONSE_LENGTH];
     uint8_t server_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH];
     REQUIRE(opaque_server_create_registration_response(
@@ -83,46 +75,37 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         registration_response, REGISTRATION_RESPONSE_LENGTH,
         server_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-    // 3c. Client finalizes registration
     uint8_t registration_record[ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH];
     REQUIRE(opaque_client_finalize_registration(
         client, registration_response, REGISTRATION_RESPONSE_LENGTH,
         client_state, registration_record, ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-    // 3d. Store credentials in server store
     credential_store_handle_t* credential_store = nullptr;
     REQUIRE(opaque_credential_store_create(&credential_store) == static_cast<int>(Result::Success));
 
-    // Create proper server credentials from client record
     uint8_t stored_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH];
     std::memcpy(stored_credentials, registration_record, ENVELOPE_LENGTH);
-    // Add masking key from server credentials
     std::memcpy(stored_credentials + ENVELOPE_LENGTH, server_credentials + ENVELOPE_LENGTH, PRIVATE_KEY_LENGTH);
-    // Add client public key from registration record
     std::memcpy(stored_credentials + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH, registration_record + ENVELOPE_LENGTH, PUBLIC_KEY_LENGTH);
 
     REQUIRE(opaque_credential_store_store(
         credential_store, reinterpret_cast<const uint8_t*>(user_id), strlen(user_id),
         stored_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-    // Clean up registration state
     opaque_client_state_destroy(client_state);
 
     SECTION("Authentication with correct password") {
-        // Step 4: AUTHENTICATION FLOW
         void* auth_client_state = nullptr;
         REQUIRE(opaque_client_state_create(&auth_client_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
         REQUIRE(opaque_server_state_create(&server_state) == static_cast<int>(Result::Success));
 
-        // 4a. Client generates KE1
         uint8_t ke1[KE1_LENGTH];
         REQUIRE(opaque_client_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(password), strlen(password),
             auth_client_state, ke1, KE1_LENGTH) == static_cast<int>(Result::Success));
 
-        // 4b. Server retrieves credentials and generates KE2
         uint8_t retrieved_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH];
         REQUIRE(opaque_credential_store_retrieve(
             credential_store, reinterpret_cast<const uint8_t*>(user_id), strlen(user_id),
@@ -134,28 +117,23 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
             retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH,
             ke2, KE2_LENGTH, server_state) == static_cast<int>(Result::Success));
 
-        // 4c. Client generates KE3
         uint8_t ke3[KE3_LENGTH];
         REQUIRE(opaque_client_generate_ke3(
             client, ke2, KE2_LENGTH,
             auth_client_state, ke3, KE3_LENGTH) == static_cast<int>(Result::Success));
 
-        // 4d. Server finishes and gets session key
         uint8_t server_session_key[HASH_LENGTH];
         REQUIRE(opaque_server_finish(
             server, ke3, KE3_LENGTH, server_state,
             server_session_key, HASH_LENGTH) == static_cast<int>(Result::Success));
 
-        // 4e. Client finishes and gets session key
         uint8_t client_session_key[HASH_LENGTH];
         REQUIRE(opaque_client_finish(
             client, auth_client_state,
             client_session_key, HASH_LENGTH) == static_cast<int>(Result::Success));
 
-        // 4f. Verify session keys match
         REQUIRE(std::memcmp(client_session_key, server_session_key, HASH_LENGTH) == 0);
 
-        // Clean up
         opaque_client_state_destroy(auth_client_state);
         opaque_server_state_destroy(server_state);
     }
@@ -167,7 +145,6 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         server_state_handle_t* server_state = nullptr;
         REQUIRE(opaque_server_state_create(&server_state) == static_cast<int>(Result::Success));
 
-        // Use wrong password
         const char* wrong_password = "wrong_password";
         uint8_t ke1[KE1_LENGTH];
         REQUIRE(opaque_client_generate_ke1(
@@ -185,13 +162,11 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
             retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH,
             ke2, KE2_LENGTH, server_state) == static_cast<int>(Result::Success));
 
-        // Client should fail to generate KE3 with wrong password
         uint8_t ke3[KE3_LENGTH];
         int result = opaque_client_generate_ke3(
             client, ke2, KE2_LENGTH,
             auth_client_state, ke3, KE3_LENGTH);
 
-        // Either KE3 generation fails, or server rejects KE3
         if (result == static_cast<int>(Result::Success)) {
             uint8_t server_session_key[HASH_LENGTH];
             REQUIRE(opaque_server_finish(
@@ -201,12 +176,10 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
             REQUIRE(result == static_cast<int>(Result::AuthenticationError));
         }
 
-        // Clean up
         opaque_client_state_destroy(auth_client_state);
         opaque_server_state_destroy(server_state);
     }
 
-    // Final cleanup
     opaque_credential_store_destroy(credential_store);
     opaque_client_destroy(client);
     opaque_server_destroy(server);
@@ -220,7 +193,6 @@ TEST_CASE("Input Validation", "[opaque][validation]") {
         uint8_t invalid_key[PUBLIC_KEY_LENGTH] = {0}; // All zeros - invalid curve point
         void* client = nullptr;
         int result = opaque_client_create(invalid_key, PUBLIC_KEY_LENGTH, &client);
-        // Should fail with either InvalidPublicKey or MemoryError due to constructor exception
         REQUIRE((result == static_cast<int>(Result::InvalidPublicKey) ||
                  result == static_cast<int>(Result::MemoryError)));
     }
@@ -241,7 +213,6 @@ TEST_CASE("Input Validation", "[opaque][validation]") {
 TEST_CASE("Memory Safety", "[opaque][memory]") {
     REQUIRE(sodium_init() >= 0);
 
-    // Generate valid server key
     server_keypair_handle_t* server_keypair = nullptr;
     REQUIRE(opaque_server_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
 
@@ -251,14 +222,12 @@ TEST_CASE("Memory Safety", "[opaque][memory]") {
     SECTION("Multiple client creation and destruction") {
         std::vector<void*> clients;
 
-        // Create multiple clients
         for (int i = 0; i < 10; ++i) {
             void* client = nullptr;
             REQUIRE(opaque_client_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
             clients.push_back(client);
         }
 
-        // Destroy all clients
         for (void* client : clients) {
             opaque_client_destroy(client);
         }
