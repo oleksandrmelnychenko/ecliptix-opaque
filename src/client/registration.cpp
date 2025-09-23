@@ -50,10 +50,13 @@ Result finalize_registration_impl(const uint8_t* registration_response, size_t r
     if (result != Result::Success) {
         return result;
     }
-    record.envelope.resize(NONCE_LENGTH + MAC_LENGTH);
-    std::copy(env.nonce.begin(), env.nonce.end(), record.envelope.begin());
-    std::copy(env.auth_tag.begin(), env.auth_tag.end(),
-             record.envelope.begin() + NONCE_LENGTH);
+    record.envelope.resize(env.nonce.size() + env.ciphertext.size() + env.auth_tag.size());
+    size_t offset = 0;
+    std::copy(env.nonce.begin(), env.nonce.end(), record.envelope.begin() + offset);
+    offset += env.nonce.size();
+    std::copy(env.ciphertext.begin(), env.ciphertext.end(), record.envelope.begin() + offset);
+    offset += env.ciphertext.size();
+    std::copy(env.auth_tag.begin(), env.auth_tag.end(), record.envelope.begin() + offset);
     std::copy(state.client_public_key.begin(), state.client_public_key.end(),
              record.client_public_key.begin());
     sodium_memzero(randomized_pwd, sizeof(randomized_pwd));

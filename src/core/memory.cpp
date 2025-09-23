@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <memory>
+#include <sodium.h>
 #include <new>
 #ifdef _WIN32
 #include <windows.h>
@@ -133,7 +134,7 @@ void SecureBuffer::make_noaccess() {
 #endif
     }
 }
-Envelope::Envelope() : nonce(NONCE_LENGTH), auth_tag(MAC_LENGTH) {}
+Envelope::Envelope() : nonce(NONCE_LENGTH), auth_tag(crypto_secretbox_MACBYTES) {}
 Envelope::Envelope(size_t auth_tag_size) : nonce(NONCE_LENGTH), auth_tag(auth_tag_size) {}
 ServerPublicKey::ServerPublicKey() : key_data(PUBLIC_KEY_LENGTH) {}
 ServerPublicKey::ServerPublicKey(const uint8_t* data, size_t size) : key_data(size) {

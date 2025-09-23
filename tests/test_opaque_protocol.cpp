@@ -92,9 +92,16 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
     // 3d. Store credentials in server store
     credential_store_handle_t* credential_store = nullptr;
     REQUIRE(opaque_credential_store_create(&credential_store) == static_cast<int>(Result::Success));
+
+    // Create proper server credentials from client record
+    uint8_t stored_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH];
+    std::memcpy(stored_credentials, registration_record, ENVELOPE_LENGTH);
+    // Add masking key from server credentials
+    std::memcpy(stored_credentials + ENVELOPE_LENGTH, server_credentials + ENVELOPE_LENGTH, PRIVATE_KEY_LENGTH);
+
     REQUIRE(opaque_credential_store_store(
         credential_store, reinterpret_cast<const uint8_t*>(user_id), strlen(user_id),
-        server_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH) == static_cast<int>(Result::Success));
+        stored_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH) == static_cast<int>(Result::Success));
 
     // Clean up registration state
     opaque_client_state_destroy(client_state);

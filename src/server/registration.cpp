@@ -33,9 +33,8 @@ Result create_registration_response_impl(const uint8_t* registration_request, si
     std::copy(masking_nonce, masking_nonce + NONCE_LENGTH,
              response.data.begin() + offset);
     crypto::random_bytes(credentials.masking_key.data(), PRIVATE_KEY_LENGTH);
-    credentials.envelope.assign(evaluated_element, evaluated_element + crypto_core_ristretto255_BYTES);
-    credentials.envelope.insert(credentials.envelope.end(),
-                               masking_nonce, masking_nonce + NONCE_LENGTH);
+    // Server doesn't create envelope - client will send it later for storage
+    credentials.envelope.clear();
     return Result::Success;
 }
 }
