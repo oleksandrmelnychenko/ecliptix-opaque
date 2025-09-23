@@ -1,4 +1,6 @@
 #include "opaque/server.h"
+#include "opaque/version.h"
+#include "opaque/hardcoded_keys.h"
 #include <cstring>
 extern "C" {
 using namespace ecliptix::security::opaque;
@@ -211,5 +213,30 @@ int opaque_credential_store_retrieve(credential_store_handle_t* store_handle,
         std::memcpy(credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH, credentials.client_public_key.data(), PUBLIC_KEY_LENGTH);
     }
     return static_cast<int>(result);
+}
+
+int opaque_server_create_default(opaque_server_handle_t** handle) {
+    if (!handle) {
+        return static_cast<int>(Result::InvalidInput);
+    }
+    try {
+        auto keypair = new ServerKeyPair();
+        keypair->private_key.assign(keys::SERVER_PRIVATE_KEY, keys::SERVER_PRIVATE_KEY + 32);
+        keypair->public_key.assign(keys::SERVER_PUBLIC_KEY, keys::SERVER_PUBLIC_KEY + 32);
+
+        auto server = new OpaqueServer(*keypair);
+        auto server_handle = new opaque_server_handle_t;
+        server_handle->server = server;
+        *handle = server_handle;
+
+        delete keypair;
+        return static_cast<int>(Result::Success);
+    } catch (...) {
+        return static_cast<int>(Result::MemoryError);
+    }
+}
+
+const char* opaque_server_get_version() {
+    return OPAQUE_SERVER_VERSION;
 }
 }

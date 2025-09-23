@@ -1,5 +1,7 @@
 #include "opaque/opaque.h"
 #include "opaque/client.h"
+#include "opaque/version.h"
+#include "opaque/hardcoded_keys.h"
 #include <sodium.h>
 #include <cstring>
 #include <memory>
@@ -251,4 +253,12 @@ int opaque_client_finish(
         return static_cast<int>(Result::MemoryError);
     }
 }
-} 
+
+int opaque_client_create_default(void** handle) {
+    return opaque_client_create(keys::SERVER_PUBLIC_KEY, PUBLIC_KEY_LENGTH, handle);
+}
+
+const char* opaque_client_get_version() {
+    return OPAQUE_CLIENT_VERSION;
+}
+}
