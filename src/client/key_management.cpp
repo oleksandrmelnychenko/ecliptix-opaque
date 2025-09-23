@@ -9,14 +9,16 @@ Result finalize_registration_impl(const uint8_t* registration_response, size_t r
 Result generate_ke1_impl(const uint8_t* password, size_t password_length,
                         KE1& ke1, ClientState& state);
 Result generate_ke3_impl(const uint8_t* ke2_data, size_t ke2_length,
-                        ClientState& state, KE3& ke3);
+                        const uint8_t* server_public_key, ClientState& state, KE3& ke3);
 Result client_finish_impl(const ClientState& state, secure_bytes& session_key);
 ClientState::ClientState() : password(0), client_private_key(PRIVATE_KEY_LENGTH),
                             client_public_key(PUBLIC_KEY_LENGTH),
                             client_ephemeral_private_key(PRIVATE_KEY_LENGTH),
                             client_ephemeral_public_key(PUBLIC_KEY_LENGTH),
                             server_public_key(PUBLIC_KEY_LENGTH),
-                            session_key(0) {}
+                            session_key(0),
+                            oprf_blind_scalar(PRIVATE_KEY_LENGTH),
+                            client_nonce(NONCE_LENGTH) {}
 ClientState::~ClientState() {
     if (!password.empty()) {
         sodium_memzero(password.data(), password.size());
@@ -29,6 +31,8 @@ ClientState::~ClientState() {
     if (!session_key.empty()) {
         sodium_memzero(session_key.data(), session_key.size());
     }
+    sodium_memzero(oprf_blind_scalar.data(), oprf_blind_scalar.size());
+    sodium_memzero(client_nonce.data(), client_nonce.size());
 }
 class OpaqueClient::Impl {
 private:
@@ -54,7 +58,7 @@ public:
     }
     Result generate_ke3(const uint8_t* ke2_data, size_t ke2_length,
                        ClientState& state, KE3& ke3) {
-        return generate_ke3_impl(ke2_data, ke2_length, state, ke3);
+        return generate_ke3_impl(ke2_data, ke2_length, server_public_key_.key_data.data(), state, ke3);
     }
     Result client_finish(const ClientState& state, secure_bytes& session_key) {
         return client_finish_impl(state, session_key);

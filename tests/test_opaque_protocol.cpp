@@ -77,11 +77,11 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
 
     // 3b. Server creates registration response
     uint8_t registration_response[REGISTRATION_RESPONSE_LENGTH];
-    uint8_t server_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH];
+    uint8_t server_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH];
     REQUIRE(opaque_server_create_registration_response(
         server, registration_request, REGISTRATION_REQUEST_LENGTH,
         registration_response, REGISTRATION_RESPONSE_LENGTH,
-        server_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH) == static_cast<int>(Result::Success));
+        server_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
     // 3c. Client finalizes registration
     uint8_t registration_record[ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH];
@@ -94,14 +94,16 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
     REQUIRE(opaque_credential_store_create(&credential_store) == static_cast<int>(Result::Success));
 
     // Create proper server credentials from client record
-    uint8_t stored_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH];
+    uint8_t stored_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH];
     std::memcpy(stored_credentials, registration_record, ENVELOPE_LENGTH);
     // Add masking key from server credentials
     std::memcpy(stored_credentials + ENVELOPE_LENGTH, server_credentials + ENVELOPE_LENGTH, PRIVATE_KEY_LENGTH);
+    // Add client public key from registration record
+    std::memcpy(stored_credentials + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH, registration_record + ENVELOPE_LENGTH, PUBLIC_KEY_LENGTH);
 
     REQUIRE(opaque_credential_store_store(
         credential_store, reinterpret_cast<const uint8_t*>(user_id), strlen(user_id),
-        stored_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH) == static_cast<int>(Result::Success));
+        stored_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
     // Clean up registration state
     opaque_client_state_destroy(client_state);
@@ -121,15 +123,15 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
             auth_client_state, ke1, KE1_LENGTH) == static_cast<int>(Result::Success));
 
         // 4b. Server retrieves credentials and generates KE2
-        uint8_t retrieved_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH];
+        uint8_t retrieved_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH];
         REQUIRE(opaque_credential_store_retrieve(
             credential_store, reinterpret_cast<const uint8_t*>(user_id), strlen(user_id),
-            retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH) == static_cast<int>(Result::Success));
+            retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t ke2[KE2_LENGTH];
         REQUIRE(opaque_server_generate_ke2(
             server, ke1, KE1_LENGTH,
-            retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH,
+            retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH,
             ke2, KE2_LENGTH, server_state) == static_cast<int>(Result::Success));
 
         // 4c. Client generates KE3
@@ -172,15 +174,15 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
             client, reinterpret_cast<const uint8_t*>(wrong_password), strlen(wrong_password),
             auth_client_state, ke1, KE1_LENGTH) == static_cast<int>(Result::Success));
 
-        uint8_t retrieved_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH];
+        uint8_t retrieved_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH];
         REQUIRE(opaque_credential_store_retrieve(
             credential_store, reinterpret_cast<const uint8_t*>(user_id), strlen(user_id),
-            retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH) == static_cast<int>(Result::Success));
+            retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t ke2[KE2_LENGTH];
         REQUIRE(opaque_server_generate_ke2(
             server, ke1, KE1_LENGTH,
-            retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH,
+            retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH,
             ke2, KE2_LENGTH, server_state) == static_cast<int>(Result::Success));
 
         // Client should fail to generate KE3 with wrong password

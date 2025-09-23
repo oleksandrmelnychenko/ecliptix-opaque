@@ -80,6 +80,7 @@ struct ClientCredentials {
 struct ServerCredentials {
     secure_bytes envelope;
     secure_bytes masking_key;
+    secure_bytes client_public_key;
     ServerCredentials();
 };
 namespace oprf {
@@ -101,6 +102,6 @@ namespace crypto {
 }
 namespace envelope {
     Result seal(const uint8_t* randomized_pwd, size_t pwd_length, const uint8_t* server_public_key, const uint8_t* client_private_key, const uint8_t* client_public_key, Envelope& envelope);
-    Result open(const Envelope& envelope, const uint8_t* randomized_pwd, size_t pwd_length, uint8_t* server_public_key, uint8_t* client_private_key, uint8_t* client_public_key);
+    Result open(const Envelope& envelope, const uint8_t* randomized_pwd, size_t pwd_length, const uint8_t* known_server_public_key, uint8_t* server_public_key, uint8_t* client_private_key, uint8_t* client_public_key);
 }
 }

@@ -12,12 +12,16 @@ Result create_registration_response_impl(const uint8_t* registration_request, si
                                         const secure_bytes& server_public_key,
                                         RegistrationResponse& response,
                                         ServerCredentials& credentials) {
+    (void)server_private_key;
     if (!registration_request || request_length != REGISTRATION_REQUEST_LENGTH) {
         return Result::InvalidInput;
     }
+    // Generate OPRF private key first
+    crypto::random_bytes(credentials.masking_key.data(), PRIVATE_KEY_LENGTH);
+
     const uint8_t* blinded_element = registration_request;
     uint8_t evaluated_element[crypto_core_ristretto255_BYTES];
-    Result result = oprf::evaluate(blinded_element, server_private_key.data(), evaluated_element);
+    Result result = oprf::evaluate(blinded_element, credentials.masking_key.data(), evaluated_element);
     if (result != Result::Success) {
         return result;
     }
@@ -32,7 +36,6 @@ Result create_registration_response_impl(const uint8_t* registration_request, si
     offset += PUBLIC_KEY_LENGTH;
     std::copy(masking_nonce, masking_nonce + NONCE_LENGTH,
              response.data.begin() + offset);
-    crypto::random_bytes(credentials.masking_key.data(), PRIVATE_KEY_LENGTH);
     // Server doesn't create envelope - client will send it later for storage
     credentials.envelope.clear();
     return Result::Success;

@@ -16,35 +16,31 @@ Result generate_ke1_impl(const uint8_t* password, size_t password_length,
         return Result::InvalidInput;
     }
     state.password.assign(password, password + password_length);
-    crypto::random_bytes(state.client_private_key.data(), PRIVATE_KEY_LENGTH);
-    if (crypto_scalarmult_ristretto255_base(state.client_public_key.data(),
-                                           state.client_private_key.data()) != 0) {
-        return Result::CryptoError;
-    }
     crypto::random_bytes(state.client_ephemeral_private_key.data(), PRIVATE_KEY_LENGTH);
     if (crypto_scalarmult_ristretto255_base(state.client_ephemeral_public_key.data(),
                                            state.client_ephemeral_private_key.data()) != 0) {
         return Result::CryptoError;
     }
     crypto::random_bytes(ke1.client_nonce.data(), NONCE_LENGTH);
+    std::copy(ke1.client_nonce.begin(), ke1.client_nonce.end(), state.client_nonce.begin());
     std::copy(state.client_ephemeral_public_key.begin(), state.client_ephemeral_public_key.end(),
              ke1.client_public_key.begin());
     return oprf::blind(password, password_length, ke1.credential_request.data(),
-                      state.client_private_key.data());
+                      state.oprf_blind_scalar.data());
 }
 Result generate_ke3_impl(const uint8_t* ke2_data, size_t ke2_length,
-                        ClientState& state, KE3& ke3) {
+                        const uint8_t* server_public_key, ClientState& state, KE3& ke3) {
     if (!ke2_data || ke2_length != KE2_LENGTH) {
         return Result::InvalidInput;
     }
     const uint8_t* server_nonce = ke2_data;
-    const uint8_t* server_public_key = ke2_data + NONCE_LENGTH;
+    const uint8_t* server_ephemeral_public_key = ke2_data + NONCE_LENGTH;
     const uint8_t* credential_response = ke2_data + NONCE_LENGTH + PUBLIC_KEY_LENGTH;
     const uint8_t* evaluated_element = credential_response;
     const uint8_t* envelope_data = credential_response + crypto_core_ristretto255_BYTES;
     uint8_t oprf_output[crypto_hash_sha512_BYTES];
     Result result = oprf::finalize(state.password.data(), state.password.size(),
-                                  state.client_private_key.data(),
+                                  state.oprf_blind_scalar.data(),
                                   evaluated_element, oprf_output);
     if (result != Result::Success) {
         return result;
@@ -66,13 +62,17 @@ Result generate_ke3_impl(const uint8_t* ke2_data, size_t ke2_length,
     uint8_t recovered_client_private_key[PRIVATE_KEY_LENGTH];
     uint8_t recovered_client_public_key[PUBLIC_KEY_LENGTH];
     result = envelope::open(env, randomized_pwd, sizeof(randomized_pwd),
-                           recovered_server_public_key, recovered_client_private_key,
+                           server_public_key, recovered_server_public_key, recovered_client_private_key,
                            recovered_client_public_key);
     if (result != Result::Success) {
         return result;
     }
     std::copy(recovered_server_public_key, recovered_server_public_key + PUBLIC_KEY_LENGTH,
              state.server_public_key.begin());
+    std::copy(recovered_client_private_key, recovered_client_private_key + PRIVATE_KEY_LENGTH,
+             state.client_private_key.begin());
+    std::copy(recovered_client_public_key, recovered_client_public_key + PUBLIC_KEY_LENGTH,
+             state.client_public_key.begin());
     uint8_t dh1[PUBLIC_KEY_LENGTH];
     if (crypto_scalarmult_ristretto255(dh1, recovered_client_private_key,
                                       recovered_server_public_key) != 0) {
@@ -85,7 +85,7 @@ Result generate_ke3_impl(const uint8_t* ke2_data, size_t ke2_length,
     }
     uint8_t dh3[PUBLIC_KEY_LENGTH];
     if (crypto_scalarmult_ristretto255(dh3, recovered_client_private_key,
-                                      server_public_key) != 0) {
+                                      server_ephemeral_public_key) != 0) {
         return Result::CryptoError;
     }
     secure_bytes ikm(3 * PUBLIC_KEY_LENGTH);
@@ -113,9 +113,11 @@ Result generate_ke3_impl(const uint8_t* ke2_data, size_t ke2_length,
     std::copy(state.client_ephemeral_public_key.begin(), state.client_ephemeral_public_key.end(),
              mac_input.begin() + offset);
     offset += PUBLIC_KEY_LENGTH;
-    std::copy(server_public_key, server_public_key + PUBLIC_KEY_LENGTH,
+    std::copy(server_ephemeral_public_key, server_ephemeral_public_key + PUBLIC_KEY_LENGTH,
              mac_input.begin() + offset);
     offset += PUBLIC_KEY_LENGTH;
+    std::copy(state.client_nonce.begin(), state.client_nonce.end(),
+             mac_input.begin() + offset);
     offset += NONCE_LENGTH;
     std::copy(server_nonce, server_nonce + NONCE_LENGTH,
              mac_input.begin() + offset);

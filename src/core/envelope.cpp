@@ -49,21 +49,21 @@ Result seal(const uint8_t* randomized_password, size_t password_length,
 }
 Result open(const Envelope& envelope,
            const uint8_t* randomized_password, size_t password_length,
+           const uint8_t* known_server_public_key,
            uint8_t* server_public_key,
            uint8_t* client_private_key,
            uint8_t* client_public_key) {
     if (!randomized_password || password_length == 0 ||
-        !server_public_key || !client_private_key || !client_public_key) {
+        !known_server_public_key || !server_public_key ||
+        !client_private_key || !client_public_key) {
         return Result::InvalidInput;
     }
-    uint8_t temp_server_key[PUBLIC_KEY_LENGTH];
-    std::copy(server_public_key, server_public_key + PUBLIC_KEY_LENGTH, temp_server_key);
     uint8_t auth_key[crypto_secretbox_KEYBYTES];
     crypto_hash_sha512_state state;
     crypto_hash_sha512_init(&state);
     const char* context = "OPAQUE-Envelope";
     crypto_hash_sha512_update(&state, reinterpret_cast<const uint8_t*>(context), strlen(context));
-    crypto_hash_sha512_update(&state, temp_server_key, PUBLIC_KEY_LENGTH);
+    crypto_hash_sha512_update(&state, known_server_public_key, PUBLIC_KEY_LENGTH);
     crypto_hash_sha512_update(&state, randomized_password, password_length);
     uint8_t hash[crypto_hash_sha512_BYTES];
     crypto_hash_sha512_final(&state, hash);

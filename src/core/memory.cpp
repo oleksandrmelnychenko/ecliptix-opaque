@@ -156,5 +156,5 @@ bool ServerPublicKey::verify() const {
     return !all_zero;
 }
 ClientCredentials::ClientCredentials() : envelope(ENVELOPE_LENGTH), server_public_key(PUBLIC_KEY_LENGTH) {}
-ServerCredentials::ServerCredentials() : envelope(ENVELOPE_LENGTH), masking_key(PRIVATE_KEY_LENGTH) {}
+ServerCredentials::ServerCredentials() : envelope(ENVELOPE_LENGTH), masking_key(PRIVATE_KEY_LENGTH), client_public_key(PUBLIC_KEY_LENGTH) {}
 }

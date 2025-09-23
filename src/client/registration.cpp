@@ -17,7 +17,7 @@ Result create_registration_request_impl(const uint8_t* password, size_t password
     }
     state.password.assign(password, password + password_length);
     return oprf::blind(password, password_length, request.data.data(),
-                      state.client_private_key.data());
+                      state.oprf_blind_scalar.data());
 }
 Result finalize_registration_impl(const uint8_t* registration_response, size_t response_length,
                                  ClientState& state, RegistrationRecord& record) {
@@ -28,7 +28,7 @@ Result finalize_registration_impl(const uint8_t* registration_response, size_t r
     const uint8_t* server_public_key = registration_response + crypto_core_ristretto255_BYTES;
     uint8_t oprf_output[crypto_hash_sha512_BYTES];
     Result result = oprf::finalize(state.password.data(), state.password.size(),
-                                  state.client_private_key.data(),
+                                  state.oprf_blind_scalar.data(),
                                   evaluated_element, oprf_output);
     if (result != Result::Success) {
         return result;

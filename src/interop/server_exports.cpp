@@ -96,7 +96,7 @@ int opaque_server_create_registration_response(opaque_server_handle_t* server_ha
     if (!server_handle || !server_handle->server || !request_data ||
         request_length != REGISTRATION_REQUEST_LENGTH ||
         !response_data || response_buffer_size < REGISTRATION_RESPONSE_LENGTH ||
-        !credentials_data || credentials_buffer_size < (ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH)) {
+        !credentials_data || credentials_buffer_size < (ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH)) {
         return static_cast<int>(Result::InvalidInput);
     }
     RegistrationResponse response;
@@ -107,6 +107,7 @@ int opaque_server_create_registration_response(opaque_server_handle_t* server_ha
         std::memcpy(response_data, response.data.data(), REGISTRATION_RESPONSE_LENGTH);
         std::memcpy(credentials_data, credentials.envelope.data(), ENVELOPE_LENGTH);
         std::memcpy(credentials_data + ENVELOPE_LENGTH, credentials.masking_key.data(), PRIVATE_KEY_LENGTH);
+        std::memcpy(credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH, credentials.client_public_key.data(), PUBLIC_KEY_LENGTH);
     }
     return static_cast<int>(result);
 }
@@ -116,7 +117,7 @@ int opaque_server_generate_ke2(opaque_server_handle_t* server_handle,
                                uint8_t* ke2_data, size_t ke2_buffer_size,
                                server_state_handle_t* state_handle) {
     if (!server_handle || !server_handle->server || !ke1_data || ke1_length != KE1_LENGTH ||
-        !credentials_data || credentials_length < (ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH) ||
+        !credentials_data || credentials_length < (ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH) ||
         !ke2_data || ke2_buffer_size < KE2_LENGTH ||
         !state_handle || !state_handle->state) {
         return static_cast<int>(Result::InvalidInput);
@@ -125,6 +126,8 @@ int opaque_server_generate_ke2(opaque_server_handle_t* server_handle,
     credentials.envelope.assign(credentials_data, credentials_data + ENVELOPE_LENGTH);
     credentials.masking_key.assign(credentials_data + ENVELOPE_LENGTH,
                                   credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH);
+    credentials.client_public_key.assign(credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH,
+                                         credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH);
     KE2 ke2;
     Result result = server_handle->server->generate_ke2(
         ke1_data, ke1_length, credentials, ke2, *state_handle->state);
@@ -181,13 +184,15 @@ int opaque_credential_store_store(credential_store_handle_t* store_handle,
                                  const uint8_t* user_id, size_t user_id_length,
                                  const uint8_t* credentials_data, size_t credentials_length) {
     if (!store_handle || !store_handle->store || !user_id || user_id_length == 0 ||
-        !credentials_data || credentials_length < (ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH)) {
+        !credentials_data || credentials_length < (ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH)) {
         return static_cast<int>(Result::InvalidInput);
     }
     ServerCredentials credentials;
     credentials.envelope.assign(credentials_data, credentials_data + ENVELOPE_LENGTH);
     credentials.masking_key.assign(credentials_data + ENVELOPE_LENGTH,
                                   credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH);
+    credentials.client_public_key.assign(credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH,
+                                         credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH);
     Result result = store_handle->store->store_credentials(user_id, user_id_length, credentials);
     return static_cast<int>(result);
 }
@@ -195,7 +200,7 @@ int opaque_credential_store_retrieve(credential_store_handle_t* store_handle,
                                     const uint8_t* user_id, size_t user_id_length,
                                     uint8_t* credentials_data, size_t credentials_buffer_size) {
     if (!store_handle || !store_handle->store || !user_id || user_id_length == 0 ||
-        !credentials_data || credentials_buffer_size < (ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH)) {
+        !credentials_data || credentials_buffer_size < (ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH)) {
         return static_cast<int>(Result::InvalidInput);
     }
     ServerCredentials credentials;
@@ -203,6 +208,7 @@ int opaque_credential_store_retrieve(credential_store_handle_t* store_handle,
     if (result == Result::Success) {
         std::memcpy(credentials_data, credentials.envelope.data(), ENVELOPE_LENGTH);
         std::memcpy(credentials_data + ENVELOPE_LENGTH, credentials.masking_key.data(), PRIVATE_KEY_LENGTH);
+        std::memcpy(credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH, credentials.client_public_key.data(), PUBLIC_KEY_LENGTH);
     }
     return static_cast<int>(result);
 }

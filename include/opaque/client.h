@@ -28,6 +28,8 @@ struct ClientState {
     secure_bytes client_ephemeral_public_key;
     secure_bytes server_public_key;
     secure_bytes session_key;
+    secure_bytes oprf_blind_scalar;
+    secure_bytes client_nonce;
     ClientState();
     ~ClientState();
 };

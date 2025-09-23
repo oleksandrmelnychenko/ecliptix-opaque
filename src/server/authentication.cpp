@@ -32,8 +32,8 @@ Result generate_ke2_impl(const uint8_t* ke1_data, size_t ke1_length,
         return Result::InvalidInput;
     }
     const uint8_t* credential_request = ke1_data;
-    const uint8_t* client_public_key = ke1_data + PUBLIC_KEY_LENGTH;
-    const uint8_t* client_nonce = ke1_data + PUBLIC_KEY_LENGTH + PUBLIC_KEY_LENGTH;
+    const uint8_t* client_public_key = ke1_data + crypto_core_ristretto255_BYTES;
+    const uint8_t* client_nonce = ke1_data + crypto_core_ristretto255_BYTES + PUBLIC_KEY_LENGTH;
     std::copy(client_public_key, client_public_key + PUBLIC_KEY_LENGTH,
              state.client_public_key.begin());
     crypto::random_bytes(state.server_private_key.data(), PRIVATE_KEY_LENGTH);
@@ -45,7 +45,7 @@ Result generate_ke2_impl(const uint8_t* ke1_data, size_t ke1_length,
     std::copy(state.server_public_key.begin(), state.server_public_key.end(),
              ke2.server_public_key.begin());
     uint8_t evaluated_element[crypto_core_ristretto255_BYTES];
-    Result result = oprf::evaluate(credential_request, server_private_key.data(), evaluated_element);
+    Result result = oprf::evaluate(credential_request, credentials.masking_key.data(), evaluated_element);
     if (result != Result::Success) {
         return result;
     }
@@ -55,21 +55,21 @@ Result generate_ke2_impl(const uint8_t* ke1_data, size_t ke1_length,
     offset += crypto_core_ristretto255_BYTES;
     std::copy(credentials.envelope.begin(), credentials.envelope.end(),
              ke2.credential_response.begin() + offset);
-    const uint8_t* client_ephemeral_public = ke1_data + PUBLIC_KEY_LENGTH;
-    const uint8_t* client_static_public = state.client_public_key.data();
+    const uint8_t* client_ephemeral_public = client_public_key;
+    const uint8_t* client_static_public = credentials.client_public_key.data();
     uint8_t dh1[PUBLIC_KEY_LENGTH];
     if (crypto_scalarmult_ristretto255(dh1, server_private_key.data(),
                                       client_static_public) != 0) {
         return Result::CryptoError;
     }
     uint8_t dh2[PUBLIC_KEY_LENGTH];
-    if (crypto_scalarmult_ristretto255(dh2, state.server_private_key.data(),
-                                      client_static_public) != 0) {
+    if (crypto_scalarmult_ristretto255(dh2, server_private_key.data(),
+                                      client_ephemeral_public) != 0) {
         return Result::CryptoError;
     }
     uint8_t dh3[PUBLIC_KEY_LENGTH];
-    if (crypto_scalarmult_ristretto255(dh3, server_private_key.data(),
-                                      client_ephemeral_public) != 0) {
+    if (crypto_scalarmult_ristretto255(dh3, state.server_private_key.data(),
+                                      client_static_public) != 0) {
         return Result::CryptoError;
     }
     secure_bytes ikm(3 * PUBLIC_KEY_LENGTH);
