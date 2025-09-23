@@ -3,6 +3,9 @@ set(CLIENT_SOURCES
     ${CMAKE_SOURCE_DIR}/src/core/oprf.cpp
     ${CMAKE_SOURCE_DIR}/src/core/crypto.cpp
     ${CMAKE_SOURCE_DIR}/src/core/envelope.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/registration.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/authentication.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/key_management.cpp
     ${CMAKE_SOURCE_DIR}/src/interop/client_exports.cpp
 )
 add_library(opaque_client SHARED ${CLIENT_SOURCES})

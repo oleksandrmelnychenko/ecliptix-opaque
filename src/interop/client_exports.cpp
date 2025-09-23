@@ -1,31 +1,39 @@
 #include "opaque/opaque.h"
+#include "opaque/client.h"
 #include <sodium.h>
 #include <cstring>
 #include <memory>
 #include <algorithm>
 using namespace ecliptix::security::opaque;
+
 struct OpaqueClientHandle {
+    std::unique_ptr<client::OpaqueClient> opaque_client;
+    ServerPublicKey server_public_key;
     bool is_initialized;
-    secure_bytes server_public_key;
-    secure_bytes client_context;
-    OpaqueClientHandle()
-        : is_initialized(false)
-        , server_public_key(PUBLIC_KEY_LENGTH)
-        , client_context(64) {}
+
+    OpaqueClientHandle(const uint8_t* server_key, size_t key_len)
+        : server_public_key(server_key, key_len), is_initialized(false) {
+        if (!server_public_key.verify()) {
+            throw std::runtime_error("Invalid server public key");
+        }
+        opaque_client = std::make_unique<client::OpaqueClient>(server_public_key);
+        is_initialized = true;
+    }
+
     ~OpaqueClientHandle() {
         is_initialized = false;
     }
 };
+
 struct ClientStateHandle {
+    std::unique_ptr<client::ClientState> client_state;
     bool has_active_session;
-    secure_bytes session_data;
-    secure_bytes password_hash;
-    secure_bytes blind_scalar;
-    ClientStateHandle()
-        : has_active_session(false)
-        , session_data(128)
-        , password_hash(HASH_LENGTH)
-        , blind_scalar(PRIVATE_KEY_LENGTH) {}
+
+    ClientStateHandle() : has_active_session(false) {
+        client_state = std::make_unique<client::ClientState>();
+        has_active_session = true;
+    }
+
     ~ClientStateHandle() {
         has_active_session = false;
     }
@@ -42,13 +50,10 @@ int opaque_client_create(
         return static_cast<int>(Result::InvalidPublicKey);
     }
     try {
-        auto client = std::make_unique<OpaqueClientHandle>();
-        std::copy(server_public_key, server_public_key + key_length,
-                 client->server_public_key.begin());
         if (!crypto::init()) {
             return static_cast<int>(Result::CryptoError);
         }
-        client->is_initialized = true;
+        auto client = std::make_unique<OpaqueClientHandle>(server_public_key, key_length);
         *handle = client.release();
         return static_cast<int>(Result::Success);
     } catch (const std::exception&) {
@@ -97,25 +102,17 @@ int opaque_client_create_registration_request(
         return static_cast<int>(Result::ValidationError);
     }
     try {
-        uint8_t password_hash[HASH_LENGTH];
-        Result result = crypto::kdf_extract(
-            reinterpret_cast<const uint8_t*>("OPAQUE-Registration"), 19,
-            password, password_length,
-            password_hash);
+        client::RegistrationRequest request;
+        Result result = client->opaque_client->create_registration_request(
+            password, password_length, request, *state->client_state);
         if (result != Result::Success) {
+            return static_cast<int>(result);
+        }
+
+        if (request.data.size() != REGISTRATION_REQUEST_LENGTH) {
             return static_cast<int>(Result::CryptoError);
         }
-        std::copy(password_hash, password_hash + HASH_LENGTH,
-                 state->password_hash.begin());
-        uint8_t blinded_element[PUBLIC_KEY_LENGTH];
-        uint8_t blind_scalar[PRIVATE_KEY_LENGTH];
-        result = oprf::blind(password_hash, HASH_LENGTH, blinded_element, blind_scalar);
-        if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
-        }
-        std::copy(blind_scalar, blind_scalar + PRIVATE_KEY_LENGTH,
-                 state->blind_scalar.begin());
-        std::copy(blinded_element, blinded_element + PUBLIC_KEY_LENGTH, request_out);
+        std::copy(request.data.begin(), request.data.end(), request_out);
         return static_cast<int>(Result::Success);
     } catch (const std::exception&) {
         return static_cast<int>(Result::MemoryError);
@@ -129,7 +126,7 @@ int opaque_client_finalize_registration(
     uint8_t* record_out,
     size_t record_length) {
     if (!client_handle || !response || response_length < REGISTRATION_RESPONSE_LENGTH ||
-        !state_handle || !record_out || record_length < 168) {
+        !state_handle || !record_out || record_length < (ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH)) {
         return static_cast<int>(Result::InvalidInput);
     }
     auto* client = static_cast<OpaqueClientHandle*>(client_handle);
@@ -138,45 +135,23 @@ int opaque_client_finalize_registration(
         return static_cast<int>(Result::ValidationError);
     }
     try {
-        uint8_t evaluated_element[PUBLIC_KEY_LENGTH];
-        std::copy(response, response + PUBLIC_KEY_LENGTH, evaluated_element);
-        uint8_t oprf_output[HASH_LENGTH];
-        Result result = oprf::finalize(
-            state->password_hash.data(), HASH_LENGTH,
-            state->blind_scalar.data(),
-            evaluated_element,
-            oprf_output);
+        client::RegistrationRecord record;
+        Result result = client->opaque_client->finalize_registration(
+            response, response_length, *state->client_state, record);
         if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
+            return static_cast<int>(result);
         }
-        uint8_t client_private_key[PRIVATE_KEY_LENGTH];
-        uint8_t client_public_key[PUBLIC_KEY_LENGTH];
-        result = crypto::random_bytes(client_private_key, PRIVATE_KEY_LENGTH);
-        if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
+
+        const size_t expected_record_size = record.envelope.size() + record.client_public_key.size();
+        if (record_length < expected_record_size) {
+            return static_cast<int>(Result::InvalidInput);
         }
-        result = crypto::derive_key_pair(client_private_key, client_private_key, client_public_key);
-        if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
-        }
-        Envelope envelope;
-        result = envelope::seal(
-            oprf_output, HASH_LENGTH,
-            client->server_public_key.data(),
-            client_private_key,
-            client_public_key,
-            envelope);
-        if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
-        }
+
         size_t offset = 0;
-        std::copy(envelope.nonce.begin(), envelope.nonce.end(), record_out + offset);
-        offset += envelope.nonce.size();
-        std::copy(envelope.ciphertext.begin(), envelope.ciphertext.end(), record_out + offset);
-        offset += envelope.ciphertext.size();
-        std::copy(envelope.auth_tag.begin(), envelope.auth_tag.end(), record_out + offset);
-        offset += envelope.auth_tag.size();
-        std::copy(client_public_key, client_public_key + PUBLIC_KEY_LENGTH, record_out + offset);
+        std::copy(record.envelope.begin(), record.envelope.end(), record_out + offset);
+        offset += record.envelope.size();
+        std::copy(record.client_public_key.begin(), record.client_public_key.end(), record_out + offset);
+
         return static_cast<int>(Result::Success);
     } catch (const std::exception&) {
         return static_cast<int>(Result::MemoryError);
@@ -199,45 +174,20 @@ int opaque_client_generate_ke1(
         return static_cast<int>(Result::ValidationError);
     }
     try {
-        uint8_t password_hash[HASH_LENGTH];
-        Result result = crypto::kdf_extract(
-            reinterpret_cast<const uint8_t*>("OPAQUE-Authentication"), 22,
-            password, password_length,
-            password_hash);
+        client::KE1 ke1;
+        Result result = client->opaque_client->generate_ke1(
+            password, password_length, ke1, *state->client_state);
         if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
+            return static_cast<int>(result);
         }
-        std::copy(password_hash, password_hash + HASH_LENGTH,
-                 state->password_hash.begin());
-        uint8_t blinded_element[PUBLIC_KEY_LENGTH];
-        uint8_t blind_scalar[PRIVATE_KEY_LENGTH];
-        result = oprf::blind(password_hash, HASH_LENGTH, blinded_element, blind_scalar);
-        if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
-        }
-        std::copy(blind_scalar, blind_scalar + PRIVATE_KEY_LENGTH,
-                 state->blind_scalar.begin());
-        uint8_t ephemeral_private[PRIVATE_KEY_LENGTH];
-        uint8_t ephemeral_public[PUBLIC_KEY_LENGTH];
-        result = crypto::random_bytes(ephemeral_private, PRIVATE_KEY_LENGTH);
-        if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
-        }
-        result = crypto::derive_key_pair(ephemeral_private, ephemeral_private, ephemeral_public);
-        if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
-        }
+
         size_t offset = 0;
-        std::copy(blinded_element, blinded_element + PUBLIC_KEY_LENGTH, ke1_out + offset);
-        offset += PUBLIC_KEY_LENGTH;
-        std::copy(ephemeral_public, ephemeral_public + PUBLIC_KEY_LENGTH, ke1_out + offset);
-        offset += PUBLIC_KEY_LENGTH;
-        result = crypto::random_bytes(ke1_out + offset, NONCE_LENGTH);
-        if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
-        }
-        std::copy(ephemeral_private, ephemeral_private + PRIVATE_KEY_LENGTH,
-                 state->session_data.begin());
+        std::copy(ke1.credential_request.begin(), ke1.credential_request.end(), ke1_out + offset);
+        offset += ke1.credential_request.size();
+        std::copy(ke1.client_public_key.begin(), ke1.client_public_key.end(), ke1_out + offset);
+        offset += ke1.client_public_key.size();
+        std::copy(ke1.client_nonce.begin(), ke1.client_nonce.end(), ke1_out + offset);
+
         return static_cast<int>(Result::Success);
     } catch (const std::exception&) {
         return static_cast<int>(Result::MemoryError);
@@ -260,33 +210,14 @@ int opaque_client_generate_ke3(
         return static_cast<int>(Result::ValidationError);
     }
     try {
-        size_t offset = 0;
-        uint8_t evaluated_element[PUBLIC_KEY_LENGTH];
-        std::copy(ke2 + offset, ke2 + offset + PUBLIC_KEY_LENGTH, evaluated_element);
-        offset += PUBLIC_KEY_LENGTH;
-        uint8_t oprf_output[HASH_LENGTH];
-        Result result = oprf::finalize(
-            state->password_hash.data(), HASH_LENGTH,
-            state->blind_scalar.data(),
-            evaluated_element,
-            oprf_output);
+        client::KE3 ke3;
+        Result result = client->opaque_client->generate_ke3(
+            ke2, ke2_length, *state->client_state, ke3);
         if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
+            return static_cast<int>(result);
         }
-        uint8_t shared_secret[PRIVATE_KEY_LENGTH];
-        result = crypto::random_bytes(shared_secret, PRIVATE_KEY_LENGTH);
-        if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
-        }
-        result = crypto::hmac(
-            shared_secret, PRIVATE_KEY_LENGTH,
-            oprf_output, HASH_LENGTH,
-            ke3_out);
-        if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
-        }
-        std::copy(shared_secret, shared_secret + PRIVATE_KEY_LENGTH,
-                 state->session_data.begin() + PRIVATE_KEY_LENGTH);
+
+        std::copy(ke3.client_mac.begin(), ke3.client_mac.end(), ke3_out);
         return static_cast<int>(Result::Success);
     } catch (const std::exception&) {
         return static_cast<int>(Result::MemoryError);
@@ -298,7 +229,7 @@ int opaque_client_finish(
     uint8_t* session_key_out,
     size_t session_key_length) {
     if (!client_handle || !state_handle ||
-        !session_key_out || session_key_length < 32) {
+        !session_key_out || session_key_length < HASH_LENGTH) {
         return static_cast<int>(Result::InvalidInput);
     }
     auto* client = static_cast<OpaqueClientHandle*>(client_handle);
@@ -307,14 +238,14 @@ int opaque_client_finish(
         return static_cast<int>(Result::ValidationError);
     }
     try {
-        const uint8_t* shared_secret = state->session_data.data() + PRIVATE_KEY_LENGTH;
-        Result result = crypto::kdf_expand(
-            shared_secret, PRIVATE_KEY_LENGTH,
-            reinterpret_cast<const uint8_t*>("OPAQUE-SessionKey"), 18,
-            session_key_out, std::min(session_key_length, size_t(32)));
+        secure_bytes session_key;
+        Result result = client->opaque_client->client_finish(*state->client_state, session_key);
         if (result != Result::Success) {
-            return static_cast<int>(Result::CryptoError);
+            return static_cast<int>(result);
         }
+
+        size_t copy_length = std::min(session_key_length, session_key.size());
+        std::copy(session_key.begin(), session_key.begin() + copy_length, session_key_out);
         return static_cast<int>(Result::Success);
     } catch (const std::exception&) {
         return static_cast<int>(Result::MemoryError);
