@@ -1,6 +1,7 @@
 #include "opaque/opaque.h"
 #include <sodium.h>
 #include <algorithm>
+#include <cstring>
 namespace ecliptix::security::opaque {
 namespace envelope {
 Result seal(const uint8_t* randomized_password, size_t password_length,

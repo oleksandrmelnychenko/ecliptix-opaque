@@ -5,7 +5,7 @@ set(SERVER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/core/envelope.cpp
     ${CMAKE_SOURCE_DIR}/src/server/registration.cpp
     ${CMAKE_SOURCE_DIR}/src/server/authentication.cpp
-    ${CMAKE_SOURCE_DIR}/src/server/credential_store.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/server.cpp
     ${CMAKE_SOURCE_DIR}/src/interop/server_exports.cpp
 )
 add_library(opaque_server SHARED ${SERVER_SOURCES})

@@ -36,11 +36,10 @@ Result generate_ke2_impl(const uint8_t* ke1_data, size_t ke1_length,
     const uint8_t* client_nonce = ke1_data + crypto_core_ristretto255_BYTES + PUBLIC_KEY_LENGTH;
     std::copy(client_public_key, client_public_key + PUBLIC_KEY_LENGTH,
              state.client_public_key.begin());
-    crypto::random_bytes(state.server_private_key.data(), PRIVATE_KEY_LENGTH);
-    if (crypto_scalarmult_ristretto255_base(state.server_public_key.data(),
-                                           state.server_private_key.data()) != 0) {
-        return Result::CryptoError;
-    }
+    std::copy(server_private_key.begin(), server_private_key.end(),
+              state.server_private_key.begin());
+    std::copy(server_public_key.begin(), server_public_key.end(),
+              state.server_public_key.begin());
     crypto::random_bytes(ke2.server_nonce.data(), NONCE_LENGTH);
     std::copy(state.server_public_key.begin(), state.server_public_key.end(),
              ke2.server_public_key.begin());
@@ -68,8 +67,8 @@ Result generate_ke2_impl(const uint8_t* ke1_data, size_t ke1_length,
         return Result::CryptoError;
     }
     uint8_t dh3[PUBLIC_KEY_LENGTH];
-    if (crypto_scalarmult_ristretto255(dh3, state.server_private_key.data(),
-                                      client_static_public) != 0) {
+    if (crypto_scalarmult_ristretto255(dh3, server_private_key.data(),
+                                      client_ephemeral_public) != 0) {
         return Result::CryptoError;
     }
     secure_bytes ikm(3 * PUBLIC_KEY_LENGTH);

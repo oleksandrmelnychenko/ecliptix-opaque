@@ -34,7 +34,7 @@ target_sources(test_opaque_protocol PRIVATE
     ${CMAKE_SOURCE_DIR}/src/client/key_management.cpp
     ${CMAKE_SOURCE_DIR}/src/server/registration.cpp
     ${CMAKE_SOURCE_DIR}/src/server/authentication.cpp
-    ${CMAKE_SOURCE_DIR}/src/server/credential_store.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/server.cpp
     ${CMAKE_SOURCE_DIR}/src/interop/client_exports.cpp
     ${CMAKE_SOURCE_DIR}/src/interop/server_exports.cpp
 )

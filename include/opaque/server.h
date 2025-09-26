@@ -58,35 +58,6 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 };
-struct CredentialFile {
-    secure_bytes user_id;
-    ServerCredentials credentials;
-    CredentialFile();
-};
-class CredentialStore {
-public:
-    CredentialStore();
-    ~CredentialStore();
-    CredentialStore(const CredentialStore&) = delete;
-    CredentialStore& operator=(const CredentialStore&) = delete;
-    Result store_credentials(
-        const uint8_t* user_id,
-        size_t user_id_length,
-        const ServerCredentials& credentials
-    );
-    Result retrieve_credentials(
-        const uint8_t* user_id,
-        size_t user_id_length,
-        ServerCredentials& credentials
-    );
-    Result remove_credentials(
-        const uint8_t* user_id,
-        size_t user_id_length
-    );
-private:
-    class Impl;
-    std::unique_ptr<Impl> impl_;
-};
 Result create_registration_response_impl(
     const uint8_t* registration_request,
     size_t request_length,

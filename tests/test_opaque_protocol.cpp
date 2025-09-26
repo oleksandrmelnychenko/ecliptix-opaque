@@ -19,8 +19,6 @@ extern "C" {
     struct opaque_server_handle_t;
     struct server_state_handle_t;
     struct server_keypair_handle_t;
-    struct credential_store_handle_t;
-
     int opaque_server_keypair_generate(server_keypair_handle_t** handle);
     void opaque_server_keypair_destroy(server_keypair_handle_t* handle);
     int opaque_server_keypair_get_public_key(server_keypair_handle_t* handle, uint8_t* public_key, size_t key_buffer_size);
@@ -31,10 +29,6 @@ extern "C" {
     int opaque_server_create_registration_response(opaque_server_handle_t* server_handle, const uint8_t* request_data, size_t request_length, uint8_t* response_data, size_t response_buffer_size, uint8_t* credentials_data, size_t credentials_buffer_size);
     int opaque_server_generate_ke2(opaque_server_handle_t* server_handle, const uint8_t* ke1_data, size_t ke1_length, const uint8_t* credentials_data, size_t credentials_length, uint8_t* ke2_data, size_t ke2_buffer_size, server_state_handle_t* state_handle);
     int opaque_server_finish(opaque_server_handle_t* server_handle, const uint8_t* ke3_data, size_t ke3_length, server_state_handle_t* state_handle, uint8_t* session_key, size_t session_key_buffer_size);
-    int opaque_credential_store_create(credential_store_handle_t** handle);
-    void opaque_credential_store_destroy(credential_store_handle_t* handle);
-    int opaque_credential_store_store(credential_store_handle_t* store_handle, const uint8_t* user_id, size_t user_id_length, const uint8_t* credentials_data, size_t credentials_length);
-    int opaque_credential_store_retrieve(credential_store_handle_t* store_handle, const uint8_t* user_id, size_t user_id_length, uint8_t* credentials_data, size_t credentials_buffer_size);
 }
 
 using namespace ecliptix::security::opaque;
@@ -43,7 +37,6 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
     REQUIRE(sodium_init() >= 0);
 
     const char* password = "super_secret_password";
-    const char* user_id = "test_user";
 
     server_keypair_handle_t* server_keypair = nullptr;
     REQUIRE(opaque_server_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
@@ -80,17 +73,11 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         client, registration_response, REGISTRATION_RESPONSE_LENGTH,
         client_state, registration_record, ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-    credential_store_handle_t* credential_store = nullptr;
-    REQUIRE(opaque_credential_store_create(&credential_store) == static_cast<int>(Result::Success));
-
+    // Store credentials for direct use (no credential store)
     uint8_t stored_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH];
     std::memcpy(stored_credentials, registration_record, ENVELOPE_LENGTH);
     std::memcpy(stored_credentials + ENVELOPE_LENGTH, server_credentials + ENVELOPE_LENGTH, PRIVATE_KEY_LENGTH);
     std::memcpy(stored_credentials + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH, registration_record + ENVELOPE_LENGTH, PUBLIC_KEY_LENGTH);
-
-    REQUIRE(opaque_credential_store_store(
-        credential_store, reinterpret_cast<const uint8_t*>(user_id), strlen(user_id),
-        stored_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
     opaque_client_state_destroy(client_state);
 
@@ -106,15 +93,11 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
             client, reinterpret_cast<const uint8_t*>(password), strlen(password),
             auth_client_state, ke1, KE1_LENGTH) == static_cast<int>(Result::Success));
 
-        uint8_t retrieved_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH];
-        REQUIRE(opaque_credential_store_retrieve(
-            credential_store, reinterpret_cast<const uint8_t*>(user_id), strlen(user_id),
-            retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
-
+        // Use stored credentials directly (no retrieval needed)
         uint8_t ke2[KE2_LENGTH];
         REQUIRE(opaque_server_generate_ke2(
             server, ke1, KE1_LENGTH,
-            retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH,
+            stored_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH,
             ke2, KE2_LENGTH, server_state) == static_cast<int>(Result::Success));
 
         uint8_t ke3[KE3_LENGTH];
@@ -151,15 +134,11 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
             client, reinterpret_cast<const uint8_t*>(wrong_password), strlen(wrong_password),
             auth_client_state, ke1, KE1_LENGTH) == static_cast<int>(Result::Success));
 
-        uint8_t retrieved_credentials[ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH];
-        REQUIRE(opaque_credential_store_retrieve(
-            credential_store, reinterpret_cast<const uint8_t*>(user_id), strlen(user_id),
-            retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
-
+        // Use stored credentials directly (no retrieval needed)
         uint8_t ke2[KE2_LENGTH];
         REQUIRE(opaque_server_generate_ke2(
             server, ke1, KE1_LENGTH,
-            retrieved_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH,
+            stored_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH,
             ke2, KE2_LENGTH, server_state) == static_cast<int>(Result::Success));
 
         uint8_t ke3[KE3_LENGTH];
@@ -180,7 +159,7 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         opaque_server_state_destroy(server_state);
     }
 
-    opaque_credential_store_destroy(credential_store);
+    // No credential store cleanup needed
     opaque_client_destroy(client);
     opaque_server_destroy(server);
     opaque_server_keypair_destroy(server_keypair);

@@ -2,6 +2,7 @@
 #include "opaque/version.h"
 #include "opaque/hardcoded_keys.h"
 #include <cstring>
+#include <sodium.h>
 extern "C" {
 using namespace ecliptix::security::opaque;
 using namespace ecliptix::security::opaque::server;
@@ -14,9 +15,6 @@ typedef struct {
 typedef struct {
     ServerKeyPair* keypair;
 } server_keypair_handle_t;
-typedef struct {
-    CredentialStore* store;
-} credential_store_handle_t;
 int opaque_server_keypair_generate(server_keypair_handle_t** handle) {
     if (!handle) {
         return static_cast<int>(Result::InvalidInput);
@@ -162,58 +160,6 @@ int opaque_server_finish(opaque_server_handle_t* server_handle,
     }
     return static_cast<int>(result);
 }
-int opaque_credential_store_create(credential_store_handle_t** handle) {
-    if (!handle) {
-        return static_cast<int>(Result::InvalidInput);
-    }
-    try {
-        auto store = new CredentialStore();
-        auto store_handle = new credential_store_handle_t;
-        store_handle->store = store;
-        *handle = store_handle;
-        return static_cast<int>(Result::Success);
-    } catch (...) {
-        return static_cast<int>(Result::MemoryError);
-    }
-}
-void opaque_credential_store_destroy(credential_store_handle_t* handle) {
-    if (handle) {
-        delete handle->store;
-        delete handle;
-    }
-}
-int opaque_credential_store_store(credential_store_handle_t* store_handle,
-                                 const uint8_t* user_id, size_t user_id_length,
-                                 const uint8_t* credentials_data, size_t credentials_length) {
-    if (!store_handle || !store_handle->store || !user_id || user_id_length == 0 ||
-        !credentials_data || credentials_length < (ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH)) {
-        return static_cast<int>(Result::InvalidInput);
-    }
-    ServerCredentials credentials;
-    credentials.envelope.assign(credentials_data, credentials_data + ENVELOPE_LENGTH);
-    credentials.masking_key.assign(credentials_data + ENVELOPE_LENGTH,
-                                  credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH);
-    credentials.client_public_key.assign(credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH,
-                                         credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH);
-    Result result = store_handle->store->store_credentials(user_id, user_id_length, credentials);
-    return static_cast<int>(result);
-}
-int opaque_credential_store_retrieve(credential_store_handle_t* store_handle,
-                                    const uint8_t* user_id, size_t user_id_length,
-                                    uint8_t* credentials_data, size_t credentials_buffer_size) {
-    if (!store_handle || !store_handle->store || !user_id || user_id_length == 0 ||
-        !credentials_data || credentials_buffer_size < (ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH)) {
-        return static_cast<int>(Result::InvalidInput);
-    }
-    ServerCredentials credentials;
-    Result result = store_handle->store->retrieve_credentials(user_id, user_id_length, credentials);
-    if (result == Result::Success) {
-        std::memcpy(credentials_data, credentials.envelope.data(), ENVELOPE_LENGTH);
-        std::memcpy(credentials_data + ENVELOPE_LENGTH, credentials.masking_key.data(), PRIVATE_KEY_LENGTH);
-        std::memcpy(credentials_data + ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH, credentials.client_public_key.data(), PUBLIC_KEY_LENGTH);
-    }
-    return static_cast<int>(result);
-}
 
 int opaque_server_create_default(opaque_server_handle_t** handle) {
     if (!handle) {
@@ -223,6 +169,66 @@ int opaque_server_create_default(opaque_server_handle_t** handle) {
         auto keypair = new ServerKeyPair();
         keypair->private_key.assign(keys::SERVER_PRIVATE_KEY, keys::SERVER_PRIVATE_KEY + 32);
         keypair->public_key.assign(keys::SERVER_PUBLIC_KEY, keys::SERVER_PUBLIC_KEY + 32);
+
+        auto server = new OpaqueServer(*keypair);
+        auto server_handle = new opaque_server_handle_t;
+        server_handle->server = server;
+        *handle = server_handle;
+
+        delete keypair;
+        return static_cast<int>(Result::Success);
+    } catch (...) {
+        return static_cast<int>(Result::MemoryError);
+    }
+}
+
+int opaque_server_derive_keypair_from_seed(
+    const uint8_t* seed, size_t seed_len,
+    uint8_t* private_key, size_t private_key_buffer_len,
+    uint8_t* public_key, size_t public_key_buffer_len) {
+
+    if (!seed || seed_len == 0 ||
+        !private_key || private_key_buffer_len < PRIVATE_KEY_LENGTH ||
+        !public_key || public_key_buffer_len < PUBLIC_KEY_LENGTH) {
+        return static_cast<int>(Result::InvalidInput);
+    }
+
+    try {
+        namespace crypto = ecliptix::security::opaque::crypto;
+
+        uint8_t hash[crypto_hash_sha512_BYTES];
+        crypto_hash_sha512(hash, seed, seed_len);
+
+        std::copy(hash, hash + PRIVATE_KEY_LENGTH, private_key);
+
+        private_key[0] &= 248;
+        private_key[31] &= 127;
+        private_key[31] |= 64;
+
+        if (crypto_scalarmult_ristretto255_base(public_key, private_key) != 0) {
+            return static_cast<int>(Result::CryptoError);
+        }
+
+        return static_cast<int>(Result::Success);
+    } catch (...) {
+        return static_cast<int>(Result::CryptoError);
+    }
+}
+
+int opaque_server_create_with_keys(
+    const uint8_t* private_key, size_t private_key_len,
+    const uint8_t* public_key, size_t public_key_len,
+    opaque_server_handle_t** handle) {
+
+    if (!private_key || private_key_len != PRIVATE_KEY_LENGTH ||
+        !public_key || public_key_len != PUBLIC_KEY_LENGTH || !handle) {
+        return static_cast<int>(Result::InvalidInput);
+    }
+
+    try {
+        auto keypair = new ServerKeyPair();
+        keypair->private_key.assign(private_key, private_key + PRIVATE_KEY_LENGTH);
+        keypair->public_key.assign(public_key, public_key + PUBLIC_KEY_LENGTH);
 
         auto server = new OpaqueServer(*keypair);
         auto server_handle = new opaque_server_handle_t;
