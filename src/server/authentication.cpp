@@ -10,12 +10,16 @@ KE2::KE2() : server_nonce(NONCE_LENGTH), server_public_key(PUBLIC_KEY_LENGTH),
              credential_response(CREDENTIAL_RESPONSE_LENGTH), server_mac(MAC_LENGTH) {}
 ServerState::ServerState() : server_private_key(PRIVATE_KEY_LENGTH),
                             server_public_key(PUBLIC_KEY_LENGTH),
+                            server_ephemeral_private_key(PRIVATE_KEY_LENGTH),
+                            server_ephemeral_public_key(PUBLIC_KEY_LENGTH),
                             client_public_key(PUBLIC_KEY_LENGTH),
                             session_key(0),
                             expected_client_mac(MAC_LENGTH) {}
 ServerState::~ServerState() {
     sodium_memzero(server_private_key.data(), server_private_key.size());
     sodium_memzero(server_public_key.data(), server_public_key.size());
+    sodium_memzero(server_ephemeral_private_key.data(), server_ephemeral_private_key.size());
+    sodium_memzero(server_ephemeral_public_key.data(), server_ephemeral_public_key.size());
     sodium_memzero(client_public_key.data(), client_public_key.size());
     if (!session_key.empty()) {
         sodium_memzero(session_key.data(), session_key.size());
@@ -40,8 +44,17 @@ Result generate_ke2_impl(const uint8_t* ke1_data, size_t ke1_length,
               state.server_private_key.begin());
     std::copy(server_public_key.begin(), server_public_key.end(),
               state.server_public_key.begin());
+
+    // Generate server ephemeral keypair for this session
+    crypto::random_bytes(state.server_ephemeral_private_key.data(), PRIVATE_KEY_LENGTH);
+    if (crypto_scalarmult_ristretto255_base(state.server_ephemeral_public_key.data(),
+                                           state.server_ephemeral_private_key.data()) != 0) {
+        return Result::CryptoError;
+    }
+
     crypto::random_bytes(ke2.server_nonce.data(), NONCE_LENGTH);
-    std::copy(state.server_public_key.begin(), state.server_public_key.end(),
+    // Send server EPHEMERAL public key, not static
+    std::copy(state.server_ephemeral_public_key.begin(), state.server_ephemeral_public_key.end(),
              ke2.server_public_key.begin());
     uint8_t evaluated_element[crypto_core_ristretto255_BYTES];
     Result result = oprf::evaluate(credential_request, credentials.masking_key.data(), evaluated_element);
@@ -67,8 +80,8 @@ Result generate_ke2_impl(const uint8_t* ke1_data, size_t ke1_length,
         return Result::CryptoError;
     }
     uint8_t dh3[PUBLIC_KEY_LENGTH];
-    if (crypto_scalarmult_ristretto255(dh3, server_private_key.data(),
-                                      client_ephemeral_public) != 0) {
+    if (crypto_scalarmult_ristretto255(dh3, state.server_ephemeral_private_key.data(),
+                                      client_static_public) != 0) {
         return Result::CryptoError;
     }
     secure_bytes ikm(3 * PUBLIC_KEY_LENGTH);
@@ -96,7 +109,7 @@ Result generate_ke2_impl(const uint8_t* ke1_data, size_t ke1_length,
     std::copy(client_ephemeral_public, client_ephemeral_public + PUBLIC_KEY_LENGTH,
              mac_input.begin() + offset);
     offset += PUBLIC_KEY_LENGTH;
-    std::copy(state.server_public_key.begin(), state.server_public_key.end(),
+    std::copy(state.server_ephemeral_public_key.begin(), state.server_ephemeral_public_key.end(),
              mac_input.begin() + offset);
     offset += PUBLIC_KEY_LENGTH;
     std::copy(client_nonce, client_nonce + NONCE_LENGTH,

@@ -15,6 +15,8 @@ struct KE2 {
 struct ServerState {
     secure_bytes server_private_key;
     secure_bytes server_public_key;
+    secure_bytes server_ephemeral_private_key;
+    secure_bytes server_ephemeral_public_key;
     secure_bytes client_public_key;
     secure_bytes session_key;
     secure_bytes expected_client_mac;
