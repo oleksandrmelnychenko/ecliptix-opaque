@@ -1,6 +1,7 @@
 FROM mcr.microsoft.com/windows/servercore:ltsc2022
 
 ARG BUILD_TARGET=both
+ENV BUILD_TARGET=${BUILD_TARGET}
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
@@ -34,14 +35,14 @@ COPY . .
 
 RUN $BUILD_CLIENT = 'OFF'; \
     $BUILD_SERVER = 'OFF'; \
-    $INSTALL_PREFIX = 'C:\workspace\dist\windows'; \
+    $INSTALL_PREFIX = 'C:\output\windows'; \
     if ($env:BUILD_TARGET -eq 'client') { \
         $BUILD_CLIENT = 'ON'; \
-        $INSTALL_PREFIX = 'C:\workspace\dist\client\windows' \
+        $INSTALL_PREFIX = 'C:\output\client\windows' \
     } \
     elseif ($env:BUILD_TARGET -eq 'server') { \
         $BUILD_SERVER = 'ON'; \
-        $INSTALL_PREFIX = 'C:\workspace\dist\server\windows' \
+        $INSTALL_PREFIX = 'C:\output\server\windows' \
     } \
     else { \
         $BUILD_CLIENT = 'ON'; \
@@ -49,4 +50,4 @@ RUN $BUILD_CLIENT = 'OFF'; \
     }; \
     cmd /c "\"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat\" && cmake -B build-windows -G \"Visual Studio 17 2022\" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_CLIENT=$BUILD_CLIENT -DBUILD_SERVER=$BUILD_SERVER -DBUILD_SHARED_LIBS=ON -DBUILD_DOTNET_INTEROP=ON -DBUILD_TESTS=ON -DENABLE_HARDENING=ON -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX && cmake --build build-windows --config Release && ctest --test-dir build-windows --output-on-failure -C Release && cmake --install build-windows --config Release"
 
-CMD ["powershell"]
+CMD ["powershell", "-Command", "Copy-Item -Recurse -Force C:\\output\\* C:\\workspace\\dist\\; Get-ChildItem -Recurse C:\\workspace\\dist"]

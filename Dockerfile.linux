@@ -1,6 +1,7 @@
 FROM ubuntu:22.04
 
 ARG BUILD_TARGET=both
+ENV BUILD_TARGET=${BUILD_TARGET}
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -27,13 +28,13 @@ COPY . .
 
 RUN BUILD_CLIENT=OFF; \
     BUILD_SERVER=OFF; \
-    INSTALL_PREFIX=/workspace/dist/linux; \
+    INSTALL_PREFIX=/output/linux; \
     if [ "$BUILD_TARGET" = "client" ]; then \
         BUILD_CLIENT=ON; \
-        INSTALL_PREFIX=/workspace/dist/client/linux; \
+        INSTALL_PREFIX=/output/client/linux; \
     elif [ "$BUILD_TARGET" = "server" ]; then \
         BUILD_SERVER=ON; \
-        INSTALL_PREFIX=/workspace/dist/server/linux; \
+        INSTALL_PREFIX=/output/server/linux; \
     else \
         BUILD_CLIENT=ON; \
         BUILD_SERVER=ON; \
@@ -53,4 +54,4 @@ RUN BUILD_CLIENT=OFF; \
     ctest --test-dir build-linux --output-on-failure && \
     cmake --install build-linux
 
-CMD ["bash"]
+CMD ["sh", "-c", "cp -r /output/* /workspace/dist/ && ls -la /workspace/dist"]
