@@ -3,29 +3,8 @@ name: Server Builds
 on:
   push:
     branches: [ main, develop, 'claude/**' ]
-    paths:
-      - 'src/**'
-      - 'include/**'
-      - 'tests/**'
-      - 'cmake/**'
-      - 'CMakeLists.txt'
-      - 'build.sh'
-      - 'Dockerfile.linux'
-      - 'Dockerfile.windows'
-      - '.dockerignore'
-      - '.github/workflows/server-builds.yml'
   pull_request:
     branches: [ main, develop ]
-    paths:
-      - 'src/**'
-      - 'include/**'
-      - 'tests/**'
-      - 'cmake/**'
-      - 'CMakeLists.txt'
-      - 'build.sh'
-      - 'Dockerfile.linux'
-      - 'Dockerfile.windows'
-      - '.dockerignore'
   workflow_dispatch:
 
 jobs:

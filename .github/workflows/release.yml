@@ -48,11 +48,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew update
           brew install libsodium cmake ninja pkg-config
 
       - name: Build client library
-        run: ./build.sh client
+        run: |
+          chmod +x build.sh
+          ./build.sh client
 
       - name: Create macOS archive
         run: |

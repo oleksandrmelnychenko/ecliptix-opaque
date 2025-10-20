@@ -31,7 +31,6 @@ jobs:
       - name: Install dependencies (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          brew update
           brew install libsodium cmake ninja pkg-config
 
       - name: Configure CMake
