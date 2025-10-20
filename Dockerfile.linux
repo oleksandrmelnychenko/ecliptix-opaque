@@ -54,4 +54,4 @@ RUN BUILD_CLIENT=OFF; \
     ctest --test-dir build-linux --output-on-failure && \
     cmake --install build-linux
 
-CMD ["sh", "-c", "cp -r /output/* /workspace/dist/ && ls -la /workspace/dist"]
+CMD ["sh", "-c", "echo 'Copying artifacts...' && ls -la /output && cp -r /output/* /workspace/dist/ 2>&1 && echo 'Artifacts copied successfully:' && find /workspace/dist -type f"]

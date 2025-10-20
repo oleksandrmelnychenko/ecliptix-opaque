@@ -55,13 +55,16 @@ case "${TARGET}" in
             exit 1
         fi
 
+        mkdir -p dist/client/windows
+
         docker build -f Dockerfile.windows -t ecliptix-opaque-client-windows \
             --build-arg BUILD_TARGET=client .
         docker run --rm -v "$(pwd)/dist:/workspace/dist" \
             ecliptix-opaque-client-windows
 
         echo "✅ CLIENT Windows build completed!"
-        echo "📦 Client library: dist/client/windows/bin/opaque_client.dll"
+        echo "📦 Checking artifacts..."
+        ls -la dist/client/windows/ || echo "⚠️  Artifacts not found!"
         ;;
 
     "client-linux")
@@ -72,13 +75,16 @@ case "${TARGET}" in
             exit 1
         fi
 
+        mkdir -p dist/client/linux
+
         docker build -f Dockerfile.linux -t ecliptix-opaque-client-linux \
             --build-arg BUILD_TARGET=client .
         docker run --rm -v "$(pwd)/dist:/workspace/dist" \
             ecliptix-opaque-client-linux
 
         echo "✅ CLIENT Linux build completed!"
-        echo "📦 Client library: dist/client/linux/lib/libopaque_client.so"
+        echo "📦 Checking artifacts..."
+        ls -la dist/client/linux/ || echo "⚠️  Artifacts not found!"
         ;;
 
     "client-all")
@@ -99,13 +105,16 @@ case "${TARGET}" in
             exit 1
         fi
 
+        mkdir -p dist/server/linux
+
         docker build -f Dockerfile.linux -t ecliptix-opaque-server-linux \
             --build-arg BUILD_TARGET=server .
         docker run --rm -v "$(pwd)/dist:/workspace/dist" \
             ecliptix-opaque-server-linux
 
         echo "✅ SERVER Linux build completed!"
-        echo "📦 Server library: dist/server/linux/lib/libopaque_server.so"
+        echo "📦 Checking artifacts..."
+        ls -la dist/server/linux/ || echo "⚠️  Artifacts not found!"
         ;;
 
     "server-windows")
@@ -116,13 +125,16 @@ case "${TARGET}" in
             exit 1
         fi
 
+        mkdir -p dist/server/windows
+
         docker build -f Dockerfile.windows -t ecliptix-opaque-server-windows \
             --build-arg BUILD_TARGET=server .
         docker run --rm -v "$(pwd)/dist:/workspace/dist" \
             ecliptix-opaque-server-windows
 
         echo "✅ SERVER Windows build completed!"
-        echo "📦 Server library: dist/server/windows/bin/opaque_server.dll"
+        echo "📦 Checking artifacts..."
+        ls -la dist/server/windows/ || echo "⚠️  Artifacts not found!"
         ;;
 
     "server-all")
