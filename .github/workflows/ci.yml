@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, 'claude/**' ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test-native:
+    name: Test - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        build_type: [Debug, Release]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev cmake ninja-build pkg-config
+
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew update
+          brew install libsodium cmake ninja pkg-config
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DBUILD_CLIENT=ON \
+            -DBUILD_SERVER=ON \
+            -DBUILD_DOTNET_INTEROP=ON \
+            -DBUILD_TESTS=ON \
+            -DENABLE_HARDENING=ON
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+  test-docker:
+    name: Test - Docker Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and test in Docker
+        run: |
+          docker-compose --profile linux build
+          docker-compose --profile linux up ecliptix-opaque-linux
+
+      - name: Verify build artifacts
+        run: |
+          if [ ! -d "dist/linux" ]; then
+            echo "Build artifacts not found!"
+            exit 1
+          fi
+          echo "Build artifacts found successfully"
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev cmake ninja-build pkg-config clang-tidy
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_CLIENT=ON \
+            -DBUILD_SERVER=ON \
+            -DBUILD_DOTNET_INTEROP=ON \
+            -DBUILD_TESTS=ON
+
+      - name: Check formatting (if applicable)
+        run: |
+          echo "Code formatting check (placeholder for future clang-format integration)"

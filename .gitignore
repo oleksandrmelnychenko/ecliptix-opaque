@@ -75,9 +75,6 @@ Thumbs.db
 *.gcno
 coverage/
 
-# Docker
-.dockerignore
-
 # Platform specific
 .vs/
 *.vcxproj.user

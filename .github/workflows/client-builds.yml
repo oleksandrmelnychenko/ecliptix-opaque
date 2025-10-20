@@ -1,0 +1,92 @@
+name: Client Builds
+
+on:
+  push:
+    branches: [ main, develop, 'claude/**' ]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'tests/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+      - 'build.sh'
+      - '.github/workflows/client-builds.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'tests/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+      - 'build.sh'
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    name: Build Client - macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install libsodium cmake ninja pkg-config
+
+      - name: Build client library
+        run: ./build.sh client
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-macos
+          path: dist/client/macos/
+          if-no-files-found: error
+          retention-days: 30
+
+  build-linux:
+    name: Build Client - Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build client library (Docker)
+        run: ./build.sh client-linux
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-linux
+          path: dist/client/linux/
+          if-no-files-found: error
+          retention-days: 30
+
+  build-windows:
+    name: Build Client - Windows
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build client library (Docker)
+        run: ./build.sh client-windows
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-windows
+          path: dist/client/windows/
+          if-no-files-found: error
+          retention-days: 30

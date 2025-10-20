@@ -1,5 +1,7 @@
 FROM ubuntu:22.04
 
+ARG BUILD_TARGET=both
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
@@ -23,12 +25,16 @@ WORKDIR /workspace
 
 COPY . .
 
-RUN mkdir -p build-linux && \
+RUN BUILD_CLIENT=OFF && BUILD_SERVER=OFF && \
+    if [ "$BUILD_TARGET" = "client" ]; then BUILD_CLIENT=ON; \
+    elif [ "$BUILD_TARGET" = "server" ]; then BUILD_SERVER=ON; \
+    else BUILD_CLIENT=ON && BUILD_SERVER=ON; fi && \
+    mkdir -p build-linux && \
     cmake -B build-linux \
         -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DBUILD_CLIENT=ON \
-        -DBUILD_SERVER=ON \
+        -DBUILD_CLIENT=$BUILD_CLIENT \
+        -DBUILD_SERVER=$BUILD_SERVER \
         -DBUILD_SHARED_LIBS=ON \
         -DBUILD_DOTNET_INTEROP=ON \
         -DBUILD_TESTS=ON \

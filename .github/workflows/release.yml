@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-all-platforms:
+    name: Build All Platforms
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build all platforms
+        run: ./build.sh all-platforms
+
+      - name: Create release archive
+        run: |
+          cd dist
+          tar -czf ecliptix-opaque-${{ github.ref_name }}.tar.gz .
+          cd ..
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.ref_name }}
+          path: dist/ecliptix-opaque-${{ github.ref_name }}.tar.gz
+          if-no-files-found: error
+          retention-days: 90
+
+  build-client-macos:
+    name: Build Client - macOS (Native)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install libsodium cmake ninja pkg-config
+
+      - name: Build client library
+        run: ./build.sh client
+
+      - name: Create macOS archive
+        run: |
+          cd dist/client/macos
+          tar -czf ../../../ecliptix-opaque-client-macos-${{ github.ref_name }}.tar.gz .
+          cd ../../..
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-macos-${{ github.ref_name }}
+          path: ecliptix-opaque-client-macos-${{ github.ref_name }}.tar.gz
+          if-no-files-found: error
+          retention-days: 90
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-all-platforms, build-client-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release-${{ github.ref_name }}/ecliptix-opaque-${{ github.ref_name }}.tar.gz
+            client-macos-${{ github.ref_name }}/ecliptix-opaque-client-macos-${{ github.ref_name }}.tar.gz
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
