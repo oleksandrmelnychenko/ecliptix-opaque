@@ -10,6 +10,9 @@ on:
       - 'cmake/**'
       - 'CMakeLists.txt'
       - 'build.sh'
+      - 'Dockerfile.linux'
+      - 'Dockerfile.windows'
+      - '.dockerignore'
       - '.github/workflows/server-builds.yml'
   pull_request:
     branches: [ main, develop ]
@@ -20,6 +23,9 @@ on:
       - 'cmake/**'
       - 'CMakeLists.txt'
       - 'build.sh'
+      - 'Dockerfile.linux'
+      - 'Dockerfile.windows'
+      - '.dockerignore'
   workflow_dispatch:
 
 jobs:
