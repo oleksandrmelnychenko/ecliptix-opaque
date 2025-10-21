@@ -28,6 +28,7 @@ WORKDIR C:/workspace
 COPY . .
 
 # Set up Visual Studio environment and build
+# Cache bust: 2025-10-21 - Force rebuild with call command fix
 SHELL ["cmd", "/S", "/C"]
 RUN call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" && \
     if "%BUILD_TARGET%"=="client" (set BUILD_CLIENT=ON && set BUILD_SERVER=OFF && set INSTALL_PREFIX=C:/output/client/windows) else (\
