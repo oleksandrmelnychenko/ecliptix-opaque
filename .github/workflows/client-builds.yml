@@ -64,8 +64,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build client library (Docker)
-        run: |
-          .\build.sh client-windows
+        run: ./build.sh client-windows
         shell: bash
 
       - name: Upload artifacts

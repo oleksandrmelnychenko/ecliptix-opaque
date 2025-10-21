@@ -39,8 +39,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build server library (Docker)
-        run: |
-          .\build.sh server-windows
+        run: ./build.sh server-windows
         shell: bash
 
       - name: Upload artifacts
