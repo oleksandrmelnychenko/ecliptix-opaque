@@ -32,17 +32,16 @@ jobs:
 
   build-windows:
     name: Build Server - Windows
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build server library (Docker)
-        run: ./build.sh server-windows
+        run: |
+          .\build.sh server-windows
+        shell: bash
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

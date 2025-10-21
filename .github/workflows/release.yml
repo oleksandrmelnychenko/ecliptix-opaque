@@ -10,34 +10,6 @@ permissions:
   contents: write
 
 jobs:
-  build-all-platforms:
-    name: Build All Platforms
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build all platforms
-        run: ./build.sh all-platforms
-
-      - name: Create release archive
-        run: |
-          cd dist
-          tar -czf ecliptix-opaque-${{ github.ref_name }}.tar.gz .
-          cd ..
-
-      - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-${{ github.ref_name }}
-          path: dist/ecliptix-opaque-${{ github.ref_name }}.tar.gz
-          if-no-files-found: error
-          retention-days: 90
-
   build-client-macos:
     name: Build Client - macOS (Native)
     runs-on: macos-latest
@@ -69,9 +41,65 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  build-client-linux:
+    name: Build Client - Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build client library
+        run: ./build.sh client-linux
+
+      - name: Create Linux archive
+        run: |
+          cd dist/client/linux
+          tar -czf ../../../ecliptix-opaque-client-linux-${{ github.ref_name }}.tar.gz .
+          cd ../../..
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-linux-${{ github.ref_name }}
+          path: ecliptix-opaque-client-linux-${{ github.ref_name }}.tar.gz
+          if-no-files-found: error
+          retention-days: 90
+
+  build-client-windows:
+    name: Build Client - Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build client library
+        run: |
+          .\build.sh client-windows
+        shell: bash
+
+      - name: Create Windows archive
+        run: |
+          cd dist/client/windows
+          tar -czf ../../../ecliptix-opaque-client-windows-${{ github.ref_name }}.tar.gz .
+          cd ../../..
+        shell: bash
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-windows-${{ github.ref_name }}
+          path: ecliptix-opaque-client-windows-${{ github.ref_name }}.tar.gz
+          if-no-files-found: error
+          retention-days: 90
+
   create-release:
     name: Create GitHub Release
-    needs: [build-all-platforms, build-client-macos]
+    needs: [build-client-macos, build-client-linux, build-client-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -86,8 +114,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            release-${{ github.ref_name }}/ecliptix-opaque-${{ github.ref_name }}.tar.gz
             client-macos-${{ github.ref_name }}/ecliptix-opaque-client-macos-${{ github.ref_name }}.tar.gz
+            client-linux-${{ github.ref_name }}/ecliptix-opaque-client-linux-${{ github.ref_name }}.tar.gz
+            client-windows-${{ github.ref_name }}/ecliptix-opaque-client-windows-${{ github.ref_name }}.tar.gz
           draft: false
           prerelease: false
           generate_release_notes: true
