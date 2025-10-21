@@ -28,6 +28,7 @@ WORKDIR C:/workspace
 COPY . .
 
 # Build using batch script for reliable vcvars64.bat execution
+SHELL ["cmd", "/S", "/C"]
 RUN C:/workspace/build-windows.bat
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
