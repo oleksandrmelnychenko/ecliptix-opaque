@@ -29,7 +29,7 @@ COPY . .
 
 # Build using batch script for reliable vcvars64.bat execution
 SHELL ["cmd", "/S", "/C"]
-RUN C:/workspace/build-windows.bat
+RUN C:\workspace\build-windows.bat
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 CMD ["powershell", "-Command", "Write-Host 'Copying artifacts...'; Get-ChildItem -Recurse C:/output; Copy-Item -Recurse -Force C:/output/* C:/workspace/dist/; Write-Host 'Artifacts copied successfully:'; Get-ChildItem -Recurse C:/workspace/dist"]
