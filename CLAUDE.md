@@ -33,15 +33,15 @@ The project uses CMake with C++20 standard. Note that the CMakeLists.txt specifi
 ./build.sh client-all       # All desktop platforms
 ```
 
-#### Server Builds (ASP.NET Core)
+#### Server Builds (ASP.NET Core - Linux Only)
 ```bash
-# Build server for current platform
-./build.sh server
+# Build server for Linux (production deployment)
+./build.sh server           # Builds for Linux via Docker
+./build.sh server-linux     # Same as above (explicit)
 
-# Build server for specific platforms
-./build.sh server-linux     # Linux servers (Docker/Cloud)
-./build.sh server-windows   # Windows servers (IIS/Azure)
-./build.sh server-all       # All server platforms
+# Note: Server builds are Linux-only
+# Servers are designed to run on Linux (Docker/Cloud/VPS)
+# Windows server builds are not supported
 ```
 
 #### Complete Builds
@@ -132,12 +132,13 @@ docker-compose --profile windows up ecliptix-opaque-windows
 ### Architecture
 - **Complete separation**: Client and server code are completely isolated
 - **Professional APIs**: C exports provide P/Invoke compatible interface for .NET
-- **Cross-platform**: Native builds for macOS, Docker builds for Windows/Linux
+- **Cross-platform clients**: Native builds for macOS, Docker builds for Windows/Linux
+- **Linux-only servers**: Server builds are Linux-only (production deployment target)
 - **Test-driven**: Comprehensive unit and integration tests run before each build
 
 ### .NET Integration
-- **Client libraries**: For Avalonia Desktop applications (future mobile support)
-- **Server libraries**: For ASP.NET Core server applications
+- **Client libraries**: For Avalonia Desktop applications (macOS, Windows, Linux)
+- **Server libraries**: For ASP.NET Core server applications (Linux-only)
 - **P/Invoke ready**: All exports use proper calling conventions and marshaling
 - **Memory safe**: Handles manage C++ object lifetimes safely
 
@@ -149,6 +150,5 @@ dist/
 │   ├── windows/bin/opaque_client.dll
 │   └── linux/lib/libopaque_client.so
 └── server/
-    ├── linux/lib/libopaque_server.so
-    └── windows/bin/opaque_server.dll
+    └── linux/lib/libopaque_server.so    # Linux-only
 ```
