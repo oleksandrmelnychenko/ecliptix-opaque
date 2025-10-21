@@ -4,6 +4,7 @@
 *.md
 !README.md
 build-*
+!build-windows.bat
 dist
 *.o
 *.a
