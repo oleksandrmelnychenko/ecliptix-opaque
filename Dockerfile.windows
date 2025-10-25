@@ -27,6 +27,14 @@ WORKDIR C:/workspace
 
 COPY . .
 
+# Debug: Check if Visual Studio is actually installed and find its path
+RUN powershell -Command "Write-Host 'Checking Visual Studio installation...'; \
+    Get-ChildItem 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\' -ErrorAction SilentlyContinue | Format-Table Name; \
+    Write-Host 'Checking VC directory...'; \
+    Get-ChildItem 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\' -ErrorAction SilentlyContinue | Format-Table Name; \
+    Write-Host 'Looking for vcvars64.bat...'; \
+    Get-ChildItem 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat' -ErrorAction SilentlyContinue"
+
 # Build using PowerShell script for reliable vcvars64.bat execution
 RUN powershell -ExecutionPolicy Bypass -File C:/workspace/build-windows.ps1
 
