@@ -5,6 +5,7 @@
 !README.md
 build-*
 !build-windows.bat
+!build-windows.ps1
 dist
 *.o
 *.a
