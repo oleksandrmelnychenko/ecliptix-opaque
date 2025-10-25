@@ -1,5 +1,8 @@
 FROM ubuntu:22.04
 
+ARG BUILD_TARGET=both
+ENV BUILD_TARGET=${BUILD_TARGET}
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
@@ -23,19 +26,32 @@ WORKDIR /workspace
 
 COPY . .
 
-RUN mkdir -p build-linux && \
+RUN BUILD_CLIENT=OFF; \
+    BUILD_SERVER=OFF; \
+    INSTALL_PREFIX=/output/linux; \
+    if [ "$BUILD_TARGET" = "client" ]; then \
+        BUILD_CLIENT=ON; \
+        INSTALL_PREFIX=/output/client/linux; \
+    elif [ "$BUILD_TARGET" = "server" ]; then \
+        BUILD_SERVER=ON; \
+        INSTALL_PREFIX=/output/server/linux; \
+    else \
+        BUILD_CLIENT=ON; \
+        BUILD_SERVER=ON; \
+    fi && \
+    mkdir -p build-linux && \
     cmake -B build-linux \
         -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DBUILD_CLIENT=ON \
-        -DBUILD_SERVER=ON \
+        -DBUILD_CLIENT=$BUILD_CLIENT \
+        -DBUILD_SERVER=$BUILD_SERVER \
         -DBUILD_SHARED_LIBS=ON \
         -DBUILD_DOTNET_INTEROP=ON \
         -DBUILD_TESTS=ON \
         -DENABLE_HARDENING=ON \
-        -DCMAKE_INSTALL_PREFIX=/workspace/dist/linux && \
+        -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX && \
     cmake --build build-linux && \
     ctest --test-dir build-linux --output-on-failure && \
     cmake --install build-linux
 
-CMD ["bash"]
+CMD ["sh", "-c", "echo 'Copying artifacts...' && ls -la /output && cp -r /output/* /workspace/dist/ 2>&1 && echo 'Artifacts copied successfully:' && find /workspace/dist -type f"]

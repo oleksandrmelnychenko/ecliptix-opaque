@@ -1,5 +1,8 @@
 FROM mcr.microsoft.com/windows/servercore:ltsc2022
 
+ARG BUILD_TARGET=both
+ENV BUILD_TARGET=${BUILD_TARGET}
+
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
@@ -12,24 +15,28 @@ RUN Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/Kitware/CMake/re
     Remove-Item cmake.msi;
 
 RUN Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/jedisct1/libsodium/releases/download/1.0.19-RELEASE/libsodium-1.0.19-msvc.zip' -OutFile libsodium.zip; \
-    Expand-Archive -Path libsodium.zip -DestinationPath C:\libsodium; \
+    Expand-Archive -Path libsodium.zip -DestinationPath C:/libsodium; \
     Remove-Item libsodium.zip;
 
-RUN Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/microsoft/vcpkg/archive/refs/heads/master.zip' -OutFile vcpkg.zip; \
-    Expand-Archive -Path vcpkg.zip -DestinationPath C:\; \
-    Rename-Item C:\vcpkg-master C:\vcpkg; \
-    Remove-Item vcpkg.zip; \
-    C:\vcpkg\bootstrap-vcpkg.bat; \
-    C:\vcpkg\vcpkg.exe integrate install; \
-    C:\vcpkg\vcpkg.exe install libsodium:x64-windows;
+ENV LIBSODIUM_ROOT=C:/libsodium
+ENV PATH="C:\Program Files\CMake\bin;${PATH}"
+ENV SODIUM_LIBRARY_RELEASE=C:/libsodium/x64/Release/v143/dynamic/libsodium.lib
+ENV SODIUM_INCLUDE_DIR=C:/libsodium/include
 
-ENV LIBSODIUM_ROOT=C:\libsodium
-ENV PATH="C:\Program Files\CMake\bin;C:\vcpkg;${PATH}"
-
-WORKDIR C:\workspace
+WORKDIR C:/workspace
 
 COPY . .
 
-RUN cmd /c '"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" && cmake -B build-windows -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_CLIENT=ON -DBUILD_SERVER=ON -DBUILD_SHARED_LIBS=ON -DBUILD_DOTNET_INTEROP=ON -DBUILD_TESTS=ON -DENABLE_HARDENING=ON -DCMAKE_INSTALL_PREFIX=C:\workspace\dist\windows && cmake --build build-windows --config Release && ctest --test-dir build-windows --output-on-failure -C Release && cmake --install build-windows --config Release'
+# Debug: Check if Visual Studio is actually installed and find its path
+RUN powershell -Command "Write-Host 'Checking Visual Studio installation...'; \
+    Get-ChildItem 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\' -ErrorAction SilentlyContinue | Format-Table Name; \
+    Write-Host 'Checking VC directory...'; \
+    Get-ChildItem 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\' -ErrorAction SilentlyContinue | Format-Table Name; \
+    Write-Host 'Looking for vcvars64.bat...'; \
+    Get-ChildItem 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat' -ErrorAction SilentlyContinue"
 
-CMD ["powershell"]
+# Build using PowerShell script for reliable vcvars64.bat execution
+RUN powershell -ExecutionPolicy Bypass -File C:/workspace/build-windows.ps1
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+CMD ["powershell", "-Command", "Write-Host 'Copying artifacts...'; Get-ChildItem -Recurse C:/output; Copy-Item -Recurse -Force C:/output/* C:/workspace/dist/; Write-Host 'Artifacts copied successfully:'; Get-ChildItem -Recurse C:/workspace/dist"]

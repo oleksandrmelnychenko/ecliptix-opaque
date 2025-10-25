@@ -55,13 +55,16 @@ case "${TARGET}" in
             exit 1
         fi
 
+        mkdir -p dist/client/windows
+
         docker build -f Dockerfile.windows -t ecliptix-opaque-client-windows \
             --build-arg BUILD_TARGET=client .
         docker run --rm -v "$(pwd)/dist:/workspace/dist" \
             ecliptix-opaque-client-windows
 
         echo "✅ CLIENT Windows build completed!"
-        echo "📦 Client library: dist/client/windows/bin/opaque_client.dll"
+        echo "📦 Checking artifacts..."
+        ls -la dist/client/windows/ || echo "⚠️  Artifacts not found!"
         ;;
 
     "client-linux")
@@ -72,13 +75,16 @@ case "${TARGET}" in
             exit 1
         fi
 
+        mkdir -p dist/client/linux
+
         docker build -f Dockerfile.linux -t ecliptix-opaque-client-linux \
             --build-arg BUILD_TARGET=client .
         docker run --rm -v "$(pwd)/dist:/workspace/dist" \
             ecliptix-opaque-client-linux
 
         echo "✅ CLIENT Linux build completed!"
-        echo "📦 Client library: dist/client/linux/lib/libopaque_client.so"
+        echo "📦 Checking artifacts..."
+        ls -la dist/client/linux/ || echo "⚠️  Artifacts not found!"
         ;;
 
     "client-all")
@@ -99,13 +105,16 @@ case "${TARGET}" in
             exit 1
         fi
 
+        mkdir -p dist/server/linux
+
         docker build -f Dockerfile.linux -t ecliptix-opaque-server-linux \
             --build-arg BUILD_TARGET=server .
         docker run --rm -v "$(pwd)/dist:/workspace/dist" \
             ecliptix-opaque-server-linux
 
         echo "✅ SERVER Linux build completed!"
-        echo "📦 Server library: dist/server/linux/lib/libopaque_server.so"
+        echo "📦 Checking artifacts..."
+        ls -la dist/server/linux/ || echo "⚠️  Artifacts not found!"
         ;;
 
     "server-windows")
@@ -116,13 +125,16 @@ case "${TARGET}" in
             exit 1
         fi
 
+        mkdir -p dist/server/windows
+
         docker build -f Dockerfile.windows -t ecliptix-opaque-server-windows \
             --build-arg BUILD_TARGET=server .
         docker run --rm -v "$(pwd)/dist:/workspace/dist" \
             ecliptix-opaque-server-windows
 
         echo "✅ SERVER Windows build completed!"
-        echo "📦 Server library: dist/server/windows/bin/opaque_server.dll"
+        echo "📦 Checking artifacts..."
+        ls -la dist/server/windows/ || echo "⚠️  Artifacts not found!"
         ;;
 
     "server-all")
@@ -143,105 +155,33 @@ case "${TARGET}" in
         echo "✅ Complete multi-platform build finished!"
         ;;
 
-    "legacy-native"|"native"|"macos")
-        echo "🍎 Building natively for macOS..."
-
-        if ! command -v cmake &> /dev/null; then
-            echo "❌ CMake not found. Please install CMake first."
-            exit 1
-        fi
-
-        if ! pkg-config --exists libsodium; then
-            echo "❌ libsodium not found. Please install libsodium first:"
-            echo "   brew install libsodium"
-            exit 1
-        fi
-
-        BUILD_DIR="build-macos-$(echo ${BUILD_TYPE} | tr '[:upper:]' '[:lower:]')"
-        INSTALL_DIR="dist/macos"
-
-        mkdir -p "${BUILD_DIR}" "${INSTALL_DIR}"
-
-        cmake -B "${BUILD_DIR}" \
-            -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
-            -DBUILD_CLIENT=ON \
-            -DBUILD_SERVER=ON \
-            -DBUILD_SHARED_LIBS=ON \
-            -DBUILD_DOTNET_INTEROP=ON \
-            -DBUILD_TESTS="${RUN_TESTS}" \
-            -DENABLE_HARDENING=ON \
-            -DCMAKE_INSTALL_PREFIX="${INSTALL_DIR}"
-
-        cmake --build "${BUILD_DIR}" --parallel
-
-        if [[ "${RUN_TESTS}" == "ON" ]]; then
-            echo "🧪 Running tests..."
-            ctest --test-dir "${BUILD_DIR}" --output-on-failure --parallel
-        fi
-
-        cmake --install "${BUILD_DIR}"
-
-        echo "✅ macOS build completed successfully!"
-        echo "📦 Libraries installed in: ${INSTALL_DIR}"
-        ;;
-
-    "linux")
-        echo "🐧 Building for Linux using Docker..."
-
-        if ! command -v docker &> /dev/null; then
-            echo "❌ Docker not found. Please install Docker first."
-            exit 1
-        fi
-
-        docker-compose --profile linux build
-        docker-compose --profile linux up ecliptix-opaque-linux
-
-        echo "✅ Linux build completed successfully!"
-        echo "📦 Libraries installed in: dist/linux"
-        ;;
-
-    "windows")
-        echo "🪟 Building for Windows using Docker..."
-
-        if ! command -v docker &> /dev/null; then
-            echo "❌ Docker not found. Please install Docker first."
-            exit 1
-        fi
-
-        docker-compose --profile windows build
-        docker-compose --profile windows up ecliptix-opaque-windows
-
-        echo "✅ Windows build completed successfully!"
-        echo "📦 Libraries installed in: dist/windows"
-        ;;
-
-    "all")
-        echo "🌍 Building for all platforms..."
-
-        "${0}" native "${BUILD_TYPE}" "${RUN_TESTS}"
-        "${0}" linux "${BUILD_TYPE}" "${RUN_TESTS}"
-        "${0}" windows "${BUILD_TYPE}" "${RUN_TESTS}"
-
-        echo "✅ All platform builds completed successfully!"
-        ;;
-
     *)
         echo "❌ Unknown target: ${TARGET}"
         echo ""
         echo "🎯 Available targets:"
-        echo "  Client builds (Avalonia Desktop):"
-        echo "    client, client-macos, client-windows, client-linux, client-all"
+        echo ""
+        echo "  Client builds (Avalonia Desktop + Future Mobile):"
+        echo "    client         - Build client for current platform"
+        echo "    client-macos   - Build client for macOS"
+        echo "    client-windows - Build client for Windows (Docker)"
+        echo "    client-linux   - Build client for Linux (Docker)"
+        echo "    client-all     - Build client for all platforms"
         echo ""
         echo "  Server builds (ASP.NET Core):"
-        echo "    server, server-linux, server-windows, server-all"
+        echo "    server         - Build server for Linux (Docker)"
+        echo "    server-linux   - Build server for Linux (Docker)"
+        echo "    server-windows - Build server for Windows (Docker)"
+        echo "    server-all     - Build server for all platforms"
         echo ""
         echo "  Complete builds:"
-        echo "    all-platforms"
-        echo ""
-        echo "  Legacy:"
-        echo "    native, macos, linux, windows"
+        echo "    all-platforms  - Build everything for all platforms"
         echo ""
         echo "Usage: $0 [target] [Debug|Release] [ON|OFF]"
+        echo ""
+        echo "Examples:"
+        echo "  $0 client                # Build client for current platform"
+        echo "  $0 server-linux          # Build server for Linux"
+        echo "  $0 all-platforms Release # Build everything in Release mode"
         exit 1
         ;;
 esac
