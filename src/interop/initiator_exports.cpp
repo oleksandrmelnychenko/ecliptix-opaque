@@ -6,6 +6,9 @@
 #include <cstring>
 #include <memory>
 #include <algorithm>
+#include "opaque/export.h"
+#include <stdexcept>
+
 using namespace ecliptix::security::opaque;
 
 struct OpaqueClientHandle {
@@ -42,7 +45,7 @@ struct ClientStateHandle {
 };
 
 extern "C" {
-int opaque_client_create(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_create(
     const uint8_t *server_public_key,
     size_t key_length,
     void **handle) {
@@ -64,14 +67,14 @@ int opaque_client_create(
     }
 }
 
-void opaque_client_destroy(void *handle) {
+ECLIPTIX_OPAQUE_C_EXPORT void opaque_client_destroy(void *handle) {
     if (handle) {
         std::unique_ptr<OpaqueClientHandle> client(
             static_cast<OpaqueClientHandle *>(handle));
     }
 }
 
-int opaque_client_state_create(void **handle) {
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_state_create(void **handle) {
     if (!handle) {
         return static_cast<int>(Result::InvalidInput);
     }
@@ -85,14 +88,14 @@ int opaque_client_state_create(void **handle) {
     }
 }
 
-void opaque_client_state_destroy(void *handle) {
+ECLIPTIX_OPAQUE_C_EXPORT void opaque_client_state_destroy(void *handle) {
     if (handle) {
         std::unique_ptr<ClientStateHandle> state(
             static_cast<ClientStateHandle *>(handle));
     }
 }
 
-int opaque_client_create_registration_request(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_create_registration_request(
     void *client_handle,
     const uint8_t *secure_key,
     size_t secure_key_length,
@@ -126,7 +129,7 @@ int opaque_client_create_registration_request(
     }
 }
 
-int opaque_client_finalize_registration(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_finalize_registration(
     void *client_handle,
     const uint8_t *response,
     size_t response_length,
@@ -170,7 +173,7 @@ int opaque_client_finalize_registration(
     }
 }
 
-int opaque_client_generate_ke1(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_generate_ke1(
     void *client_handle,
     const uint8_t *secure_key,
     size_t secure_key_length,
@@ -207,7 +210,7 @@ int opaque_client_generate_ke1(
     }
 }
 
-int opaque_client_generate_ke3(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_generate_ke3(
     void *client_handle,
     const uint8_t *ke2,
     const size_t ke2_length,
@@ -238,7 +241,7 @@ int opaque_client_generate_ke3(
     }
 }
 
-int opaque_client_finish(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_finish(
     void *client_handle,
     void *state_handle,
     uint8_t *session_key_out,
@@ -271,11 +274,11 @@ int opaque_client_finish(
     }
 }
 
-int opaque_client_create_default(void **handle) {
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_create_default(void **handle) {
     return opaque_client_create(keys::SERVER_PUBLIC_KEY, PUBLIC_KEY_LENGTH, handle);
 }
 
-const char *opaque_client_get_version() {
+ECLIPTIX_OPAQUE_C_EXPORT const char *opaque_client_get_version() {
     return OPAQUE_CLIENT_VERSION;
 }
 }

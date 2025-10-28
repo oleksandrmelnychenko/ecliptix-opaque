@@ -1,3 +1,6 @@
+cmake_minimum_required(VERSION 3.15)
+project(opaque_client)
+
 set(SERVER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/core/memory.cpp
     ${CMAKE_SOURCE_DIR}/src/core/oprf.cpp
@@ -34,6 +37,15 @@ else()
         target_link_libraries(${SERVER_TARGET} sodium)
     endif()
 endif()
+
+if(WIN32)
+    target_compile_definitions(opaque_server PRIVATE
+            BUILDING_DLL
+            ECLIPTIX_OPAQUE_EXPORTS
+    )
+    target_compile_options(${SERVER_TARGET} PRIVATE /wd4251)
+endif()
+
 target_compile_definitions(${SERVER_TARGET} PRIVATE
     OPAQUE_SERVER_BUILD
 )

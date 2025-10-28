@@ -1,5 +1,6 @@
 #include "opaque/responder.h"
 #include <sodium.h>
+#include <stdexcept>
 
 namespace ecliptix::security::opaque::responder {
     namespace {

@@ -2,6 +2,7 @@
 #include <sodium.h>
 #include <algorithm>
 #include <utility>
+#include <stdexcept>
 
 namespace ecliptix::security::opaque::initiator {
     Result create_registration_request_impl(const uint8_t *secure_key, size_t secure_key_length,

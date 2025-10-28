@@ -26,6 +26,7 @@
     #define ECLIPTIX_OPAQUE_EXTERN_C_END
 #endif
 #define ECLIPTIX_OPAQUE_EXPORT ECLIPTIX_OPAQUE_EXTERN_C ECLIPTIX_OPAQUE_API
+#define ECLIPTIX_OPAQUE_C_EXPORT ECLIPTIX_OPAQUE_EXTERN_C ECLIPTIX_OPAQUE_API
 #define ECLIPTIX_OPAQUE_DEPRECATED(msg) \
     [[deprecated(msg)]]
 #define ECLIPTIX_OPAQUE_NODISCARD \
@@ -38,6 +39,7 @@
     #include <cassert>
     #define ECLIPTIX_OPAQUE_ASSERT(condition) assert(condition)
 #endif
+
 namespace ecliptix::security::opaque {
 enum class ApiVersion : uint32_t {
     Version_1_0 = 0x00010000,
