@@ -46,6 +46,7 @@ Result finalize_registration_impl(const uint8_t* registration_response, size_t r
                            server_public_key,
                            state.client_private_key.data(),
                            state.client_public_key.data(),
+                           state.master_key.data(),
                            env);
     if (result != Result::Success) {
         return result;

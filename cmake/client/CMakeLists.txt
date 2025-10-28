@@ -19,12 +19,15 @@ target_include_directories(${CLIENT_TARGET} PUBLIC
     ${CMAKE_SOURCE_DIR}/include
     ${SODIUM_INCLUDE_DIRS}
 )
-target_link_libraries(${CLIENT_TARGET}
-    ${SODIUM_LIBRARIES}
-)
-target_link_directories(${CLIENT_TARGET} PRIVATE ${SODIUM_LIBRARY_DIRS})
-if(NOT SODIUM_LIBRARIES)
-    target_link_libraries(${CLIENT_TARGET} sodium)
+if(BUILD_STATIC_SODIUM)
+    find_library(SODIUM_STATIC_LIB NAMES libsodium.a PATHS ${SODIUM_LIBRARY_DIRS} REQUIRED)
+    target_link_libraries(${CLIENT_TARGET} ${SODIUM_STATIC_LIB})
+else()
+    target_link_libraries(${CLIENT_TARGET} ${SODIUM_LIBRARIES})
+    target_link_directories(${CLIENT_TARGET} PRIVATE ${SODIUM_LIBRARY_DIRS})
+    if(NOT SODIUM_LIBRARIES)
+        target_link_libraries(${CLIENT_TARGET} sodium)
+    endif()
 endif()
 target_compile_definitions(${CLIENT_TARGET} PRIVATE
     OPAQUE_CLIENT_BUILD

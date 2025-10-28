@@ -61,9 +61,10 @@ Result generate_ke3_impl(const uint8_t* ke2_data, size_t ke2_length,
     uint8_t recovered_server_public_key[PUBLIC_KEY_LENGTH];
     uint8_t recovered_client_private_key[PRIVATE_KEY_LENGTH];
     uint8_t recovered_client_public_key[PUBLIC_KEY_LENGTH];
+    uint8_t recovered_master_key[MASTER_KEY_LENGTH];
     result = envelope::open(env, randomized_pwd, sizeof(randomized_pwd),
                            server_public_key, recovered_server_public_key, recovered_client_private_key,
-                           recovered_client_public_key);
+                           recovered_client_public_key, recovered_master_key);
     if (result != Result::Success) {
         return result;
     }
@@ -73,6 +74,8 @@ Result generate_ke3_impl(const uint8_t* ke2_data, size_t ke2_length,
              state.client_private_key.begin());
     std::copy(recovered_client_public_key, recovered_client_public_key + PUBLIC_KEY_LENGTH,
              state.client_public_key.begin());
+    std::copy(recovered_master_key, recovered_master_key + MASTER_KEY_LENGTH,
+             state.master_key.begin());
     uint8_t dh1[PUBLIC_KEY_LENGTH];
     if (crypto_scalarmult_ristretto255(dh1, recovered_client_private_key,
                                       recovered_server_public_key) != 0) {

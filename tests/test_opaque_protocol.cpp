@@ -11,10 +11,10 @@ extern "C" {
     int opaque_client_state_create(void** handle);
     void opaque_client_state_destroy(void* handle);
     int opaque_client_create_registration_request(void* client_handle, const uint8_t* password, size_t password_length, void* state_handle, uint8_t* request_out, size_t request_length);
-    int opaque_client_finalize_registration(void* client_handle, const uint8_t* response, size_t response_length, void* state_handle, uint8_t* record_out, size_t record_length);
+    int opaque_client_finalize_registration(void* client_handle, const uint8_t* response, size_t response_length, const uint8_t* master_key, size_t master_key_length, void* state_handle, uint8_t* record_out, size_t record_length);
     int opaque_client_generate_ke1(void* client_handle, const uint8_t* password, size_t password_length, void* state_handle, uint8_t* ke1_out, size_t ke1_length);
     int opaque_client_generate_ke3(void* client_handle, const uint8_t* ke2, size_t ke2_length, void* state_handle, uint8_t* ke3_out, size_t ke3_length);
-    int opaque_client_finish(void* client_handle, void* state_handle, uint8_t* session_key_out, size_t session_key_length);
+    int opaque_client_finish(void* client_handle, void* state_handle, uint8_t* session_key_out, size_t session_key_length, uint8_t* master_key_out, size_t master_key_length);
 
     struct opaque_server_handle_t;
     struct server_state_handle_t;
@@ -68,9 +68,13 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         registration_response, REGISTRATION_RESPONSE_LENGTH,
         server_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
+    uint8_t master_key[MASTER_KEY_LENGTH];
+    randombytes_buf(master_key, MASTER_KEY_LENGTH);
+
     uint8_t registration_record[ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH];
     REQUIRE(opaque_client_finalize_registration(
         client, registration_response, REGISTRATION_RESPONSE_LENGTH,
+        master_key, MASTER_KEY_LENGTH,
         client_state, registration_record, ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
     // Store credentials for direct use (no credential store)
@@ -111,11 +115,14 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
             server_session_key, HASH_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t client_session_key[HASH_LENGTH];
+        uint8_t recovered_master_key[MASTER_KEY_LENGTH];
         REQUIRE(opaque_client_finish(
             client, auth_client_state,
-            client_session_key, HASH_LENGTH) == static_cast<int>(Result::Success));
+            client_session_key, HASH_LENGTH,
+            recovered_master_key, MASTER_KEY_LENGTH) == static_cast<int>(Result::Success));
 
         REQUIRE(std::memcmp(client_session_key, server_session_key, HASH_LENGTH) == 0);
+        REQUIRE(std::memcmp(recovered_master_key, master_key, MASTER_KEY_LENGTH) == 0);
 
         opaque_client_state_destroy(auth_client_state);
         opaque_server_state_destroy(server_state);

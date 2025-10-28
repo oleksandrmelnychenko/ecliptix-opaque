@@ -7,16 +7,17 @@ namespace ecliptix::security::opaque {
 constexpr size_t OPRF_SEED_LENGTH = 32;
 constexpr size_t PRIVATE_KEY_LENGTH = 32;
 constexpr size_t PUBLIC_KEY_LENGTH = 32;
+constexpr size_t MASTER_KEY_LENGTH = 32;
 constexpr size_t NONCE_LENGTH = 32;
 constexpr size_t MAC_LENGTH = 64; // HMAC-SHA512 for protocol MACs
 constexpr size_t HASH_LENGTH = 64;
-constexpr size_t ENVELOPE_LENGTH = 144; // 32 (nonce) + 96 (ciphertext) + 16 (secretbox_auth_tag)
+constexpr size_t ENVELOPE_LENGTH = 176; // 32 (nonce) + 128 (ciphertext: 32+32+32+32) + 16 (secretbox_auth_tag)
 constexpr size_t REGISTRATION_REQUEST_LENGTH = 32;
 constexpr size_t REGISTRATION_RESPONSE_LENGTH = 96;
 constexpr size_t CREDENTIAL_REQUEST_LENGTH = 96;
-constexpr size_t CREDENTIAL_RESPONSE_LENGTH = 176; // 32 (evaluated_element) + 144 (envelope)
+constexpr size_t CREDENTIAL_RESPONSE_LENGTH = 208; // 32 (evaluated_element) + 176 (envelope)
 constexpr size_t KE1_LENGTH = 96;
-constexpr size_t KE2_LENGTH = 304; // 32 (nonce) + 32 (server_pub) + 176 (cred_response) + 64 (mac)
+constexpr size_t KE2_LENGTH = 336; // 32 (nonce) + 32 (server_pub) + 208 (cred_response) + 64 (mac)
 constexpr size_t KE3_LENGTH = 64;
 enum class Result {
     Success = 0,
@@ -101,7 +102,7 @@ namespace crypto {
     Result decrypt_envelope(const uint8_t* key, size_t key_length, const uint8_t* ciphertext, size_t ciphertext_length, const uint8_t* nonce, const uint8_t* auth_tag, uint8_t* plaintext);
 }
 namespace envelope {
-    Result seal(const uint8_t* randomized_pwd, size_t pwd_length, const uint8_t* server_public_key, const uint8_t* client_private_key, const uint8_t* client_public_key, Envelope& envelope);
-    Result open(const Envelope& envelope, const uint8_t* randomized_pwd, size_t pwd_length, const uint8_t* known_server_public_key, uint8_t* server_public_key, uint8_t* client_private_key, uint8_t* client_public_key);
+    Result seal(const uint8_t* randomized_pwd, size_t pwd_length, const uint8_t* server_public_key, const uint8_t* client_private_key, const uint8_t* client_public_key, const uint8_t* master_key, Envelope& envelope);
+    Result open(const Envelope& envelope, const uint8_t* randomized_pwd, size_t pwd_length, const uint8_t* known_server_public_key, uint8_t* server_public_key, uint8_t* client_private_key, uint8_t* client_public_key, uint8_t* master_key);
 }
 }

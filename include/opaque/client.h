@@ -30,6 +30,7 @@ struct ClientState {
     secure_bytes session_key;
     secure_bytes oprf_blind_scalar;
     secure_bytes client_nonce;
+    secure_bytes master_key;
     ClientState();
     ~ClientState();
 };

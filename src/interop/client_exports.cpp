@@ -124,10 +124,13 @@ int opaque_client_finalize_registration(
     void* client_handle,
     const uint8_t* response,
     size_t response_length,
+    const uint8_t* master_key,
+    size_t master_key_length,
     void* state_handle,
     uint8_t* record_out,
     size_t record_length) {
     if (!client_handle || !response || response_length < REGISTRATION_RESPONSE_LENGTH ||
+        !master_key || master_key_length != MASTER_KEY_LENGTH ||
         !state_handle || !record_out || record_length < (ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH)) {
         return static_cast<int>(Result::InvalidInput);
     }
@@ -137,6 +140,7 @@ int opaque_client_finalize_registration(
         return static_cast<int>(Result::ValidationError);
     }
     try {
+        std::copy(master_key, master_key + MASTER_KEY_LENGTH, state->client_state->master_key.begin());
         client::RegistrationRecord record;
         Result result = client->opaque_client->finalize_registration(
             response, response_length, *state->client_state, record);
@@ -229,9 +233,12 @@ int opaque_client_finish(
     void* client_handle,
     void* state_handle,
     uint8_t* session_key_out,
-    size_t session_key_length) {
+    size_t session_key_length,
+    uint8_t* master_key_out,
+    size_t master_key_length) {
     if (!client_handle || !state_handle ||
-        !session_key_out || session_key_length < HASH_LENGTH) {
+        !session_key_out || session_key_length < HASH_LENGTH ||
+        !master_key_out || master_key_length != MASTER_KEY_LENGTH) {
         return static_cast<int>(Result::InvalidInput);
     }
     auto* client = static_cast<OpaqueClientHandle*>(client_handle);
@@ -248,6 +255,7 @@ int opaque_client_finish(
 
         size_t copy_length = std::min(session_key_length, session_key.size());
         std::copy(session_key.begin(), session_key.begin() + copy_length, session_key_out);
+        std::copy(state->client_state->master_key.begin(), state->client_state->master_key.end(), master_key_out);
         return static_cast<int>(Result::Success);
     } catch (const std::exception&) {
         return static_cast<int>(Result::MemoryError);

@@ -18,7 +18,8 @@ ClientState::ClientState() : password(0), client_private_key(PRIVATE_KEY_LENGTH)
                             server_public_key(PUBLIC_KEY_LENGTH),
                             session_key(0),
                             oprf_blind_scalar(PRIVATE_KEY_LENGTH),
-                            client_nonce(NONCE_LENGTH) {}
+                            client_nonce(NONCE_LENGTH),
+                            master_key(MASTER_KEY_LENGTH) {}
 ClientState::~ClientState() {
     if (!password.empty()) {
         sodium_memzero(password.data(), password.size());
@@ -33,6 +34,7 @@ ClientState::~ClientState() {
     }
     sodium_memzero(oprf_blind_scalar.data(), oprf_blind_scalar.size());
     sodium_memzero(client_nonce.data(), client_nonce.size());
+    sodium_memzero(master_key.data(), master_key.size());
 }
 class OpaqueClient::Impl {
 private:
