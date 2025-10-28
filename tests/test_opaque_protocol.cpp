@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "opaque/opaque.h"
-#include "opaque/client.h"
-#include "opaque/server.h"
+#include "opaque/initiator.h"
+#include "opaque/responder.h"
 #include <sodium.h>
 #include <cstring>
 
@@ -10,11 +10,11 @@ extern "C" {
     void opaque_client_destroy(void* handle);
     int opaque_client_state_create(void** handle);
     void opaque_client_state_destroy(void* handle);
-    int opaque_client_create_registration_request(void* client_handle, const uint8_t* password, size_t password_length, void* state_handle, uint8_t* request_out, size_t request_length);
-    int opaque_client_finalize_registration(void* client_handle, const uint8_t* response, size_t response_length, void* state_handle, uint8_t* record_out, size_t record_length);
-    int opaque_client_generate_ke1(void* client_handle, const uint8_t* password, size_t password_length, void* state_handle, uint8_t* ke1_out, size_t ke1_length);
+    int opaque_client_create_registration_request(void* client_handle, const uint8_t* secure_key, size_t secure_key_length, void* state_handle, uint8_t* request_out, size_t request_length);
+    int opaque_client_finalize_registration(void* client_handle, const uint8_t* response, size_t response_length, const uint8_t* master_key, size_t master_key_length, void* state_handle, uint8_t* record_out, size_t record_length);
+    int opaque_client_generate_ke1(void* client_handle, const uint8_t* secure_key, size_t secure_key_length, void* state_handle, uint8_t* ke1_out, size_t ke1_length);
     int opaque_client_generate_ke3(void* client_handle, const uint8_t* ke2, size_t ke2_length, void* state_handle, uint8_t* ke3_out, size_t ke3_length);
-    int opaque_client_finish(void* client_handle, void* state_handle, uint8_t* session_key_out, size_t session_key_length);
+    int opaque_client_finish(void* client_handle, void* state_handle, uint8_t* session_key_out, size_t session_key_length, uint8_t* master_key_out, size_t master_key_length);
 
     struct opaque_server_handle_t;
     struct server_state_handle_t;
@@ -36,7 +36,7 @@ using namespace ecliptix::security::opaque;
 TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
     REQUIRE(sodium_init() >= 0);
 
-    const char* password = "super_secret_password";
+    const char* secure_key = "super_secret_password";
 
     server_keypair_handle_t* server_keypair = nullptr;
     REQUIRE(opaque_server_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
@@ -58,7 +58,7 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
 
     uint8_t registration_request[REGISTRATION_REQUEST_LENGTH];
     REQUIRE(opaque_client_create_registration_request(
-        client, reinterpret_cast<const uint8_t*>(password), strlen(password),
+        client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
         client_state, registration_request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
     uint8_t registration_response[REGISTRATION_RESPONSE_LENGTH];
@@ -68,9 +68,13 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         registration_response, REGISTRATION_RESPONSE_LENGTH,
         server_credentials, ENVELOPE_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
+    uint8_t master_key[MASTER_KEY_LENGTH];
+    randombytes_buf(master_key, MASTER_KEY_LENGTH);
+
     uint8_t registration_record[ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH];
     REQUIRE(opaque_client_finalize_registration(
         client, registration_response, REGISTRATION_RESPONSE_LENGTH,
+        master_key, MASTER_KEY_LENGTH,
         client_state, registration_record, ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
     // Store credentials for direct use (no credential store)
@@ -81,7 +85,7 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
 
     opaque_client_state_destroy(client_state);
 
-    SECTION("Authentication with correct password") {
+    SECTION("Authentication with correct secure key") {
         void* auth_client_state = nullptr;
         REQUIRE(opaque_client_state_create(&auth_client_state) == static_cast<int>(Result::Success));
 
@@ -90,7 +94,7 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
 
         uint8_t ke1[KE1_LENGTH];
         REQUIRE(opaque_client_generate_ke1(
-            client, reinterpret_cast<const uint8_t*>(password), strlen(password),
+            client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
             auth_client_state, ke1, KE1_LENGTH) == static_cast<int>(Result::Success));
 
         // Use stored credentials directly (no retrieval needed)
@@ -111,27 +115,30 @@ TEST_CASE("OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
             server_session_key, HASH_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t client_session_key[HASH_LENGTH];
+        uint8_t recovered_master_key[MASTER_KEY_LENGTH];
         REQUIRE(opaque_client_finish(
             client, auth_client_state,
-            client_session_key, HASH_LENGTH) == static_cast<int>(Result::Success));
+            client_session_key, HASH_LENGTH,
+            recovered_master_key, MASTER_KEY_LENGTH) == static_cast<int>(Result::Success));
 
         REQUIRE(std::memcmp(client_session_key, server_session_key, HASH_LENGTH) == 0);
+        REQUIRE(std::memcmp(recovered_master_key, master_key, MASTER_KEY_LENGTH) == 0);
 
         opaque_client_state_destroy(auth_client_state);
         opaque_server_state_destroy(server_state);
     }
 
-    SECTION("Authentication with wrong password fails") {
+    SECTION("Authentication with wrong secure key fails") {
         void* auth_client_state = nullptr;
         REQUIRE(opaque_client_state_create(&auth_client_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
         REQUIRE(opaque_server_state_create(&server_state) == static_cast<int>(Result::Success));
 
-        const char* wrong_password = "wrong_password";
+        const char* wrong_secure_key = "wrong_password";
         uint8_t ke1[KE1_LENGTH];
         REQUIRE(opaque_client_generate_ke1(
-            client, reinterpret_cast<const uint8_t*>(wrong_password), strlen(wrong_password),
+            client, reinterpret_cast<const uint8_t*>(wrong_secure_key), strlen(wrong_secure_key),
             auth_client_state, ke1, KE1_LENGTH) == static_cast<int>(Result::Success));
 
         // Use stored credentials directly (no retrieval needed)

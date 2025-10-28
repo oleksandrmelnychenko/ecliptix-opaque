@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "ecliptix-security-opaque",
+  "version": "1.0.0",
+  "description": "OPAQUE Protocol Implementation - A modern C++23 implementation of the OPAQUE password-authenticated key exchange protocol",
+  "homepage": "https://github.com/ecliptix/security-opaque",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "libsodium",
+      "version>=": "1.0.18"
+    }
+  ],
+  "builtin-baseline": "2024.01.12"
+}

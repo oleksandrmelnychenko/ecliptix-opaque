@@ -6,6 +6,7 @@ dist/
 # IDE files
 .idea/
 .vscode/
+.claude/
 *.swp
 *.swo
 *~
@@ -94,3 +95,8 @@ coverage/
 # Memory dumps
 *.dmp
 core.*
+
+# Legacy directories
+client/
+server/
+extern/

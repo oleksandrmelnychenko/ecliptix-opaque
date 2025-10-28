@@ -1,8 +1,25 @@
 cmake_minimum_required(VERSION 3.20)
 project(Ecliptix_Security_OPAQUE VERSION 1.0.0 LANGUAGES CXX)
-set(CMAKE_CXX_STANDARD 20)
+
+# Require C++23 for modern features (concepts, std::expected, etc.)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Compiler version checks for C++23 support
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "13.0")
+        message(WARNING "GCC version ${CMAKE_CXX_COMPILER_VERSION} may have incomplete C++23 support. GCC 13+ recommended.")
+    endif()
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "17.0")
+        message(WARNING "Clang version ${CMAKE_CXX_COMPILER_VERSION} may have incomplete C++23 support. Clang 17+ recommended.")
+    endif()
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "19.36")
+        message(WARNING "MSVC version ${CMAKE_CXX_COMPILER_VERSION} may have incomplete C++23 support. MSVC 19.36+ recommended.")
+    endif()
+endif()
 option(BUILD_CLIENT "Build client library" ON)
 option(BUILD_SERVER "Build server library" ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
@@ -11,8 +28,19 @@ option(ENABLE_HARDENING "Enable security hardening flags" ON)
 option(BUILD_TESTS "Build unit tests" ON)
 option(RUN_TESTS_BEFORE_BUILD "Run tests before building libraries" ON)
 option(BUILD_STATIC_SODIUM "Link libsodium statically" OFF)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SODIUM REQUIRED libsodium)
+
+# Find libsodium - support both vcpkg (find_package) and pkg-config
+if(DEFINED ENV{VCPKG_ROOT} OR DEFINED CMAKE_TOOLCHAIN_FILE)
+    # Using vcpkg or another package manager that provides find_package
+    find_package(unofficial-sodium CONFIG REQUIRED)
+    set(SODIUM_LIBRARIES unofficial-sodium::sodium)
+    set(SODIUM_INCLUDE_DIRS "")  # Handled by target
+    set(SODIUM_LIBRARY_DIRS "")  # Handled by target
+else()
+    # Using system package manager (apt, brew, etc.)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(SODIUM REQUIRED libsodium)
+endif()
 if(WIN32)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF)
 elseif(APPLE)
@@ -29,7 +57,11 @@ if(ENABLE_HARDENING)
             -Wformat-security
             -Wall
             -Wextra
+            -Wpedantic
             -Werror
+            -Wconversion
+            -Wsign-conversion
+            -Wnull-dereference
         )
         if(UNIX AND NOT APPLE)
             add_link_options(-Wl,-z,relro,-z,now)
@@ -59,6 +91,11 @@ if(BUILD_TESTS)
             GIT_SHALLOW TRUE
         )
         FetchContent_MakeAvailable(Catch2)
+
+        # Disable strict warnings for third-party Catch2 library
+        if(TARGET Catch2)
+            target_compile_options(Catch2 PRIVATE -Wno-sign-conversion -Wno-conversion)
+        endif()
     endif()
     add_subdirectory(tests)
 endif()

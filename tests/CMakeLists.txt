@@ -29,14 +29,14 @@ target_sources(test_opaque_protocol PRIVATE
     ${CMAKE_SOURCE_DIR}/src/core/oprf.cpp
     ${CMAKE_SOURCE_DIR}/src/core/crypto.cpp
     ${CMAKE_SOURCE_DIR}/src/core/envelope.cpp
-    ${CMAKE_SOURCE_DIR}/src/client/registration.cpp
-    ${CMAKE_SOURCE_DIR}/src/client/authentication.cpp
-    ${CMAKE_SOURCE_DIR}/src/client/key_management.cpp
-    ${CMAKE_SOURCE_DIR}/src/server/registration.cpp
-    ${CMAKE_SOURCE_DIR}/src/server/authentication.cpp
-    ${CMAKE_SOURCE_DIR}/src/server/server.cpp
-    ${CMAKE_SOURCE_DIR}/src/interop/client_exports.cpp
-    ${CMAKE_SOURCE_DIR}/src/interop/server_exports.cpp
+    ${CMAKE_SOURCE_DIR}/src/initiator/registration.cpp
+    ${CMAKE_SOURCE_DIR}/src/initiator/authentication.cpp
+    ${CMAKE_SOURCE_DIR}/src/initiator/key_management.cpp
+    ${CMAKE_SOURCE_DIR}/src/responder/registration.cpp
+    ${CMAKE_SOURCE_DIR}/src/responder/authentication.cpp
+    ${CMAKE_SOURCE_DIR}/src/responder/server.cpp
+    ${CMAKE_SOURCE_DIR}/src/interop/initiator_exports.cpp
+    ${CMAKE_SOURCE_DIR}/src/interop/responder_exports.cpp
 )
 
 target_link_directories(test_opaque_protocol PRIVATE ${SODIUM_LIBRARY_DIRS})

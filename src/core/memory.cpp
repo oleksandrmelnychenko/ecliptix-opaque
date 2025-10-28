@@ -1,6 +1,7 @@
 #include "opaque/opaque.h"
 #include <stdexcept>
 #include <algorithm>
+#include <ranges>
 #include <cstring>
 #include <memory>
 #include <sodium.h>
@@ -44,23 +45,24 @@ namespace {
 #endif
     }
 }
-template<typename T>
+template<SecurelyAllocatable T>
 T* SecureAllocator<T>::allocate(size_t n) {
-    if (n > SIZE_MAX / sizeof(T)) {
+    if (n > SIZE_MAX / sizeof(T)) [[unlikely]] {
         throw std::bad_alloc();
     }
     void* ptr = secure_malloc(n * sizeof(T));
-    if (!ptr) {
+    if (!ptr) [[unlikely]] {
         throw std::bad_alloc();
     }
     return static_cast<T*>(ptr);
 }
-template<typename T>
+template<SecurelyAllocatable T>
 void SecureAllocator<T>::deallocate(T* p, size_t n) {
-    if (p) {
+    if (p) [[likely]] {
         secure_free(p, n * sizeof(T));
     }
 }
+// Explicit instantiation for uint8_t (the primary use case)
 template class SecureAllocator<uint8_t>;
 SecureBuffer::SecureBuffer(size_t size) : data_(nullptr), size_(size) {
     if (size == 0) {
@@ -136,25 +138,19 @@ void SecureBuffer::make_noaccess() {
 }
 Envelope::Envelope() : nonce(NONCE_LENGTH), auth_tag(crypto_secretbox_MACBYTES) {}
 Envelope::Envelope(size_t auth_tag_size) : nonce(NONCE_LENGTH), auth_tag(auth_tag_size) {}
-ServerPublicKey::ServerPublicKey() : key_data(PUBLIC_KEY_LENGTH) {}
-ServerPublicKey::ServerPublicKey(const uint8_t* data, size_t size) : key_data(size) {
+ResponderPublicKey::ResponderPublicKey() : key_data(PUBLIC_KEY_LENGTH) {}
+ResponderPublicKey::ResponderPublicKey(const uint8_t* data, size_t size) : key_data(size) {
     if (data && size > 0) {
         std::copy(data, data + size, key_data.begin());
     }
 }
-bool ServerPublicKey::verify() const {
-    if (key_data.size() != PUBLIC_KEY_LENGTH) {
+bool ResponderPublicKey::verify() const {
+    if (key_data.size() != PUBLIC_KEY_LENGTH) [[unlikely]] {
         return false;
     }
-    bool all_zero = true;
-    for (size_t i = 0; i < key_data.size(); ++i) {
-        if (key_data[i] != 0) {
-            all_zero = false;
-            break;
-        }
-    }
+    bool all_zero = std::ranges::all_of(key_data, [](auto byte) { return byte == 0; });
     return !all_zero;
 }
-ClientCredentials::ClientCredentials() : envelope(ENVELOPE_LENGTH), server_public_key(PUBLIC_KEY_LENGTH) {}
-ServerCredentials::ServerCredentials() : envelope(ENVELOPE_LENGTH), masking_key(PRIVATE_KEY_LENGTH), client_public_key(PUBLIC_KEY_LENGTH) {}
+InitiatorCredentials::InitiatorCredentials() : envelope(ENVELOPE_LENGTH), responder_public_key(PUBLIC_KEY_LENGTH) {}
+ResponderCredentials::ResponderCredentials() : envelope(ENVELOPE_LENGTH), masking_key(PRIVATE_KEY_LENGTH), initiator_public_key(PUBLIC_KEY_LENGTH) {}
 }

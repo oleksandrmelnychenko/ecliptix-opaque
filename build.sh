@@ -32,6 +32,7 @@ case "${TARGET}" in
             -DBUILD_DOTNET_INTEROP=ON \
             -DBUILD_TESTS="${RUN_TESTS}" \
             -DENABLE_HARDENING=ON \
+            -DBUILD_STATIC_SODIUM=ON \
             -DCMAKE_INSTALL_PREFIX="${INSTALL_DIR}"
 
         cmake --build "${BUILD_DIR}" --parallel
@@ -170,6 +171,7 @@ case "${TARGET}" in
             -DBUILD_DOTNET_INTEROP=ON \
             -DBUILD_TESTS="${RUN_TESTS}" \
             -DENABLE_HARDENING=ON \
+            -DBUILD_STATIC_SODIUM=ON \
             -DCMAKE_INSTALL_PREFIX="${INSTALL_DIR}"
 
         cmake --build "${BUILD_DIR}" --parallel
