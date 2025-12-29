@@ -5,86 +5,73 @@ namespace Ecliptix.OPAQUE.Client;
 
 /// <summary>
 /// OPAQUE protocol client (initiator) for secure password authentication.
-/// Implements the client-side of the OPAQUE PAKE protocol.
 /// </summary>
-/// <remarks>
-/// The OPAQUE protocol ensures that passwords never leave the client device.
-/// Server stores only a verifier that cannot be used to impersonate the client.
-/// </remarks>
 public sealed class OpaqueClient : IDisposable
 {
-    private IntPtr _clientHandle;
+    private readonly IntPtr _clientHandle;
     private bool _disposed;
 
     /// <summary>
     /// Initializes a new OPAQUE client with the server's public key.
     /// </summary>
     /// <param name="serverPublicKey">The server's 32-byte Ristretto255 public key.</param>
-    /// <exception cref="ArgumentException">If the public key is not exactly 32 bytes.</exception>
-    /// <exception cref="OpaqueException">If client creation fails.</exception>
     public OpaqueClient(byte[] serverPublicKey)
     {
-        if (serverPublicKey == null || serverPublicKey.Length != OpaqueConstants.PUBLIC_KEY_LENGTH)
+        if (serverPublicKey.Length != OpaqueConstants.PUBLIC_KEY_LENGTH)
         {
-            throw new ArgumentException(
-                $"Server public key must be exactly {OpaqueConstants.PUBLIC_KEY_LENGTH} bytes",
-                nameof(serverPublicKey));
+            throw new ArgumentException(string.Format(OpaqueErrorMessages.SERVER_PUBLIC_KEY_INVALID_SIZE,
+                OpaqueConstants.PUBLIC_KEY_LENGTH));
         }
 
         int result = OpaqueClientNative.opaque_client_create(
-            serverPublicKey,
-            (UIntPtr)serverPublicKey.Length,
-            out _clientHandle);
+            serverPublicKey, (UIntPtr)serverPublicKey.Length, out _clientHandle);
 
-        if (result != (int)OpaqueResult.Success || _clientHandle == IntPtr.Zero)
+        if (result != (int)OpaqueResult.SUCCESS || _clientHandle == IntPtr.Zero)
         {
-            throw new OpaqueException((OpaqueResult)result, "Failed to create OPAQUE client");
+            throw new InvalidOperationException(string.Format(OpaqueErrorMessages.FAILED_TO_CREATE_OPAQUE_CLIENT,
+                (OpaqueResult)result));
         }
     }
 
     /// <summary>
     /// Creates a registration request to register a new password with the server.
     /// </summary>
-    /// <param name="password">The password bytes (will be securely cleared after use).</param>
-    /// <returns>A <see cref="RegistrationState"/> containing the request to send to the server.</returns>
-    /// <exception cref="ArgumentException">If password is null or empty.</exception>
-    /// <exception cref="OpaqueException">If request creation fails.</exception>
-    public RegistrationState CreateRegistrationRequest(byte[] password)
+    /// <param name="secureKey">The secure key bytes (will be securely cleared after use).</param>
+    /// <returns>A <see cref="RegistrationResult"/> containing the request to send to the server.</returns>
+    public RegistrationResult CreateRegistrationRequest(byte[] secureKey)
     {
         ThrowIfDisposed();
-
-        if (password == null || password.Length == 0)
-            throw new ArgumentException("Password cannot be null or empty", nameof(password));
+        if (secureKey == null || secureKey.Length == 0)
+        {
+            throw new ArgumentException(OpaqueErrorMessages.SECURE_KEY_NULL_OR_EMPTY);
+        }
 
         try
         {
-            int stateResult = OpaqueClientNative.opaque_client_state_create(out IntPtr stateHandle);
-            if (stateResult != (int)OpaqueResult.Success)
-            {
-                throw new OpaqueException((OpaqueResult)stateResult, "Failed to create registration state");
-            }
-
             byte[] request = new byte[OpaqueConstants.REGISTRATION_REQUEST_LENGTH];
 
-            int result = OpaqueClientNative.opaque_client_create_registration_request(
-                _clientHandle,
-                password,
-                (UIntPtr)password.Length,
-                stateHandle,
-                request,
-                (UIntPtr)request.Length);
-
-            if (result != (int)OpaqueResult.Success)
+            int stateResult = OpaqueClientNative.opaque_client_state_create(out IntPtr state);
+            if (stateResult != (int)OpaqueResult.SUCCESS)
             {
-                OpaqueClientNative.opaque_client_state_destroy(stateHandle);
-                throw new OpaqueException((OpaqueResult)result, "Failed to create registration request");
+                throw new InvalidOperationException(string.Format(OpaqueErrorMessages.FAILED_TO_CREATE_STATE,
+                    (OpaqueResult)stateResult));
             }
 
-            return new RegistrationState(request, stateHandle);
+            int result = OpaqueClientNative.opaque_client_create_registration_request(
+                _clientHandle, secureKey, (UIntPtr)secureKey.Length, state, request, (UIntPtr)request.Length);
+
+            if (result == (int)OpaqueResult.SUCCESS)
+            {
+                return new RegistrationResult(request, state);
+            }
+
+            OpaqueClientNative.opaque_client_state_destroy(state);
+            throw new InvalidOperationException(string.Format(OpaqueErrorMessages.FAILED_TO_CREATE_REGISTRATION_REQUEST,
+                (OpaqueResult)result));
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(password);
+            ClearSecureKey(secureKey);
         }
     }
 
@@ -94,40 +81,29 @@ public sealed class OpaqueClient : IDisposable
     /// <param name="serverResponse">The 64-byte response from the server.</param>
     /// <param name="registrationState">The state from <see cref="CreateRegistrationRequest"/>.</param>
     /// <returns>The registration record (168 bytes) to be stored on the server.</returns>
-    /// <exception cref="ArgumentException">If server response has invalid length.</exception>
-    /// <exception cref="OpaqueException">If finalization fails.</exception>
-    public byte[] FinalizeRegistration(byte[] serverResponse, RegistrationState registrationState)
+    public byte[] FinalizeRegistration(byte[]? serverResponse, RegistrationResult registrationState)
     {
-        ThrowIfDisposed();
-
-        if (serverResponse == null || serverResponse.Length != OpaqueConstants.REGISTRATION_RESPONSE_LENGTH)
-        {
-            throw new ArgumentException(
-                $"Server response must be exactly {OpaqueConstants.REGISTRATION_RESPONSE_LENGTH} bytes",
-                nameof(serverResponse));
-        }
-
-        if (registrationState == null)
-            throw new ArgumentNullException(nameof(registrationState));
-
         try
         {
+            ThrowIfDisposed();
+            if (serverResponse?.Length != OpaqueConstants.REGISTRATION_RESPONSE_LENGTH)
+            {
+                throw new ArgumentException(
+                    string.Format(OpaqueErrorMessages.SERVER_RESPONSE_INVALID_SIZE,
+                        OpaqueConstants.REGISTRATION_RESPONSE_LENGTH));
+            }
+
             byte[] record = new byte[OpaqueConstants.REGISTRATION_RECORD_LENGTH];
 
             int result = OpaqueClientNative.opaque_client_finalize_registration(
-                _clientHandle,
-                serverResponse,
-                (UIntPtr)serverResponse.Length,
-                registrationState.StateHandle,
-                record,
-                (UIntPtr)record.Length);
+                _clientHandle, serverResponse, (UIntPtr)serverResponse.Length,
+                registrationState.StateHandle, record, (UIntPtr)record.Length);
 
-            if (result != (int)OpaqueResult.Success)
-            {
-                throw new OpaqueException((OpaqueResult)result, "Failed to finalize registration");
-            }
-
-            return record;
+            return result != (int)OpaqueResult.SUCCESS
+                ? throw new InvalidOperationException(string.Format(
+                    OpaqueErrorMessages.FAILED_TO_FINALIZE_REGISTRATION,
+                    (OpaqueResult)result))
+                : record;
         }
         finally
         {
@@ -138,84 +114,67 @@ public sealed class OpaqueClient : IDisposable
     /// <summary>
     /// Generates the first key exchange message (KE1) to begin authentication.
     /// </summary>
-    /// <param name="password">The password bytes (will be securely cleared after use).</param>
-    /// <returns>A <see cref="KeyExchangeState"/> containing KE1 to send to the server.</returns>
-    /// <exception cref="ArgumentException">If password is null or empty.</exception>
-    /// <exception cref="OpaqueException">If KE1 generation fails.</exception>
-    public KeyExchangeState GenerateKe1(byte[] password)
+    /// <param name="secureKey">The secure key bytes (will be securely cleared after use).</param>
+    /// <returns>A <see cref="KeyExchangeResult"/> containing KE1 to send to the server.</returns>
+    public KeyExchangeResult GenerateKe1(byte[] secureKey)
     {
         ThrowIfDisposed();
-
-        if (password == null || password.Length == 0)
-            throw new ArgumentException("Password cannot be null or empty", nameof(password));
+        if (secureKey == null || secureKey.Length == 0)
+        {
+            throw new ArgumentException(OpaqueErrorMessages.SECURE_KEY_NULL_OR_EMPTY);
+        }
 
         try
         {
-            int stateResult = OpaqueClientNative.opaque_client_state_create(out IntPtr stateHandle);
-            if (stateResult != (int)OpaqueResult.Success)
-            {
-                throw new OpaqueException((OpaqueResult)stateResult, "Failed to create key exchange state");
-            }
-
             byte[] ke1 = new byte[OpaqueConstants.KE1_LENGTH];
 
-            int result = OpaqueClientNative.opaque_client_generate_ke1(
-                _clientHandle,
-                password,
-                (UIntPtr)password.Length,
-                stateHandle,
-                ke1,
-                (UIntPtr)ke1.Length);
-
-            if (result != (int)OpaqueResult.Success)
+            int stateResult = OpaqueClientNative.opaque_client_state_create(out IntPtr state);
+            if (stateResult != (int)OpaqueResult.SUCCESS)
             {
-                OpaqueClientNative.opaque_client_state_destroy(stateHandle);
-                throw new OpaqueException((OpaqueResult)result, "Failed to generate KE1");
+                throw new InvalidOperationException(string.Format(OpaqueErrorMessages.FAILED_TO_CREATE_STATE,
+                    (OpaqueResult)stateResult));
             }
 
-            return new KeyExchangeState(ke1, stateHandle);
+            int result = OpaqueClientNative.opaque_client_generate_ke1(
+                _clientHandle, secureKey, (UIntPtr)secureKey.Length, state, ke1, (UIntPtr)ke1.Length);
+
+            if (result == (int)OpaqueResult.SUCCESS)
+            {
+                return new KeyExchangeResult(ke1, state);
+            }
+
+            OpaqueClientNative.opaque_client_state_destroy(state);
+            throw new InvalidOperationException(string.Format(OpaqueErrorMessages.FAILED_TO_GENERATE_KE1,
+                (OpaqueResult)result));
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(password);
+            ClearSecureKey(secureKey);
         }
     }
 
     /// <summary>
     /// Generates the third key exchange message (KE3) after receiving KE2 from the server.
     /// </summary>
-    /// <param name="ke2">The 288-byte KE2 message from the server.</param>
+    /// <param name="ke2">The KE2 message from the server.</param>
     /// <param name="keyExchangeState">The state from <see cref="GenerateKe1"/>.</param>
-    /// <returns>The KE3 message (64 bytes) to send to the server, or null if authentication failed.</returns>
-    /// <exception cref="ArgumentException">If KE2 has invalid length.</exception>
-    public byte[]? GenerateKe3(byte[] ke2, KeyExchangeState keyExchangeState)
+    /// <returns>A tuple containing (success, ke3 data or null).</returns>
+    public (OpaqueResult Result, byte[]? Ke3) GenerateKe3(byte[]? ke2, KeyExchangeResult keyExchangeState)
     {
         ThrowIfDisposed();
-
-        if (ke2 == null || ke2.Length != OpaqueConstants.KE2_LENGTH)
+        if (ke2?.Length != OpaqueConstants.KE2_LENGTH)
         {
-            return null;
+            return (OpaqueResult.INVALID_INPUT, null);
         }
-
-        if (keyExchangeState == null)
-            throw new ArgumentNullException(nameof(keyExchangeState));
 
         byte[] ke3 = new byte[OpaqueConstants.KE3_LENGTH];
 
         int result = OpaqueClientNative.opaque_client_generate_ke3(
-            _clientHandle,
-            ke2,
-            (UIntPtr)ke2.Length,
-            keyExchangeState.StateHandle,
-            ke3,
-            (UIntPtr)ke3.Length);
+            _clientHandle, ke2, (UIntPtr)ke2.Length, keyExchangeState.StateHandle, ke3, (UIntPtr)ke3.Length);
 
-        if (result != (int)OpaqueResult.Success)
-        {
-            return null;
-        }
-
-        return ke3;
+        return result != (int)OpaqueResult.SUCCESS
+            ? ((OpaqueResult)result, null)
+            : (OpaqueResult.SUCCESS, ke3);
     }
 
     /// <summary>
@@ -223,68 +182,47 @@ public sealed class OpaqueClient : IDisposable
     /// Call this after the server confirms KE3.
     /// </summary>
     /// <param name="keyExchangeState">The state from <see cref="GenerateKe1"/>.</param>
-    /// <returns>The derived session and master keys.</returns>
-    /// <exception cref="OpaqueException">If key derivation fails.</exception>
-    public DerivedKeys FinishAuthentication(KeyExchangeState keyExchangeState)
+    /// <returns>A tuple containing (SessionKey, MasterKey).</returns>
+    public (byte[] SessionKey, byte[] MasterKey) DeriveBaseMasterKey(KeyExchangeResult keyExchangeState)
     {
         ThrowIfDisposed();
 
-        if (keyExchangeState == null)
-            throw new ArgumentNullException(nameof(keyExchangeState));
-
-        byte[] sessionKey = new byte[OpaqueConstants.SESSION_KEY_LENGTH];
+        byte[] sessionKey = new byte[OpaqueConstants.HASH_LENGTH];
         byte[] masterKey = new byte[OpaqueConstants.MASTER_KEY_LENGTH];
 
         int result = OpaqueClientNative.opaque_client_finish(
-            _clientHandle,
-            keyExchangeState.StateHandle,
-            sessionKey,
-            (UIntPtr)sessionKey.Length,
-            masterKey,
-            (UIntPtr)masterKey.Length);
+            _clientHandle, keyExchangeState.StateHandle,
+            sessionKey, (UIntPtr)sessionKey.Length,
+            masterKey, (UIntPtr)masterKey.Length);
 
-        if (result != (int)OpaqueResult.Success)
+        if (result != (int)OpaqueResult.SUCCESS)
         {
-            CryptographicOperations.ZeroMemory(sessionKey);
-            CryptographicOperations.ZeroMemory(masterKey);
-            throw new OpaqueException((OpaqueResult)result, "Failed to derive session keys");
+            throw new InvalidOperationException(string.Format(OpaqueErrorMessages.FAILED_TO_DERIVE_SESSION_KEY,
+                (OpaqueResult)result));
         }
 
-        return new DerivedKeys(sessionKey, masterKey);
-    }
-
-    /// <summary>
-    /// Gets the version of the native OPAQUE library.
-    /// </summary>
-    public static string GetNativeVersion()
-    {
-        IntPtr versionPtr = OpaqueClientNative.opaque_client_get_version();
-        return versionPtr != IntPtr.Zero
-            ? System.Runtime.InteropServices.Marshal.PtrToStringAnsi(versionPtr) ?? "unknown"
-            : "unknown";
+        return (sessionKey, masterKey);
     }
 
     private void ThrowIfDisposed()
     {
         if (_disposed)
+        {
             throw new ObjectDisposedException(nameof(OpaqueClient));
+        }
     }
+
+    private static void ClearSecureKey(byte[] secureKey) => CryptographicOperations.ZeroMemory(secureKey);
 
     /// <inheritdoc />
     public void Dispose()
     {
-        if (_disposed) return;
-
-        if (_clientHandle != IntPtr.Zero)
+        if (_disposed || _clientHandle == IntPtr.Zero)
         {
-            OpaqueClientNative.opaque_client_destroy(_clientHandle);
-            _clientHandle = IntPtr.Zero;
+            return;
         }
 
+        OpaqueClientNative.opaque_client_destroy(_clientHandle);
         _disposed = true;
-        GC.SuppressFinalize(this);
     }
-
-    /// <summary>Finalizer.</summary>
-    ~OpaqueClient() => Dispose();
 }

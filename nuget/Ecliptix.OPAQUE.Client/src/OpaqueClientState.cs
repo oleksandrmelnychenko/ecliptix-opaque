@@ -5,13 +5,13 @@ namespace Ecliptix.OPAQUE.Client;
 /// <summary>
 /// Holds the state for a registration operation, including the request data and native state handle.
 /// </summary>
-public sealed class RegistrationState : IDisposable
+public sealed class RegistrationResult : IDisposable
 {
     private readonly byte[] _request;
     private IntPtr _stateHandle;
     private bool _disposed;
 
-    internal RegistrationState(byte[] request, IntPtr stateHandle)
+    internal RegistrationResult(byte[] request, IntPtr stateHandle)
     {
         _request = request;
         _stateHandle = stateHandle;
@@ -22,15 +22,16 @@ public sealed class RegistrationState : IDisposable
     /// </summary>
     public byte[] GetRequestCopy() => (byte[])_request.Clone();
 
-    /// <summary>
-    /// Gets the registration request data as a read-only span.
-    /// </summary>
-    public ReadOnlySpan<byte> Request => _request;
-
     internal IntPtr StateHandle => _stateHandle;
 
     /// <inheritdoc />
     public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    private void Dispose(bool disposing)
     {
         if (_disposed) return;
 
@@ -41,42 +42,42 @@ public sealed class RegistrationState : IDisposable
         }
 
         _disposed = true;
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>Finalizer.</summary>
-    ~RegistrationState() => Dispose();
+    ~RegistrationResult() => Dispose(false);
 }
 
 /// <summary>
 /// Holds the state for a key exchange (authentication) operation.
 /// </summary>
-public sealed class KeyExchangeState : IDisposable
+public sealed class KeyExchangeResult : IDisposable
 {
-    private readonly byte[] _ke1Data;
+    private readonly byte[] _keyExchangeData;
     private IntPtr _stateHandle;
     private bool _disposed;
 
-    internal KeyExchangeState(byte[] ke1Data, IntPtr stateHandle)
+    internal KeyExchangeResult(byte[] keyExchangeData, IntPtr stateHandle)
     {
-        _ke1Data = ke1Data;
+        _keyExchangeData = keyExchangeData;
         _stateHandle = stateHandle;
     }
 
     /// <summary>
     /// Gets a copy of the KE1 message to send to the server.
     /// </summary>
-    public byte[] GetKe1Copy() => (byte[])_ke1Data.Clone();
-
-    /// <summary>
-    /// Gets the KE1 message data as a read-only span.
-    /// </summary>
-    public ReadOnlySpan<byte> Ke1 => _ke1Data;
+    public byte[] GetKeyExchangeDataCopy() => (byte[])_keyExchangeData.Clone();
 
     internal IntPtr StateHandle => _stateHandle;
 
     /// <inheritdoc />
     public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    private void Dispose(bool disposing)
     {
         if (_disposed) return;
 
@@ -87,27 +88,8 @@ public sealed class KeyExchangeState : IDisposable
         }
 
         _disposed = true;
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>Finalizer.</summary>
-    ~KeyExchangeState() => Dispose();
-}
-
-/// <summary>
-/// Contains the session and master keys derived after successful authentication.
-/// </summary>
-public readonly struct DerivedKeys
-{
-    /// <summary>Gets the session key (64 bytes).</summary>
-    public byte[] SessionKey { get; }
-
-    /// <summary>Gets the master key (32 bytes).</summary>
-    public byte[] MasterKey { get; }
-
-    internal DerivedKeys(byte[] sessionKey, byte[] masterKey)
-    {
-        SessionKey = sessionKey;
-        MasterKey = masterKey;
-    }
+    ~KeyExchangeResult() => Dispose(false);
 }
