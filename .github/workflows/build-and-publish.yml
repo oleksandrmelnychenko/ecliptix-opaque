@@ -246,12 +246,22 @@ jobs:
           ls -la output/
 
       - name: Publish to GitHub Packages
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Add GitHub Packages source with authentication
+          dotnet nuget add source \
+            --username ${{ github.repository_owner }} \
+            --password ${{ secrets.GITHUB_TOKEN }} \
+            --store-password-in-clear-text \
+            --name github \
+            "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" || true
+
           cd nuget/output
           for pkg in *.nupkg; do
             echo "Publishing $pkg..."
             dotnet nuget push "$pkg" \
-              --source "https://nuget.pkg.github.com/oleksandrmelnychenko/index.json" \
+              --source "github" \
               --api-key ${{ secrets.GITHUB_TOKEN }} \
               --skip-duplicate
           done
