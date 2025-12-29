@@ -48,7 +48,9 @@ if(WIN32)
             BUILDING_DLL
             ECLIPTIX_OPAQUE_EXPORTS
     )
-    target_compile_options(${SERVER_TARGET} PRIVATE /wd4251)
+    if(MSVC)
+        target_compile_options(${SERVER_TARGET} PRIVATE /wd4251)
+    endif()
 endif()
 
 target_compile_definitions(${SERVER_TARGET} PRIVATE
