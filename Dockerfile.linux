@@ -1,0 +1,41 @@
+FROM ubuntu:24.04
+
+ARG BUILD_TARGET=client
+ARG BUILD_TYPE=Release
+ARG RUN_TESTS=ON
+
+ENV BUILD_TARGET=${BUILD_TARGET}
+ENV BUILD_TYPE=${BUILD_TYPE}
+ENV RUN_TESTS=${RUN_TESTS}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git \
+    pkg-config \
+    libsodium-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+COPY . /workspace
+
+CMD ["/bin/bash", "-lc", "set -euo pipefail; \
+    if [ \"${BUILD_TARGET}\" = \"client\" ]; then BUILD_CLIENT=ON; BUILD_SERVER=OFF; else BUILD_CLIENT=OFF; BUILD_SERVER=ON; fi; \
+    BUILD_DIR=build-linux-${BUILD_TARGET}; \
+    INSTALL_DIR=/workspace/dist/${BUILD_TARGET}/linux; \
+    cmake -B ${BUILD_DIR} \
+        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+        -DBUILD_CLIENT=${BUILD_CLIENT} \
+        -DBUILD_SERVER=${BUILD_SERVER} \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_DOTNET_INTEROP=ON \
+        -DBUILD_TESTS=${RUN_TESTS} \
+        -DENABLE_HARDENING=ON \
+        -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}; \
+    cmake --build ${BUILD_DIR} --parallel; \
+    if [ \"${RUN_TESTS}\" = \"ON\" ]; then ctest --test-dir ${BUILD_DIR} --output-on-failure --parallel; fi; \
+    cmake --install ${BUILD_DIR}; \
+    "]

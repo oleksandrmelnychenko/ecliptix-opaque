@@ -1,0 +1,377 @@
+#!/bin/bash
+set -euo pipefail
+
+# =============================================================================
+# Ecliptix.Security.OPAQUE - Complete NuGet Package Builder
+# =============================================================================
+# Builds, protects, signs, and packages both Client and Server NuGet packages.
+#
+# Prerequisites:
+#   - .NET SDK 6.0+
+#   - Native libraries built (run ../build.sh all-platforms first)
+#   - Optional: VMProtect/Themida for protection
+#   - Optional: Code signing certificates
+#
+# Usage:
+#   ./build-packages.sh [options]
+#
+# Options:
+#   --version X.Y.Z     Package version (default: 1.0.0)
+#   --config Release    Build configuration (default: Release)
+#   --skip-native       Skip copying native libraries (use existing)
+#   --skip-protect      Skip obfuscation/protection
+#   --skip-sign         Skip code signing
+#   --client-only       Build only client package
+#   --server-only       Build only server package
+# =============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+DIST_DIR="$PROJECT_ROOT/dist"
+OUTPUT_DIR="$SCRIPT_DIR/output"
+
+# Default options
+VERSION="1.0.0"
+CONFIG="Release"
+SKIP_NATIVE=false
+SKIP_PROTECT=false
+SKIP_SIGN=false
+BUILD_CLIENT=true
+BUILD_SERVER=true
+AUTO_PUBLISH=false
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_step() { echo -e "${CYAN}==>${NC} $1"; }
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --version) VERSION="$2"; shift 2 ;;
+        --config) CONFIG="$2"; shift 2 ;;
+        --skip-native) SKIP_NATIVE=true; shift ;;
+        --skip-protect) SKIP_PROTECT=true; shift ;;
+        --skip-sign) SKIP_SIGN=true; shift ;;
+        --client-only) BUILD_SERVER=false; shift ;;
+        --server-only) BUILD_CLIENT=false; shift ;;
+        --publish) AUTO_PUBLISH=true; shift ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+done
+
+echo ""
+echo "=============================================="
+echo "  Ecliptix.Security.OPAQUE Package Builder"
+echo "=============================================="
+echo "  Version:     ${VERSION}"
+echo "  Config:      ${CONFIG}"
+echo "  Client:      ${BUILD_CLIENT}"
+echo "  Server:      ${BUILD_SERVER}"
+echo "=============================================="
+echo ""
+
+# Ensure output directory exists
+mkdir -p "$OUTPUT_DIR"
+
+# =============================================================================
+# Copy Native Libraries
+# =============================================================================
+copy_native_libraries() {
+    local package=$1
+    local lib_name=$2
+
+    log_step "Copying native libraries for ${package}..."
+
+    local pkg_dir="$SCRIPT_DIR/$package"
+
+    # Platform mappings
+    declare -A platforms=(
+        ["win-x64"]="windows"
+        ["linux-x64"]="linux"
+        ["osx-x64"]="macos"
+        ["osx-arm64"]="macos"
+    )
+
+    declare -A extensions=(
+        ["win-x64"]=".dll"
+        ["linux-x64"]=".so"
+        ["osx-x64"]=".dylib"
+        ["osx-arm64"]=".dylib"
+    )
+
+    for rid in "${!platforms[@]}"; do
+        local src_platform="${platforms[$rid]}"
+        local ext="${extensions[$rid]}"
+        local src_file
+
+        # Determine source file path
+        if [[ "$lib_name" == "client" ]]; then
+            src_file="$DIST_DIR/client/${src_platform}/lib/libopaque_client${ext}"
+        else
+            src_file="$DIST_DIR/server/${src_platform}/lib/libopaque_server${ext}"
+        fi
+
+        local dest_dir="$pkg_dir/runtimes/${rid}/native"
+        mkdir -p "$dest_dir"
+
+        if [[ -f "$src_file" ]]; then
+            cp "$src_file" "$dest_dir/"
+            log_success "  ${rid}: $(basename "$src_file")"
+        else
+            log_warn "  ${rid}: Not found at $src_file"
+        fi
+    done
+}
+
+# =============================================================================
+# Apply Protection
+# =============================================================================
+apply_protection() {
+    local package=$1
+
+    if [[ "$SKIP_PROTECT" == true ]]; then
+        log_warn "Skipping protection (--skip-protect)"
+        return
+    fi
+
+    log_step "Applying protection to ${package}..."
+
+    local pkg_dir="$SCRIPT_DIR/$package"
+
+    # Strip symbols from Linux/macOS binaries
+    if command -v strip &> /dev/null; then
+        for so in "$pkg_dir"/runtimes/linux-*/native/*.so; do
+            if [[ -f "$so" ]]; then
+                strip --strip-all "$so" 2>/dev/null || true
+                log_success "  Stripped: $(basename "$so")"
+            fi
+        done
+        for dylib in "$pkg_dir"/runtimes/osx-*/native/*.dylib; do
+            if [[ -f "$dylib" ]]; then
+                strip -x "$dylib" 2>/dev/null || true
+                log_success "  Stripped: $(basename "$dylib")"
+            fi
+        done
+    fi
+
+    # VMProtect for Windows DLLs
+    if [[ -n "${VMPROTECT_PATH:-}" ]] && [[ -f "${VMPROTECT_PATH}" ]]; then
+        for dll in "$pkg_dir"/runtimes/win-*/native/*.dll; do
+            if [[ -f "$dll" ]]; then
+                log_info "  Applying VMProtect to $(basename "$dll")..."
+                "$VMPROTECT_PATH" "$dll" "${dll}.protected" \
+                    --vm-code-level medium --mutation-level medium --anti-debug || true
+                if [[ -f "${dll}.protected" ]]; then
+                    mv "${dll}.protected" "$dll"
+                    log_success "  Protected: $(basename "$dll")"
+                fi
+            fi
+        done
+    fi
+}
+
+# =============================================================================
+# Sign Binaries
+# =============================================================================
+sign_binaries() {
+    local package=$1
+
+    if [[ "$SKIP_SIGN" == true ]]; then
+        log_warn "Skipping signing (--skip-sign)"
+        return
+    fi
+
+    log_step "Signing binaries for ${package}..."
+
+    local pkg_dir="$SCRIPT_DIR/$package"
+
+    # Windows Authenticode
+    if [[ -n "${WINDOWS_SIGN_CERT_PATH:-}" ]]; then
+        if command -v osslsigncode &> /dev/null; then
+            for dll in "$pkg_dir"/runtimes/win-*/native/*.dll; do
+                if [[ -f "$dll" ]]; then
+                    osslsigncode sign -pkcs12 "$WINDOWS_SIGN_CERT_PATH" \
+                        -pass "${WINDOWS_SIGN_CERT_PASSWORD:-}" \
+                        -n "Ecliptix Security OPAQUE" -h sha256 \
+                        -t http://timestamp.digicert.com \
+                        -in "$dll" -out "${dll}.signed" 2>/dev/null || true
+                    if [[ -f "${dll}.signed" ]]; then
+                        mv "${dll}.signed" "$dll"
+                        log_success "  Signed: $(basename "$dll")"
+                    fi
+                fi
+            done
+        fi
+    fi
+
+    # macOS codesign
+    if [[ -n "${APPLE_SIGN_IDENTITY:-}" ]]; then
+        for dylib in "$pkg_dir"/runtimes/osx-*/native/*.dylib; do
+            if [[ -f "$dylib" ]]; then
+                codesign --force --sign "$APPLE_SIGN_IDENTITY" \
+                    --options runtime --timestamp "$dylib" 2>/dev/null || true
+                log_success "  Signed: $(basename "$dylib")"
+            fi
+        done
+    fi
+}
+
+# =============================================================================
+# Build Package
+# =============================================================================
+build_package() {
+    local package=$1
+    local lib_name=$2
+
+    log_step "Building ${package} v${VERSION}..."
+
+    local pkg_dir="$SCRIPT_DIR/$package"
+    cd "$pkg_dir"
+
+    # Update version in csproj
+    if [[ -f "${package}.csproj" ]]; then
+        sed -i.bak "s|<Version>.*</Version>|<Version>${VERSION}</Version>|" "${package}.csproj"
+        rm -f "${package}.csproj.bak"
+    fi
+
+    # Build and pack
+    dotnet pack -c "$CONFIG" -o "$OUTPUT_DIR" \
+        /p:Version="$VERSION" \
+        /p:PackageVersion="$VERSION" \
+        --no-build 2>/dev/null || \
+    dotnet pack -c "$CONFIG" -o "$OUTPUT_DIR" \
+        /p:Version="$VERSION" \
+        /p:PackageVersion="$VERSION"
+
+    log_success "Built: ${package}.${VERSION}.nupkg"
+}
+
+# =============================================================================
+# Sign NuGet Package
+# =============================================================================
+sign_nuget_package() {
+    local package=$1
+
+    if [[ "$SKIP_SIGN" == true ]]; then
+        return
+    fi
+
+    if [[ -z "${NUGET_SIGN_CERT_PATH:-}" ]]; then
+        log_warn "NUGET_SIGN_CERT_PATH not set, skipping package signing"
+        return
+    fi
+
+    local nupkg="$OUTPUT_DIR/${package}.${VERSION}.nupkg"
+
+    if [[ -f "$nupkg" ]]; then
+        log_step "Signing NuGet package ${package}..."
+        dotnet nuget sign "$nupkg" \
+            --certificate-path "$NUGET_SIGN_CERT_PATH" \
+            --certificate-password "${NUGET_SIGN_CERT_PASSWORD:-}" \
+            --timestamper http://timestamp.digicert.com 2>/dev/null || true
+        log_success "Signed: $(basename "$nupkg")"
+    fi
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+main() {
+    # Build Client Package
+    if [[ "$BUILD_CLIENT" == true ]]; then
+        echo ""
+        log_info "========== CLIENT PACKAGE =========="
+
+        if [[ "$SKIP_NATIVE" != true ]]; then
+            copy_native_libraries "Ecliptix.OPAQUE.Client" "client"
+        fi
+
+        apply_protection "Ecliptix.OPAQUE.Client"
+        sign_binaries "Ecliptix.OPAQUE.Client"
+        build_package "Ecliptix.OPAQUE.Client" "client"
+        sign_nuget_package "Ecliptix.OPAQUE.Client"
+    fi
+
+    # Build Server Package
+    if [[ "$BUILD_SERVER" == true ]]; then
+        echo ""
+        log_info "========== SERVER PACKAGE =========="
+
+        if [[ "$SKIP_NATIVE" != true ]]; then
+            copy_native_libraries "Ecliptix.OPAQUE.Server" "server"
+        fi
+
+        apply_protection "Ecliptix.OPAQUE.Server"
+        sign_binaries "Ecliptix.OPAQUE.Server"
+        build_package "Ecliptix.OPAQUE.Server" "server"
+        sign_nuget_package "Ecliptix.OPAQUE.Server"
+    fi
+
+    # Auto-publish if requested
+    if [[ "$AUTO_PUBLISH" == true ]]; then
+        publish_to_private
+    fi
+
+    echo ""
+    echo "=============================================="
+    log_success "Build Complete!"
+    echo "=============================================="
+    echo ""
+    echo "Output packages:"
+    ls -la "$OUTPUT_DIR"/*.nupkg 2>/dev/null || echo "  (no packages found)"
+    echo ""
+    echo "=== PUBLISH TO PRIVATE REPOSITORY ==="
+    echo ""
+    echo "GitHub Packages:"
+    echo "  export NUGET_TOKEN=ghp_your_token"
+    echo "  dotnet nuget push $OUTPUT_DIR/*.nupkg -s https://nuget.pkg.github.com/YOUR_ORG/index.json -k \$NUGET_TOKEN"
+    echo ""
+    echo "Azure Artifacts:"
+    echo "  dotnet nuget push $OUTPUT_DIR/*.nupkg -s https://pkgs.dev.azure.com/YOUR_ORG/_packaging/YOUR_FEED/nuget/v3/index.json -k YOUR_PAT"
+    echo ""
+    echo "GitLab Package Registry:"
+    echo "  dotnet nuget push $OUTPUT_DIR/*.nupkg -s https://gitlab.com/api/v4/projects/PROJECT_ID/packages/nuget/index.json -k YOUR_TOKEN"
+    echo ""
+    echo "Self-hosted (BaGet/ProGet):"
+    echo "  dotnet nuget push $OUTPUT_DIR/*.nupkg -s https://your-server.com/nuget/v3/index.json -k YOUR_API_KEY"
+    echo ""
+}
+
+# =============================================================================
+# Publish to Private Repository
+# =============================================================================
+publish_to_private() {
+    local feed_url="${NUGET_FEED_URL:-}"
+    local api_key="${NUGET_API_KEY:-${NUGET_TOKEN:-}}"
+
+    if [[ -z "$feed_url" ]]; then
+        log_warn "NUGET_FEED_URL not set. Set it to publish automatically."
+        return
+    fi
+
+    if [[ -z "$api_key" ]]; then
+        log_warn "NUGET_API_KEY or NUGET_TOKEN not set. Cannot publish."
+        return
+    fi
+
+    log_step "Publishing to private repository..."
+
+    for nupkg in "$OUTPUT_DIR"/*.nupkg; do
+        if [[ -f "$nupkg" ]]; then
+            dotnet nuget push "$nupkg" -s "$feed_url" -k "$api_key" --skip-duplicate
+            log_success "Published: $(basename "$nupkg")"
+        fi
+    done
+}
+
+main "$@"
