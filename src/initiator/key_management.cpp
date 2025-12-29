@@ -8,7 +8,9 @@ namespace ecliptix::security::opaque::initiator {
     Result create_registration_request_impl(const uint8_t *secure_key, size_t secure_key_length,
                                             RegistrationRequest &request, InitiatorState &state);
 
+
     Result finalize_registration_impl(const uint8_t *registration_response, size_t response_length,
+                                      const uint8_t *expected_responder_public_key, size_t expected_key_length,
                                       InitiatorState &state, RegistrationRecord &record);
 
     Result generate_ke1_impl(const uint8_t *secure_key, size_t secure_key_length,
@@ -17,7 +19,7 @@ namespace ecliptix::security::opaque::initiator {
     Result generate_ke3_impl(const uint8_t *ke2_data, size_t ke2_length,
                              const uint8_t *responder_public_key, InitiatorState &state, KE3 &ke3);
 
-    Result initiator_finish_impl(const InitiatorState &state, secure_bytes &session_key);
+    Result initiator_finish_impl(InitiatorState &state, secure_bytes &session_key, secure_bytes &master_key);
 
     InitiatorState::InitiatorState() : secure_key(0), initiator_private_key(PRIVATE_KEY_LENGTH),
                                        initiator_public_key(PUBLIC_KEY_LENGTH),
@@ -27,7 +29,7 @@ namespace ecliptix::security::opaque::initiator {
                                        session_key(0),
                                        oblivious_prf_blind_scalar(PRIVATE_KEY_LENGTH),
                                        initiator_nonce(NONCE_LENGTH),
-                                       master_key(MASTER_KEY_LENGTH) {
+                                       master_key(0) {
     }
 
     InitiatorState::~InitiatorState() {
@@ -44,11 +46,12 @@ namespace ecliptix::security::opaque::initiator {
         }
         sodium_memzero(oblivious_prf_blind_scalar.data(), oblivious_prf_blind_scalar.size());
         sodium_memzero(initiator_nonce.data(), initiator_nonce.size());
-        sodium_memzero(master_key.data(), master_key.size());
+        if (!master_key.empty()) {
+            sodium_memzero(master_key.data(), master_key.size());
+        }
     }
 
     class OpaqueInitiator::Impl {
-    private:
         ResponderPublicKey responder_public_key_;
 
     public:
@@ -57,6 +60,9 @@ namespace ecliptix::security::opaque::initiator {
             if (!crypto::init()) {
                 throw std::runtime_error("Failed to initialize cryptographic library");
             }
+            if (!responder_public_key_.verify()) {
+                throw std::runtime_error("Invalid responder public key");
+            }
         }
 
         static Result create_registration_request(const uint8_t *secure_key, size_t secure_key_length,
@@ -64,9 +70,12 @@ namespace ecliptix::security::opaque::initiator {
             return create_registration_request_impl(secure_key, secure_key_length, request, state);
         }
 
-        static Result finalize_registration(const uint8_t *registration_response, size_t response_length,
-                                            InitiatorState &state, RegistrationRecord &record) {
-            return finalize_registration_impl(registration_response, response_length, state, record);
+        Result finalize_registration(const uint8_t *registration_response, size_t response_length,
+                                     InitiatorState &state, RegistrationRecord &record) const {
+            return finalize_registration_impl(registration_response, response_length,
+                                              responder_public_key_.key_data.data(),
+                                              responder_public_key_.key_data.size(),
+                                              state, record);
         }
 
         static Result generate_ke1(const uint8_t *secure_key, size_t secure_key_length,
@@ -79,8 +88,8 @@ namespace ecliptix::security::opaque::initiator {
             return generate_ke3_impl(ke2_data, ke2_length, responder_public_key_.key_data.data(), state, ke3);
         }
 
-        static Result initiator_finish(const InitiatorState &state, secure_bytes &session_key) {
-            return initiator_finish_impl(state, session_key);
+        static Result initiator_finish(InitiatorState &state, secure_bytes &session_key, secure_bytes &master_key) {
+            return initiator_finish_impl(state, session_key, master_key);
         }
 
         [[nodiscard]] const ResponderPublicKey &get_responder_public_key() const {
@@ -100,8 +109,8 @@ namespace ecliptix::security::opaque::initiator {
     }
 
     Result OpaqueInitiator::finalize_registration(const uint8_t *registration_response, size_t response_length,
-                                                  InitiatorState &state, RegistrationRecord &record) {
-        return Impl::finalize_registration(registration_response, response_length, state, record);
+                                                  InitiatorState &state, RegistrationRecord &record) const {
+        return impl_->finalize_registration(registration_response, response_length, state, record);
     }
 
     Result OpaqueInitiator::generate_ke1(const uint8_t *secure_key, size_t secure_key_length,
@@ -114,7 +123,8 @@ namespace ecliptix::security::opaque::initiator {
         return impl_->generate_ke3(ke2_data, ke2_length, state, ke3);
     }
 
-    Result OpaqueInitiator::initiator_finish(const InitiatorState &state, secure_bytes &session_key) {
-        return Impl::initiator_finish(state, session_key);
+    Result OpaqueInitiator::initiator_finish(InitiatorState &state, secure_bytes &session_key,
+                                             secure_bytes &master_key) {
+        return Impl::initiator_finish(state, session_key, master_key);
     }
 }

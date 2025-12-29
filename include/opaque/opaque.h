@@ -10,26 +10,56 @@ namespace ecliptix::security::opaque {
     constexpr inline size_t PRIVATE_KEY_LENGTH = 32;
     constexpr inline size_t PUBLIC_KEY_LENGTH = 32;
     constexpr inline size_t MASTER_KEY_LENGTH = 32;
-    constexpr inline size_t NONCE_LENGTH = 32;
+    constexpr inline size_t NONCE_LENGTH = 24;
     constexpr inline size_t MAC_LENGTH = 64;
     constexpr inline size_t HASH_LENGTH = 64;
-    constexpr inline size_t ENVELOPE_LENGTH = 176;
+
+
+    constexpr inline size_t ENVELOPE_LENGTH = 136;
     constexpr inline size_t REGISTRATION_REQUEST_LENGTH = 32;
-    constexpr inline size_t REGISTRATION_RESPONSE_LENGTH = 96;
-    constexpr inline size_t CREDENTIAL_REQUEST_LENGTH = 96;
-    constexpr inline size_t CREDENTIAL_RESPONSE_LENGTH = 208;
-    constexpr inline size_t KE1_LENGTH = 96;
-    constexpr inline size_t KE2_LENGTH = 336;
+    constexpr inline size_t REGISTRATION_RESPONSE_LENGTH = 64;
+    constexpr inline size_t CREDENTIAL_REQUEST_LENGTH = 88;
+    constexpr inline size_t CREDENTIAL_RESPONSE_LENGTH = 168;
+    constexpr inline size_t KE1_LENGTH = 88;
+    constexpr inline size_t KE2_LENGTH = 288;
     constexpr inline size_t KE3_LENGTH = 64;
+    constexpr inline size_t MAX_SECURE_KEY_LENGTH = 4096;
+    constexpr inline size_t REGISTRATION_RECORD_LENGTH = ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH;
+    constexpr inline size_t RESPONDER_CREDENTIALS_LENGTH = ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH;
+
+    namespace labels {
+        constexpr inline char kOprfContext[] = "ECLIPTIX-OPAQUE-v1/OPRF";
+        constexpr inline size_t kOprfContextLength = sizeof(kOprfContext) - 1;
+        constexpr inline char kOprfKeyInfo[] = "ECLIPTIX-OPAQUE-v1/OPRF-Key";
+        constexpr inline size_t kOprfKeyInfoLength = sizeof(kOprfKeyInfo) - 1;
+        constexpr inline char kEnvelopeContext[] = "ECLIPTIX-OPAQUE-v1/EnvelopeKey";
+        constexpr inline size_t kEnvelopeContextLength = sizeof(kEnvelopeContext) - 1;
+        constexpr inline char kHkdfSalt[] = "ECLIPTIX-OPAQUE-v1/HKDF-Salt";
+        constexpr inline size_t kHkdfSaltLength = sizeof(kHkdfSalt) - 1;
+        constexpr inline char kTranscriptContext[] = "ECLIPTIX-OPAQUE-v1/Transcript";
+        constexpr inline size_t kTranscriptContextLength = sizeof(kTranscriptContext) - 1;
+        constexpr inline char kKsfContext[] = "ECLIPTIX-OPAQUE-v1/KSF";
+        constexpr inline size_t kKsfContextLength = sizeof(kKsfContext) - 1;
+        constexpr inline char kKsfSaltLabel[] = "ECLIPTIX-OPAQUE-v1/KSF-Salt";
+        constexpr inline size_t kKsfSaltLabelLength = sizeof(kKsfSaltLabel) - 1;
+        constexpr inline char kSessionKeyInfo[] = "ECLIPTIX-OPAQUE-v1/SessionKey";
+        constexpr inline size_t kSessionKeyInfoLength = sizeof(kSessionKeyInfo) - 1;
+        constexpr inline char kMasterKeyInfo[] = "ECLIPTIX-OPAQUE-v1/MasterKey";
+        constexpr inline size_t kMasterKeyInfoLength = sizeof(kMasterKeyInfo) - 1;
+        constexpr inline char kResponderMacInfo[] = "ECLIPTIX-OPAQUE-v1/ResponderMAC";
+        constexpr inline size_t kResponderMacInfoLength = sizeof(kResponderMacInfo) - 1;
+        constexpr inline char kInitiatorMacInfo[] = "ECLIPTIX-OPAQUE-v1/InitiatorMAC";
+        constexpr inline size_t kInitiatorMacInfoLength = sizeof(kInitiatorMacInfo) - 1;
+    }
 
     static_assert(PRIVATE_KEY_LENGTH == PUBLIC_KEY_LENGTH, "Key lengths must match for ristretto255");
     static_assert(PRIVATE_KEY_LENGTH == 32, "ristretto255 requires 32-byte keys");
-    static_assert(NONCE_LENGTH >= 24, "Nonce must be at least 24 bytes for crypto_secretbox");
+    static_assert(NONCE_LENGTH == 24, "Nonce length must match crypto_secretbox nonce size");
     static_assert(MAC_LENGTH == 64, "HMAC-SHA512 produces 64-byte MACs");
     static_assert(CREDENTIAL_RESPONSE_LENGTH == PUBLIC_KEY_LENGTH + ENVELOPE_LENGTH,
-                  "Credential response size mismatch");
+                  "Credential response size mismatch: 32 + 136 = 168");
     static_assert(KE2_LENGTH == NONCE_LENGTH + PUBLIC_KEY_LENGTH + CREDENTIAL_RESPONSE_LENGTH + MAC_LENGTH,
-                  "KE2 length calculation error");
+                  "KE2 length calculation error: 24 + 32 + 168 + 64 = 288");
 
     enum class [[nodiscard]] Result {
         Success = 0,
@@ -80,9 +110,9 @@ namespace ecliptix::security::opaque {
 
         uint8_t *data() noexcept;
 
-        const uint8_t *data() const noexcept;
+        [[nodiscard]] const uint8_t *data() const noexcept;
 
-        size_t size() const noexcept;
+        [[nodiscard]] size_t size() const noexcept;
 
         void make_readonly();
 
@@ -112,7 +142,7 @@ namespace ecliptix::security::opaque {
 
         explicit ResponderPublicKey(const uint8_t *data, size_t size);
 
-        bool verify() const;
+        [[nodiscard]] bool verify() const;
     };
 
     struct InitiatorCredentials {
@@ -124,7 +154,6 @@ namespace ecliptix::security::opaque {
 
     struct ResponderCredentials {
         secure_bytes envelope;
-        secure_bytes masking_key;
         secure_bytes initiator_public_key;
 
         ResponderCredentials();
@@ -141,14 +170,15 @@ namespace ecliptix::security::opaque {
 
         [[nodiscard]] Result blind(const uint8_t *input, size_t input_length, uint8_t *blinded_element,
                                    uint8_t *blind_scalar);
-    } // namespace oblivious_prf
+    }
 
     namespace crypto {
         [[nodiscard]] bool init();
 
         [[nodiscard]] Result random_bytes(uint8_t *buffer, size_t length);
 
-        [[nodiscard]] Result derive_key_pair(const uint8_t *seed, uint8_t *private_key, uint8_t *public_key);
+        [[nodiscard]] Result derive_key_pair(const uint8_t *seed, size_t seed_length,
+                                             uint8_t *private_key, uint8_t *public_key);
 
         [[nodiscard]] Result scalar_mult(const uint8_t *scalar, const uint8_t *point, uint8_t *result);
 
@@ -161,6 +191,14 @@ namespace ecliptix::security::opaque {
         [[nodiscard]] Result hmac(const uint8_t *key, size_t key_length, const uint8_t *data, size_t data_length,
                                   uint8_t *mac);
 
+        [[nodiscard]] Result derive_oprf_key(const uint8_t *server_secret, size_t server_secret_length,
+                                             const uint8_t *account_id, size_t account_id_length,
+                                             uint8_t *oprf_key);
+
+        [[nodiscard]] Result derive_randomized_password(const uint8_t *oprf_output, size_t oprf_output_length,
+                                                        const uint8_t *secure_key, size_t secure_key_length,
+                                                        uint8_t *randomized_pwd, size_t randomized_pwd_length);
+
         [[nodiscard]] Result encrypt_envelope(const uint8_t *key, size_t key_length, const uint8_t *plaintext,
                                               size_t plaintext_length, const uint8_t *nonce, uint8_t *ciphertext,
                                               uint8_t *auth_tag);
@@ -168,14 +206,15 @@ namespace ecliptix::security::opaque {
         [[nodiscard]] Result decrypt_envelope(const uint8_t *key, size_t key_length, const uint8_t *ciphertext,
                                               size_t ciphertext_length, const uint8_t *nonce, const uint8_t *auth_tag,
                                               uint8_t *plaintext);
-    } // namespace crypto
+    }
+
     namespace envelope {
         [[nodiscard]] Result seal(const uint8_t *randomized_pwd, size_t pwd_length, const uint8_t *responder_public_key,
                                   const uint8_t *initiator_private_key, const uint8_t *initiator_public_key,
-                                  const uint8_t *master_key, Envelope &envelope);
+                                  Envelope &envelope);
 
         [[nodiscard]] Result open(const Envelope &envelope, const uint8_t *randomized_pwd, size_t pwd_length,
                                   const uint8_t *known_responder_public_key, uint8_t *responder_public_key,
-                                  uint8_t *initiator_private_key, uint8_t *initiator_public_key, uint8_t *master_key);
-    } // namespace envelope
+                                  uint8_t *initiator_private_key, uint8_t *initiator_public_key);
+    }
 }

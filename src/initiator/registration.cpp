@@ -12,13 +12,16 @@ namespace ecliptix::security::opaque::initiator {
 
     Result create_registration_request_impl(const uint8_t *secure_key, size_t secure_key_length,
                                             RegistrationRequest &request, InitiatorState &state) {
-        if (!secure_key || secure_key_length == 0) [[unlikely]] {
+        if (!secure_key || secure_key_length == 0 ||
+            secure_key_length > MAX_SECURE_KEY_LENGTH) [[unlikely]] {
             return Result::InvalidInput;
         }
-        if (const Result result = crypto::random_bytes(state.initiator_private_key.data(), PRIVATE_KEY_LENGTH);
-            result != Result::Success) [[unlikely]] {
-            return result;
+        if (!crypto::init()) {
+            return Result::CryptoError;
         }
+        do {
+            crypto_core_ristretto255_scalar_random(state.initiator_private_key.data());
+        } while (sodium_is_zero(state.initiator_private_key.data(), state.initiator_private_key.size()) == 1);
         if (crypto_scalarmult_ristretto255_base(state.initiator_public_key.data(),
                                                 state.initiator_private_key.data()) != 0) [[unlikely]] {
             return Result::CryptoError;
@@ -29,39 +32,62 @@ namespace ecliptix::security::opaque::initiator {
     }
 
     Result finalize_registration_impl(const uint8_t *registration_response, size_t response_length,
+                                      const uint8_t *expected_responder_public_key, size_t expected_key_length,
                                       InitiatorState &state, RegistrationRecord &record) {
-        if (!registration_response || response_length != REGISTRATION_RESPONSE_LENGTH) {
+        if (!registration_response || response_length != REGISTRATION_RESPONSE_LENGTH ||
+            !expected_responder_public_key || expected_key_length != PUBLIC_KEY_LENGTH) {
             return Result::InvalidInput;
+        }
+        if (!crypto::init()) {
+            return Result::CryptoError;
         }
         const uint8_t *evaluated_element = registration_response;
         const uint8_t *responder_public_key = registration_response + crypto_core_ristretto255_BYTES;
-        uint8_t oblivious_prf_output[crypto_hash_sha512_BYTES];
-        Result result = oblivious_prf::finalize(state.secure_key.data(), state.secure_key.size(),
-                                                state.oblivious_prf_blind_scalar.data(),
-                                                evaluated_element, oblivious_prf_output);
-        if (result != Result::Success) {
-            return result;
+        auto is_all_zero = [](const uint8_t *data, size_t length) {
+            for (size_t i = 0; i < length; ++i) {
+                if (data[i] != 0) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if (crypto_core_ristretto255_is_valid_point(responder_public_key) != 1 ||
+            is_all_zero(responder_public_key, PUBLIC_KEY_LENGTH)) {
+            return Result::InvalidPublicKey;
         }
-        uint8_t randomized_pwd[crypto_hash_sha512_BYTES];
-        crypto_hash_sha512_state hash_state;
-        crypto_hash_sha512_init(&hash_state);
-        crypto_hash_sha512_update(&hash_state, oblivious_prf_output, sizeof(oblivious_prf_output));
-        crypto_hash_sha512_update(&hash_state, state.secure_key.data(), state.secure_key.size());
-        crypto_hash_sha512_final(&hash_state, randomized_pwd);
-        std::copy_n(responder_public_key, PUBLIC_KEY_LENGTH,
-                    state.responder_public_key.begin());
+        if (crypto_verify_32(responder_public_key, expected_responder_public_key) != 0) {
+            return Result::AuthenticationError;
+        }
+        auto result = Result::Success;
+        uint8_t oblivious_prf_output[crypto_hash_sha512_BYTES] = {};
+        uint8_t randomized_pwd[crypto_hash_sha512_BYTES] = {};
         Envelope env;
+        size_t offset = 0;
+        result = oblivious_prf::finalize(state.secure_key.data(), state.secure_key.size(),
+                                         state.oblivious_prf_blind_scalar.data(),
+                                         evaluated_element, oblivious_prf_output);
+        if (result != Result::Success) {
+            goto cleanup;
+        }
+        result = crypto::derive_randomized_password(oblivious_prf_output, sizeof(oblivious_prf_output),
+                                                    state.secure_key.data(), state.secure_key.size(),
+                                                    randomized_pwd, sizeof(randomized_pwd));
+        if (result != Result::Success) {
+            goto cleanup;
+        }
+
         result = envelope::seal(randomized_pwd, sizeof(randomized_pwd),
                                 responder_public_key,
                                 state.initiator_private_key.data(),
                                 state.initiator_public_key.data(),
-                                state.master_key.data(),
                                 env);
         if (result != Result::Success) {
-            return result;
+            goto cleanup;
         }
+        std::copy_n(responder_public_key, PUBLIC_KEY_LENGTH,
+                    state.responder_public_key.begin());
         record.envelope.resize(env.nonce.size() + env.ciphertext.size() + env.auth_tag.size());
-        size_t offset = 0;
+        offset = 0;
         std::ranges::copy(env.nonce, record.envelope.begin() + static_cast<std::ptrdiff_t>(offset));
         offset += env.nonce.size();
         std::ranges::copy(env.ciphertext,
@@ -71,8 +97,10 @@ namespace ecliptix::security::opaque::initiator {
                           record.envelope.begin() + static_cast<std::ptrdiff_t>(offset));
         std::ranges::copy(state.initiator_public_key,
                           record.initiator_public_key.begin());
+        result = Result::Success;
+    cleanup:
         sodium_memzero(randomized_pwd, sizeof(randomized_pwd));
         sodium_memzero(oblivious_prf_output, sizeof(oblivious_prf_output));
-        return Result::Success;
+        return result;
     }
 }

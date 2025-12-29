@@ -10,6 +10,11 @@ set(SERVER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/responder/authentication.cpp
     ${CMAKE_SOURCE_DIR}/src/responder/server.cpp
     ${CMAKE_SOURCE_DIR}/src/interop/responder_exports.cpp
+    ${CMAKE_SOURCE_DIR}/include/opaque/export.h
+    ${CMAKE_SOURCE_DIR}/include/opaque/version.h
+    ${CMAKE_SOURCE_DIR}/include/opaque/opaque.h
+    ${CMAKE_SOURCE_DIR}/include/opaque/responder.h
+    ${CMAKE_SOURCE_DIR}/include/opaque/hardcoded_keys.h
 )
 add_library(opaque_server SHARED ${SERVER_SOURCES})
 set_target_properties(opaque_server PROPERTIES
@@ -49,6 +54,12 @@ endif()
 target_compile_definitions(${SERVER_TARGET} PRIVATE
     OPAQUE_SERVER_BUILD
 )
+
+# Apply LLVM obfuscation if enabled
+if(ENABLE_OBFUSCATION)
+    target_enable_obfuscation(${SERVER_TARGET})
+endif()
+
 if(BUILD_DOTNET_INTEROP AND TARGET opaque_server)
     if(WIN32)
         set_target_properties(opaque_server PROPERTIES

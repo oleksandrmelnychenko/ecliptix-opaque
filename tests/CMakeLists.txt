@@ -23,6 +23,11 @@ target_link_libraries(test_opaque_protocol
     ${SODIUM_LIBRARIES}
 )
 
+target_compile_definitions(test_opaque_protocol PRIVATE
+    OPAQUE_KSF_OPSLIMIT=crypto_pwhash_OPSLIMIT_INTERACTIVE
+    OPAQUE_KSF_MEMLIMIT=crypto_pwhash_MEMLIMIT_INTERACTIVE
+)
+
 # Link against the core library sources directly for testing
 target_sources(test_opaque_protocol PRIVATE
     ${CMAKE_SOURCE_DIR}/src/core/memory.cpp

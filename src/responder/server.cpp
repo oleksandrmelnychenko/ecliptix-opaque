@@ -16,10 +16,12 @@ namespace ecliptix::security::opaque::responder {
     }
 
     Result ResponderKeyPair::generate(ResponderKeyPair &keypair) {
-        if (const Result result = crypto::random_bytes(keypair.private_key.data(), PRIVATE_KEY_LENGTH);
-            result != Result::Success) [[unlikely]] {
-            return result;
+        if (!crypto::init()) {
+            return Result::CryptoError;
         }
+        do {
+            crypto_core_ristretto255_scalar_random(keypair.private_key.data());
+        } while (sodium_is_zero(keypair.private_key.data(), keypair.private_key.size()) == 1);
         if (crypto_scalarmult_ristretto255_base(keypair.public_key.data(),
                                                 keypair.private_key.data()) != 0) [[unlikely]] {
             return Result::CryptoError;
@@ -35,28 +37,38 @@ namespace ecliptix::security::opaque::responder {
             if (!crypto::init()) {
                 throw std::runtime_error("Failed to initialize cryptographic library");
             }
+            if (crypto_core_ristretto255_is_valid_point(responder_keypair_.public_key.data()) != 1) {
+                throw std::runtime_error("Invalid responder public key");
+            }
+            if (sodium_is_zero(responder_keypair_.public_key.data(), responder_keypair_.public_key.size()) == 1) {
+                throw std::runtime_error("Invalid responder public key");
+            }
         }
 
         Result create_registration_response(const uint8_t *registration_request, const size_t request_length,
-                                            RegistrationResponse &response, ResponderCredentials &credentials) const {
+                                            const uint8_t *account_id, const size_t account_id_length,
+                                            RegistrationResponse &response) const {
             return create_registration_response_impl(registration_request, request_length,
                                                      responder_keypair_.private_key,
                                                      responder_keypair_.public_key,
-                                                     response, credentials);
+                                                     account_id, account_id_length, response);
         }
 
         Result generate_ke2(const uint8_t *ke1_data, const size_t ke1_length,
+                            const uint8_t *account_id, const size_t account_id_length,
                             const ResponderCredentials &credentials,
                             KE2 &ke2, ResponderState &state) const {
             return generate_ke2_impl(ke1_data, ke1_length, credentials,
                                      responder_keypair_.private_key,
                                      responder_keypair_.public_key,
+                                     account_id, account_id_length,
                                      ke2, state);
         }
 
         static Result responder_finish(const uint8_t *ke3_data, const size_t ke3_length,
-                                       const ResponderState &state, secure_bytes &session_key) {
-            return responder_finish_impl(ke3_data, ke3_length, state, session_key);
+                                       ResponderState &state, secure_bytes &session_key,
+                                       secure_bytes &master_key) {
+            return responder_finish_impl(ke3_data, ke3_length, state, session_key, master_key);
         }
 
         [[nodiscard]] const secure_bytes &get_public_key() const {
@@ -72,20 +84,25 @@ namespace ecliptix::security::opaque::responder {
 
     Result OpaqueResponder::create_registration_response(const uint8_t *registration_request,
                                                          const size_t request_length,
-                                                         RegistrationResponse &response,
-                                                         ResponderCredentials &credentials) const {
-        return impl_->create_registration_response(registration_request, request_length, response, credentials);
+                                                         const uint8_t *account_id,
+                                                         const size_t account_id_length,
+                                                         RegistrationResponse &response) const {
+        return impl_->create_registration_response(registration_request, request_length,
+                                                   account_id, account_id_length, response);
     }
 
     Result OpaqueResponder::generate_ke2(const uint8_t *ke1_data, const size_t ke1_length,
+                                         const uint8_t *account_id, const size_t account_id_length,
                                          const ResponderCredentials &credentials,
                                          KE2 &ke2, ResponderState &state) const {
-        return impl_->generate_ke2(ke1_data, ke1_length, credentials, ke2, state);
+        return impl_->generate_ke2(ke1_data, ke1_length, account_id, account_id_length,
+                                   credentials, ke2, state);
     }
 
     Result OpaqueResponder::responder_finish(const uint8_t *ke3_data, const size_t ke3_length,
-                                             const ResponderState &state, secure_bytes &session_key) {
-        return Impl::responder_finish(ke3_data, ke3_length, state, session_key);
+                                             ResponderState &state, secure_bytes &session_key,
+                                             secure_bytes &master_key) {
+        return Impl::responder_finish(ke3_data, ke3_length, state, session_key, master_key);
     }
 
     const secure_bytes &OpaqueResponder::get_public_key() const {

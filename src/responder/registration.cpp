@@ -11,44 +11,80 @@ namespace ecliptix::security::opaque::responder {
     RegistrationResponse::RegistrationResponse() : data(REGISTRATION_RESPONSE_LENGTH) {
     }
 
-    Result create_registration_response_impl(const uint8_t *registration_request, size_t request_length,
+    Result create_registration_response_impl(const uint8_t *registration_request, const size_t request_length,
                                              const secure_bytes &responder_private_key,
                                              const secure_bytes &responder_public_key,
-                                             RegistrationResponse &response,
-                                             ResponderCredentials &credentials) {
-        (void) responder_private_key;
-        if (!registration_request || request_length != REGISTRATION_REQUEST_LENGTH) [[unlikely]] {
+                                             const uint8_t *account_id,
+                                             const size_t account_id_length,
+                                             RegistrationResponse &response) {
+        if (!registration_request || request_length != REGISTRATION_REQUEST_LENGTH ||
+            !account_id || account_id_length == 0) [[unlikely]] {
             return Result::InvalidInput;
         }
-
-        Result result = crypto::random_bytes(credentials.masking_key.data(), PRIVATE_KEY_LENGTH);
-        if (result != Result::Success) [[unlikely]] {
-            return result;
+        if (!crypto::init()) {
+            return Result::CryptoError;
         }
 
         const uint8_t *blinded_element = registration_request;
+        bool all_zero = true;
+        for (size_t i = 0; i < crypto_core_ristretto255_BYTES; ++i) {
+            if (blinded_element[i] != 0) {
+                all_zero = false;
+                break;
+            }
+        }
+        if (all_zero || crypto_core_ristretto255_is_valid_point(blinded_element) != 1) {
+            return Result::InvalidInput;
+        }
         uint8_t evaluated_element[crypto_core_ristretto255_BYTES];
-        result = oblivious_prf::evaluate(blinded_element, credentials.masking_key.data(), evaluated_element);
+        uint8_t oprf_key[PRIVATE_KEY_LENGTH] = {};
+        Result result = crypto::derive_oprf_key(responder_private_key.data(), responder_private_key.size(),
+                                                account_id, account_id_length, oprf_key);
         if (result != Result::Success) [[unlikely]] {
+            sodium_memzero(oprf_key, sizeof(oprf_key));
             return result;
         }
-
-        uint8_t masking_nonce[NONCE_LENGTH];
-        result = crypto::random_bytes(masking_nonce, NONCE_LENGTH);
+        result = oblivious_prf::evaluate(blinded_element, oprf_key, evaluated_element);
+        sodium_memzero(oprf_key, sizeof(oprf_key));
         if (result != Result::Success) [[unlikely]] {
             return result;
         }
 
         size_t offset = 0;
         std::copy_n(evaluated_element, crypto_core_ristretto255_BYTES,
-                  response.data.begin() + static_cast<std::ptrdiff_t>(offset));
+                    response.data.begin() + static_cast<std::ptrdiff_t>(offset));
         offset += crypto_core_ristretto255_BYTES;
         std::ranges::copy(responder_public_key,
                           response.data.begin() + static_cast<std::ptrdiff_t>(offset));
-        offset += PUBLIC_KEY_LENGTH;
-        std::copy_n(masking_nonce, NONCE_LENGTH,
-                  response.data.begin() + static_cast<std::ptrdiff_t>(offset));
-        credentials.envelope.clear();
+        return Result::Success;
+    }
+
+    Result build_credentials(const uint8_t *registration_record, size_t record_length,
+                             ResponderCredentials &credentials) {
+        const size_t record_expected = REGISTRATION_RECORD_LENGTH;
+        if (!registration_record || record_length < record_expected) {
+            return Result::InvalidInput;
+        }
+        if (!crypto::init()) {
+            return Result::CryptoError;
+        }
+        const uint8_t *initiator_public_key = registration_record + ENVELOPE_LENGTH;
+        if (crypto_core_ristretto255_is_valid_point(initiator_public_key) != 1) {
+            return Result::InvalidPublicKey;
+        }
+        bool all_zero = true;
+        for (size_t i = 0; i < PUBLIC_KEY_LENGTH; ++i) {
+            if (initiator_public_key[i] != 0) {
+                all_zero = false;
+                break;
+            }
+        }
+        if (all_zero) {
+            return Result::InvalidPublicKey;
+        }
+
+        credentials.envelope.assign(registration_record, registration_record + ENVELOPE_LENGTH);
+        credentials.initiator_public_key.assign(initiator_public_key, initiator_public_key + PUBLIC_KEY_LENGTH);
         return Result::Success;
     }
 }
