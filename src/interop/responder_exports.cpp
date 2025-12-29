@@ -4,6 +4,7 @@
 #include "opaque/export.h"
 #include <sodium.h>
 #include <cstdio>
+#include <cstring>
 
 namespace {
 constexpr char kServerLogPrefix[] = "[ECLIPTIX-OPAQUE-SERVER] ";
