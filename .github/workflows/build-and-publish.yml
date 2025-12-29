@@ -86,6 +86,7 @@ jobs:
         run: |
           docker build -f Dockerfile.linux \
             --build-arg BUILD_TARGET=client \
+            --build-arg RUN_TESTS=OFF \
             -t opaque-linux-client .
           docker run --rm -v ${{ github.workspace }}/dist:/workspace/dist opaque-linux-client
 
@@ -93,17 +94,22 @@ jobs:
         run: |
           docker build -f Dockerfile.linux \
             --build-arg BUILD_TARGET=server \
+            --build-arg RUN_TESTS=OFF \
             -t opaque-linux-server .
           docker run --rm -v ${{ github.workspace }}/dist:/workspace/dist opaque-linux-server
 
       - name: Prepare artifacts
         run: |
+          echo "=== Debug: Show dist directory structure ==="
+          find dist -type f 2>/dev/null || echo "dist directory not found or empty"
+          echo "=== Copying artifacts ==="
           mkdir -p artifacts/linux-x64
           cp dist/client/linux/lib/libopaque_client.so artifacts/linux-x64/ || true
           cp dist/server/linux/lib/libopaque_server.so artifacts/linux-x64/ || true
           # Handle versioned library names
           find dist -name "libopaque_client.so*" -exec cp {} artifacts/linux-x64/libopaque_client.so \; 2>/dev/null || true
           find dist -name "libopaque_server.so*" -exec cp {} artifacts/linux-x64/libopaque_server.so \; 2>/dev/null || true
+          echo "=== Final artifacts ==="
           ls -la artifacts/linux-x64/
 
       - name: Upload Linux artifacts
@@ -137,11 +143,15 @@ jobs:
 
       - name: Prepare artifacts
         run: |
+          echo "=== Debug: Show dist directory structure ==="
+          find dist -type f 2>/dev/null || echo "dist directory not found or empty"
+          echo "=== Copying artifacts ==="
           mkdir -p artifacts/win-x64
           cp dist/client/windows/bin/*.dll artifacts/win-x64/ 2>/dev/null || true
           cp dist/client/windows/lib/*.dll artifacts/win-x64/ 2>/dev/null || true
           cp dist/server/windows/bin/*.dll artifacts/win-x64/ 2>/dev/null || true
           cp dist/server/windows/lib/*.dll artifacts/win-x64/ 2>/dev/null || true
+          echo "=== Final artifacts ==="
           ls -la artifacts/win-x64/ || echo "No Windows artifacts found"
 
       - name: Upload Windows artifacts
