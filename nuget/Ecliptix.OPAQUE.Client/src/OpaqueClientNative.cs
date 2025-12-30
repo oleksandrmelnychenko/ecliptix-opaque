@@ -5,9 +5,6 @@ using System.Runtime.InteropServices;
 
 namespace Ecliptix.OPAQUE.Client;
 
-/// <summary>
-/// P/Invoke declarations for the native OPAQUE client library.
-/// </summary>
 internal static class OpaqueClientNative
 {
     private const string LibraryName = "libopaque_client";
@@ -25,7 +22,7 @@ internal static class OpaqueClientNative
         string platformLibrary = GetPlatformLibraryName();
         string runtimeId = GetRuntimeIdentifier();
 
-        // Search paths in priority order
+
         string[] searchPaths =
         [
             Path.Combine(AppContext.BaseDirectory, platformLibrary),
@@ -40,7 +37,7 @@ internal static class OpaqueClientNative
                 return handle;
         }
 
-        // Fallback to system search
+
         if (NativeLibrary.TryLoad(platformLibrary, assembly, DllImportSearchPath.AssemblyDirectory | DllImportSearchPath.SafeDirectories, out IntPtr fallbackHandle))
             return fallbackHandle;
 
@@ -95,21 +92,21 @@ internal static class OpaqueClientNative
         return "linux-x64";
     }
 
-    // Client lifecycle
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int opaque_client_create(byte[] serverPublicKey, UIntPtr keyLength, out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void opaque_client_destroy(IntPtr handle);
 
-    // State management
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int opaque_client_state_create(out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void opaque_client_state_destroy(IntPtr handle);
 
-    // Registration
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int opaque_client_create_registration_request(
         IntPtr clientHandle,
@@ -128,7 +125,7 @@ internal static class OpaqueClientNative
         byte[] recordData,
         UIntPtr recordBufferSize);
 
-    // Authentication
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int opaque_client_generate_ke1(
         IntPtr clientHandle,
@@ -156,7 +153,7 @@ internal static class OpaqueClientNative
         byte[] masterKey,
         UIntPtr masterKeyBufferSize);
 
-    // Version
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern IntPtr opaque_client_get_version();
 }

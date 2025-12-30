@@ -2,9 +2,6 @@ using System;
 
 namespace Ecliptix.OPAQUE.Client;
 
-/// <summary>
-/// Holds the state for a registration operation, including the request data and native state handle.
-/// </summary>
 public sealed class RegistrationResult : IDisposable
 {
     private readonly byte[] _request;
@@ -17,14 +14,10 @@ public sealed class RegistrationResult : IDisposable
         _stateHandle = stateHandle;
     }
 
-    /// <summary>
-    /// Gets a copy of the registration request data to send to the server.
-    /// </summary>
     public byte[] GetRequestCopy() => (byte[])_request.Clone();
 
     internal IntPtr StateHandle => _stateHandle;
 
-    /// <inheritdoc />
     public void Dispose()
     {
         Dispose(true);
@@ -44,13 +37,9 @@ public sealed class RegistrationResult : IDisposable
         _disposed = true;
     }
 
-    /// <summary>Finalizer.</summary>
     ~RegistrationResult() => Dispose(false);
 }
 
-/// <summary>
-/// Holds the state for a key exchange (authentication) operation.
-/// </summary>
 public sealed class KeyExchangeResult : IDisposable
 {
     private readonly byte[] _keyExchangeData;
@@ -63,14 +52,10 @@ public sealed class KeyExchangeResult : IDisposable
         _stateHandle = stateHandle;
     }
 
-    /// <summary>
-    /// Gets a copy of the KE1 message to send to the server.
-    /// </summary>
     public byte[] GetKeyExchangeDataCopy() => (byte[])_keyExchangeData.Clone();
 
     internal IntPtr StateHandle => _stateHandle;
 
-    /// <inheritdoc />
     public void Dispose()
     {
         Dispose(true);
@@ -90,6 +75,5 @@ public sealed class KeyExchangeResult : IDisposable
         _disposed = true;
     }
 
-    /// <summary>Finalizer.</summary>
     ~KeyExchangeResult() => Dispose(false);
 }

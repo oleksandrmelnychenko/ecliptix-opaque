@@ -3,14 +3,14 @@ using System.Security.Cryptography;
 
 namespace Ecliptix.OPAQUE.Server;
 
-/// <summary>
-/// OPAQUE protocol server (responder) for secure password authentication.
-/// Implements the server-side of the OPAQUE PAKE protocol.
-/// </summary>
-/// <remarks>
-/// The server stores only a password verifier - the actual password is never transmitted
-/// and cannot be recovered from the stored data.
-/// </remarks>
+
+
+
+
+
+
+
+
 public sealed class OpaqueServer : IDisposable
 {
     private IntPtr _serverHandle;
@@ -21,10 +21,10 @@ public sealed class OpaqueServer : IDisposable
         _serverHandle = serverHandle;
     }
 
-    /// <summary>
-    /// Creates a new OPAQUE server from a keypair.
-    /// </summary>
-    /// <param name="keyPair">The server's keypair.</param>
+
+
+
+
     public static OpaqueServer Create(ServerKeyPair keyPair)
     {
         if (keyPair == null)
@@ -55,11 +55,11 @@ public sealed class OpaqueServer : IDisposable
         return new OpaqueServer(serverHandle);
     }
 
-    /// <summary>
-    /// Creates a new OPAQUE server with explicit key material.
-    /// </summary>
-    /// <param name="privateKey">The 32-byte private key.</param>
-    /// <param name="publicKey">The 32-byte public key.</param>
+
+
+
+
+
     public static OpaqueServer Create(byte[] privateKey, byte[] publicKey)
     {
         if (privateKey == null || privateKey.Length != OpaqueConstants.PRIVATE_KEY_LENGTH)
@@ -91,12 +91,12 @@ public sealed class OpaqueServer : IDisposable
         return new OpaqueServer(serverHandle);
     }
 
-    /// <summary>
-    /// Creates a registration response for a new user registration.
-    /// </summary>
-    /// <param name="registrationRequest">The 32-byte registration request from the client.</param>
-    /// <param name="accountId">The unique account identifier (e.g., username, email, user ID).</param>
-    /// <returns>The 64-byte registration response to send to the client.</returns>
+
+
+
+
+
+
     public byte[] CreateRegistrationResponse(byte[] registrationRequest, byte[] accountId)
     {
         ThrowIfDisposed();
@@ -130,14 +130,14 @@ public sealed class OpaqueServer : IDisposable
         return response;
     }
 
-    /// <summary>
-    /// Generates the KE2 message for the authentication key exchange.
-    /// </summary>
-    /// <param name="ke1">The 88-byte KE1 message from the client.</param>
-    /// <param name="accountId">The account identifier.</param>
-    /// <param name="storedCredentials">The 168-byte stored credentials (registration record) for this user.</param>
-    /// <param name="authState">The authentication state to track this session.</param>
-    /// <returns>The 288-byte KE2 message to send to the client.</returns>
+
+
+
+
+
+
+
+
     public byte[] GenerateKe2(byte[] ke1, byte[] accountId, byte[] storedCredentials, AuthenticationState authState)
     {
         ThrowIfDisposed();
@@ -184,12 +184,12 @@ public sealed class OpaqueServer : IDisposable
         return ke2;
     }
 
-    /// <summary>
-    /// Completes authentication by verifying KE3 and deriving session keys.
-    /// </summary>
-    /// <param name="ke3">The 64-byte KE3 message from the client.</param>
-    /// <param name="authState">The authentication state from <see cref="GenerateKe2"/>.</param>
-    /// <returns>The derived session and master keys if authentication succeeds, or null if it fails.</returns>
+
+
+
+
+
+
     public DerivedKeys? FinishAuthentication(byte[] ke3, AuthenticationState authState)
     {
         ThrowIfDisposed();
@@ -225,9 +225,9 @@ public sealed class OpaqueServer : IDisposable
         return new DerivedKeys(sessionKey, masterKey);
     }
 
-    /// <summary>
-    /// Gets the version of the native OPAQUE library.
-    /// </summary>
+
+
+
     public static string GetNativeVersion()
     {
         IntPtr versionPtr = OpaqueServerNative.opaque_server_get_version();
@@ -242,7 +242,7 @@ public sealed class OpaqueServer : IDisposable
             throw new ObjectDisposedException(nameof(OpaqueServer));
     }
 
-    /// <inheritdoc />
+
     public void Dispose()
     {
         if (_disposed) return;
@@ -257,6 +257,6 @@ public sealed class OpaqueServer : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>Finalizer.</summary>
+
     ~OpaqueServer() => Dispose();
 }

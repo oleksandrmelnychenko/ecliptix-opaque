@@ -5,9 +5,9 @@ using System.Runtime.InteropServices;
 
 namespace Ecliptix.OPAQUE.Server;
 
-/// <summary>
-/// P/Invoke declarations for the native OPAQUE server library.
-/// </summary>
+
+
+
 public static class OpaqueServerNative
 {
     private const string LibraryName = "libopaque_server";
@@ -93,7 +93,7 @@ public static class OpaqueServerNative
         return "linux-x64";
     }
 
-    // Keypair management
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int opaque_server_keypair_generate(out IntPtr handle);
 
@@ -115,7 +115,7 @@ public static class OpaqueServerNative
         [Out] byte[] publicKey,
         UIntPtr publicKeyBufferLen);
 
-    // Server lifecycle
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int opaque_server_create(IntPtr keypairHandle, out IntPtr handle);
 
@@ -133,14 +133,14 @@ public static class OpaqueServerNative
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void opaque_server_destroy(IntPtr handle);
 
-    // State management
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int opaque_server_state_create(out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void opaque_server_state_destroy(IntPtr handle);
 
-    // Registration
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int opaque_server_create_registration_response(
         IntPtr serverHandle,
@@ -151,7 +151,7 @@ public static class OpaqueServerNative
         [Out] byte[] responseData,
         UIntPtr responseBufferSize);
 
-    // Authentication
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int opaque_server_generate_ke2(
         IntPtr serverHandle,
@@ -176,7 +176,7 @@ public static class OpaqueServerNative
         [Out] byte[] masterKey,
         UIntPtr masterKeyBufferSize);
 
-    // Version
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr opaque_server_get_version();
 }

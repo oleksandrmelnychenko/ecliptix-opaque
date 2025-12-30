@@ -3,9 +3,9 @@ using System.Security.Cryptography;
 
 namespace Ecliptix.OPAQUE.Server;
 
-/// <summary>
-/// Represents an OPAQUE server keypair (private + public key).
-/// </summary>
+
+
+
 public sealed class ServerKeyPair : IDisposable
 {
     private byte[] _privateKey;
@@ -13,10 +13,10 @@ public sealed class ServerKeyPair : IDisposable
     private IntPtr _nativeHandle;
     private bool _disposed;
 
-    /// <summary>Gets a copy of the public key.</summary>
+
     public byte[] GetPublicKeyCopy() => (byte[])_publicKey.Clone();
 
-    /// <summary>Gets the public key as a read-only span.</summary>
+
     public ReadOnlySpan<byte> PublicKey => _publicKey;
 
     internal byte[] PrivateKey => _privateKey;
@@ -29,9 +29,9 @@ public sealed class ServerKeyPair : IDisposable
         _nativeHandle = nativeHandle;
     }
 
-    /// <summary>
-    /// Generates a new random server keypair.
-    /// </summary>
+
+
+
     public static ServerKeyPair Generate()
     {
         int result = OpaqueServerNative.opaque_server_keypair_generate(out IntPtr handle);
@@ -55,10 +55,10 @@ public sealed class ServerKeyPair : IDisposable
         return new ServerKeyPair(Array.Empty<byte>(), publicKey, handle);
     }
 
-    /// <summary>
-    /// Derives a deterministic keypair from a seed.
-    /// </summary>
-    /// <param name="seed">The 32-byte seed for key derivation.</param>
+
+
+
+
     public static ServerKeyPair DeriveFromSeed(byte[] seed)
     {
         if (seed == null || seed.Length != OpaqueConstants.OPRF_SEED_LENGTH)
@@ -88,9 +88,9 @@ public sealed class ServerKeyPair : IDisposable
         return new ServerKeyPair(privateKey, publicKey, IntPtr.Zero);
     }
 
-    /// <summary>
-    /// Creates a keypair from existing key material.
-    /// </summary>
+
+
+
     public static ServerKeyPair FromKeys(byte[] privateKey, byte[] publicKey)
     {
         if (privateKey == null || privateKey.Length != OpaqueConstants.PRIVATE_KEY_LENGTH)
@@ -110,7 +110,7 @@ public sealed class ServerKeyPair : IDisposable
         return new ServerKeyPair((byte[])privateKey.Clone(), (byte[])publicKey.Clone(), IntPtr.Zero);
     }
 
-    /// <inheritdoc />
+
     public void Dispose()
     {
         if (_disposed) return;
@@ -130,13 +130,13 @@ public sealed class ServerKeyPair : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>Finalizer.</summary>
+
     ~ServerKeyPair() => Dispose();
 }
 
-/// <summary>
-/// Holds the state for an authentication session.
-/// </summary>
+
+
+
 public sealed class AuthenticationState : IDisposable
 {
     private IntPtr _stateHandle;
@@ -149,9 +149,9 @@ public sealed class AuthenticationState : IDisposable
         _stateHandle = stateHandle;
     }
 
-    /// <summary>
-    /// Creates a new authentication state.
-    /// </summary>
+
+
+
     public static AuthenticationState Create()
     {
         int result = OpaqueServerNative.opaque_server_state_create(out IntPtr handle);
@@ -163,7 +163,7 @@ public sealed class AuthenticationState : IDisposable
         return new AuthenticationState(handle);
     }
 
-    /// <inheritdoc />
+
     public void Dispose()
     {
         if (_disposed) return;
@@ -178,19 +178,19 @@ public sealed class AuthenticationState : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>Finalizer.</summary>
+
     ~AuthenticationState() => Dispose();
 }
 
-/// <summary>
-/// Contains the session and master keys derived after successful authentication.
-/// </summary>
+
+
+
 public readonly struct DerivedKeys
 {
-    /// <summary>Gets the session key (64 bytes).</summary>
+
     public byte[] SessionKey { get; }
 
-    /// <summary>Gets the master key (32 bytes).</summary>
+
     public byte[] MasterKey { get; }
 
     internal DerivedKeys(byte[] sessionKey, byte[] masterKey)

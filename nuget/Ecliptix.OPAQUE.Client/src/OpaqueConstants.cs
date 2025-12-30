@@ -1,8 +1,8 @@
 namespace Ecliptix.OPAQUE.Client;
 
-/// <summary>
-/// OPAQUE protocol constants matching the native C++ library definitions.
-/// </summary>
+
+
+
 public static class OpaqueConstants
 {
     public const int PUBLIC_KEY_LENGTH = 32;
@@ -16,9 +16,9 @@ public static class OpaqueConstants
     public const int KE3_LENGTH = 64;
 }
 
-/// <summary>
-/// Result codes from OPAQUE protocol operations.
-/// </summary>
+
+
+
 public enum OpaqueResult
 {
     SUCCESS = 0,
@@ -30,9 +30,9 @@ public enum OpaqueResult
     INVALID_PUBLIC_KEY = -6
 }
 
-/// <summary>
-/// Error message templates for OPAQUE operations.
-/// </summary>
+
+
+
 public static class OpaqueErrorMessages
 {
     public const string SERVER_PUBLIC_KEY_INVALID_SIZE = "Server public key must be exactly {0} bytes";
