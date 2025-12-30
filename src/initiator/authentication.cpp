@@ -56,17 +56,8 @@ namespace ecliptix::security::opaque::initiator {
         if (!crypto::init()) {
             return Result::CryptoError;
         }
-        if (crypto_core_ristretto255_is_valid_point(responder_public_key) != 1) {
-            return Result::InvalidPublicKey;
-        }
-        bool responder_key_all_zero = true;
-        for (size_t i = 0; i < PUBLIC_KEY_LENGTH; ++i) {
-            if (responder_public_key[i] != 0) {
-                responder_key_all_zero = false;
-                break;
-            }
-        }
-        if (responder_key_all_zero) {
+        if (crypto_core_ristretto255_is_valid_point(responder_public_key) != 1 ||
+            util::is_all_zero(responder_public_key, PUBLIC_KEY_LENGTH)) {
             return Result::InvalidPublicKey;
         }
         if (!state.responder_public_key.empty()) {
@@ -90,17 +81,8 @@ namespace ecliptix::security::opaque::initiator {
         const uint8_t *evaluated_element = credential_response;
         const uint8_t *envelope_data = credential_response + crypto_core_ristretto255_BYTES;
         const uint8_t *responder_mac = ke2_data + NONCE_LENGTH + PUBLIC_KEY_LENGTH + CREDENTIAL_RESPONSE_LENGTH;
-        if (crypto_core_ristretto255_is_valid_point(responder_ephemeral_public_key) != 1) {
-            return Result::InvalidPublicKey;
-        }
-        bool responder_ephemeral_all_zero = true;
-        for (size_t i = 0; i < PUBLIC_KEY_LENGTH; ++i) {
-            if (responder_ephemeral_public_key[i] != 0) {
-                responder_ephemeral_all_zero = false;
-                break;
-            }
-        }
-        if (responder_ephemeral_all_zero) {
+        if (crypto_core_ristretto255_is_valid_point(responder_ephemeral_public_key) != 1 ||
+            util::is_all_zero(responder_ephemeral_public_key, PUBLIC_KEY_LENGTH)) {
             return Result::InvalidPublicKey;
         }
 

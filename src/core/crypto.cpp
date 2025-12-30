@@ -261,16 +261,18 @@ namespace ecliptix::security::opaque::crypto {
             }
         secure_bytes t_prev(hash_length);
         secure_bytes t_current(hash_length);
+        const size_t max_input_size = hash_length + info_length + 1;
+        secure_bytes input;
+        input.reserve(max_input_size);
         for (size_t i = 1; i <= n; ++i) {
-            secure_bytes input;
+            input.clear();
             if (i > 1) [[likely]] {
                 input.insert(input.end(), t_prev.begin(), t_prev.end());
             }
             if (info && info_length > 0) [[likely]] {
                 input.insert(input.end(), info, info + info_length);
             }
-            auto counter = static_cast<uint8_t>(i);
-            input.push_back(counter);
+            input.push_back(static_cast<uint8_t>(i));
             if (const Result result = hmac(prk, prk_length, input.data(), input.size(), t_current.data());
                 result != Result::Success) [[unlikely]] {
                 return result;
@@ -278,7 +280,7 @@ namespace ecliptix::security::opaque::crypto {
             const size_t copy_length = std::min(hash_length, okm_length - (i - 1) * hash_length);
             std::copy_n(t_current.begin(), static_cast<std::ptrdiff_t>(copy_length),
                         okm + (i - 1) * hash_length);
-            t_prev = t_current;
+            std::swap(t_prev, t_current);
         }
         return Result::Success;
     }
@@ -294,10 +296,7 @@ namespace ecliptix::security::opaque::crypto {
         if (!init()) {
             return Result::CryptoError;
         }
-        secure_bytes combined(plaintext_length + crypto_secretbox_MACBYTES);
-        crypto_secretbox_easy(combined.data(), plaintext, plaintext_length, nonce, key);
-        std::copy_n(combined.begin(), static_cast<std::ptrdiff_t>(plaintext_length), ciphertext);
-        std::copy(combined.begin() + static_cast<std::ptrdiff_t>(plaintext_length), combined.end(), auth_tag);
+        crypto_secretbox_detached(ciphertext, auth_tag, plaintext, plaintext_length, nonce, key);
         return Result::Success;
     }
 
@@ -313,11 +312,7 @@ namespace ecliptix::security::opaque::crypto {
         if (!init()) {
             return Result::CryptoError;
         }
-        secure_bytes combined(ciphertext_length + crypto_secretbox_MACBYTES);
-        std::copy_n(ciphertext, ciphertext_length, combined.begin());
-        std::copy_n(auth_tag, crypto_secretbox_MACBYTES,
-                    combined.begin() + static_cast<std::ptrdiff_t>(ciphertext_length));
-        if (crypto_secretbox_open_easy(plaintext, combined.data(), combined.size(), nonce, key) != 0) [[unlikely]] {
+        if (crypto_secretbox_open_detached(plaintext, ciphertext, auth_tag, ciphertext_length, nonce, key) != 0) [[unlikely]] {
             return Result::AuthenticationError;
         }
         return Result::Success;

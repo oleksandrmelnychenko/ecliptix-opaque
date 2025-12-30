@@ -43,16 +43,8 @@ namespace ecliptix::security::opaque::initiator {
         }
         const uint8_t *evaluated_element = registration_response;
         const uint8_t *responder_public_key = registration_response + crypto_core_ristretto255_BYTES;
-        auto is_all_zero = [](const uint8_t *data, size_t length) {
-            for (size_t i = 0; i < length; ++i) {
-                if (data[i] != 0) {
-                    return false;
-                }
-            }
-            return true;
-        };
         if (crypto_core_ristretto255_is_valid_point(responder_public_key) != 1 ||
-            is_all_zero(responder_public_key, PUBLIC_KEY_LENGTH)) {
+            util::is_all_zero(responder_public_key, PUBLIC_KEY_LENGTH)) {
             return Result::InvalidPublicKey;
         }
         if (crypto_verify_32(responder_public_key, expected_responder_public_key) != 0) {

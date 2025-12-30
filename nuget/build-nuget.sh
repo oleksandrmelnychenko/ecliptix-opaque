@@ -16,6 +16,7 @@ set -euo pipefail
 #   --skip-sign         Skip code signing
 #   --version X.Y.Z     Set package version (default: 1.0.0)
 #   --config Release    Build configuration (default: Release)
+#   --macos-min 12.0    Minimum macOS deployment target for native builds
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,6 +30,7 @@ CONFIG="Release"
 SKIP_BUILD=false
 SKIP_PROTECT=false
 SKIP_SIGN=false
+MACOS_MIN_VERSION="${MACOS_MIN_VERSION:-12.0}"
 
 # Code signing configuration (set via environment variables)
 # WINDOWS_SIGN_CERT_PATH - Path to .pfx certificate
@@ -61,12 +63,14 @@ while [[ $# -gt 0 ]]; do
         --skip-sign) SKIP_SIGN=true; shift ;;
         --version) VERSION="$2"; shift 2 ;;
         --config) CONFIG="$2"; shift 2 ;;
+        --macos-min) MACOS_MIN_VERSION="$2"; shift 2 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
 log_info "Building Ecliptix.Security.OPAQUE v${VERSION} NuGet Package"
 log_info "Configuration: ${CONFIG}"
+log_info "macOS minimum version: ${MACOS_MIN_VERSION}"
 
 # =============================================================================
 # Step 1: Build Native Libraries (all platforms)
@@ -78,7 +82,7 @@ build_native_libraries() {
 
     # Build using existing build.sh
     if [[ -f "build.sh" ]]; then
-        ./build.sh all-platforms
+        MACOS_DEPLOYMENT_TARGET="${MACOS_MIN_VERSION}" ./build.sh all-platforms "${CONFIG}"
     else
         log_warn "build.sh not found, building manually..."
 

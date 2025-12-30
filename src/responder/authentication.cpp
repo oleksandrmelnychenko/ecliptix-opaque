@@ -54,30 +54,22 @@ namespace ecliptix::security::opaque::responder {
         if (!crypto::init()) {
             return Result::CryptoError;
         }
-        auto is_all_zero = [](const uint8_t *data, size_t length) {
-            for (size_t i = 0; i < length; ++i) {
-                if (data[i] != 0) {
-                    return false;
-                }
-            }
-            return true;
-        };
         const uint8_t *credential_request = ke1_data;
         const uint8_t *initiator_public_key = ke1_data + crypto_core_ristretto255_BYTES;
         const uint8_t *initiator_nonce = ke1_data + crypto_core_ristretto255_BYTES + PUBLIC_KEY_LENGTH;
         const uint8_t *initiator_ephemeral_public = initiator_public_key;
         const uint8_t *initiator_static_public = credentials.initiator_public_key.data();
         if (crypto_core_ristretto255_is_valid_point(credential_request) != 1 ||
-            is_all_zero(credential_request, crypto_core_ristretto255_BYTES)) {
+            util::is_all_zero(credential_request, crypto_core_ristretto255_BYTES)) {
             return Result::InvalidInput;
         }
         if (crypto_core_ristretto255_is_valid_point(initiator_public_key) != 1 ||
-            is_all_zero(initiator_public_key, PUBLIC_KEY_LENGTH)) {
+            util::is_all_zero(initiator_public_key, PUBLIC_KEY_LENGTH)) {
             return Result::InvalidPublicKey;
         }
         if (credentials.initiator_public_key.size() != PUBLIC_KEY_LENGTH ||
             crypto_core_ristretto255_is_valid_point(credentials.initiator_public_key.data()) != 1 ||
-            is_all_zero(credentials.initiator_public_key.data(), PUBLIC_KEY_LENGTH)) {
+            util::is_all_zero(credentials.initiator_public_key.data(), PUBLIC_KEY_LENGTH)) {
             return Result::InvalidPublicKey;
         }
         if (credentials.envelope.size() != ENVELOPE_LENGTH) {

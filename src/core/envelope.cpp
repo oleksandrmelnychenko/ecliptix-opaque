@@ -33,7 +33,8 @@ namespace ecliptix::security::opaque::envelope {
         sodium_memzero(hash, sizeof(hash));
 
 
-        secure_bytes plaintext(PUBLIC_KEY_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH);
+        constexpr size_t plaintext_length = PUBLIC_KEY_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH;
+        secure_bytes plaintext(plaintext_length);
         size_t offset = 0;
         std::copy_n(responder_public_key, PUBLIC_KEY_LENGTH,
                     plaintext.begin() + static_cast<std::ptrdiff_t>(offset));
@@ -43,16 +44,11 @@ namespace ecliptix::security::opaque::envelope {
         offset += PRIVATE_KEY_LENGTH;
         std::copy_n(initiator_public_key, PUBLIC_KEY_LENGTH,
                     plaintext.begin() + static_cast<std::ptrdiff_t>(offset));
-        secure_bytes combined(plaintext.size() + crypto_secretbox_MACBYTES);
-        crypto_secretbox_easy(combined.data(), plaintext.data(), plaintext.size(),
-                              envelope.nonce.data(), auth_key);
-        envelope.ciphertext.resize(plaintext.size());
+        envelope.ciphertext.resize(plaintext_length);
         envelope.auth_tag.resize(crypto_secretbox_MACBYTES);
-        std::copy_n(combined.begin(), plaintext.size(),
-                    envelope.ciphertext.begin());
-        std::copy(combined.begin() + static_cast<std::ptrdiff_t>(plaintext.size()),
-                  combined.begin() + static_cast<std::ptrdiff_t>(plaintext.size() + crypto_secretbox_MACBYTES),
-                  envelope.auth_tag.begin());
+        crypto_secretbox_detached(envelope.ciphertext.data(), envelope.auth_tag.data(),
+                                  plaintext.data(), plaintext.size(),
+                                  envelope.nonce.data(), auth_key);
         sodium_memzero(auth_key, sizeof(auth_key));
         return Result::Success;
     }
@@ -92,14 +88,11 @@ namespace ecliptix::security::opaque::envelope {
         crypto_hash_sha512_final(&state, hash);
         std::copy_n(hash, crypto_secretbox_KEYBYTES, auth_key);
         secure_bytes plaintext(plaintext_length);
-        secure_bytes combined(envelope.ciphertext.size() + crypto_secretbox_MACBYTES);
         size_t offset = 0;
         uint8_t derived_public_key[PUBLIC_KEY_LENGTH];
-        std::ranges::copy(envelope.ciphertext, combined.begin());
-        std::ranges::copy(envelope.auth_tag,
-                          combined.begin() + static_cast<std::ptrdiff_t>(envelope.ciphertext.size()));
-        if (crypto_secretbox_open_easy(plaintext.data(), combined.data(), combined.size(),
-                                       envelope.nonce.data(), auth_key) != 0) {
+        if (crypto_secretbox_open_detached(plaintext.data(), envelope.ciphertext.data(),
+                                           envelope.auth_tag.data(), envelope.ciphertext.size(),
+                                           envelope.nonce.data(), auth_key) != 0) {
             result = Result::AuthenticationError;
             goto cleanup;
         }

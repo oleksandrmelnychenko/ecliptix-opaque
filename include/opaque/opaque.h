@@ -159,6 +159,25 @@ namespace ecliptix::security::opaque {
         ResponderCredentials();
     };
 
+    namespace util {
+        template<size_t N>
+        [[nodiscard]] inline bool is_all_zero(const uint8_t (&data)[N]) noexcept {
+            uint8_t accumulator = 0;
+            for (size_t i = 0; i < N; ++i) {
+                accumulator |= data[i];
+            }
+            return accumulator == 0;
+        }
+
+        [[nodiscard]] inline bool is_all_zero(const uint8_t *data, size_t length) noexcept {
+            uint8_t accumulator = 0;
+            for (size_t i = 0; i < length; ++i) {
+                accumulator |= data[i];
+            }
+            return accumulator == 0;
+        }
+    }
+
     namespace oblivious_prf {
         [[nodiscard]] Result hash_to_group(const uint8_t *input, size_t input_length, uint8_t *point);
 

@@ -8,6 +8,7 @@ cd "${SCRIPT_DIR}"
 TARGET="${1:-native}"
 BUILD_TYPE="${2:-Release}"
 RUN_TESTS="${3:-ON}"
+MACOS_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET:-12.0}"
 
 echo "🔨 Building Ecliptix OPAQUE Library"
 echo "Target: ${TARGET}"
@@ -26,6 +27,7 @@ case "${TARGET}" in
 
         cmake -B "${BUILD_DIR}" \
             -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
             -DBUILD_CLIENT=ON \
             -DBUILD_SERVER=OFF \
             -DBUILD_SHARED_LIBS=ON \
@@ -165,6 +167,7 @@ case "${TARGET}" in
 
         cmake -B "${BUILD_DIR}" \
             -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
             -DBUILD_CLIENT=ON \
             -DBUILD_SERVER=ON \
             -DBUILD_SHARED_LIBS=ON \

@@ -26,14 +26,8 @@ namespace ecliptix::security::opaque::responder {
         }
 
         const uint8_t *blinded_element = registration_request;
-        bool all_zero = true;
-        for (size_t i = 0; i < crypto_core_ristretto255_BYTES; ++i) {
-            if (blinded_element[i] != 0) {
-                all_zero = false;
-                break;
-            }
-        }
-        if (all_zero || crypto_core_ristretto255_is_valid_point(blinded_element) != 1) {
+        if (util::is_all_zero(blinded_element, crypto_core_ristretto255_BYTES) ||
+            crypto_core_ristretto255_is_valid_point(blinded_element) != 1) {
             return Result::InvalidInput;
         }
         uint8_t evaluated_element[crypto_core_ristretto255_BYTES];
@@ -69,17 +63,8 @@ namespace ecliptix::security::opaque::responder {
             return Result::CryptoError;
         }
         const uint8_t *initiator_public_key = registration_record + ENVELOPE_LENGTH;
-        if (crypto_core_ristretto255_is_valid_point(initiator_public_key) != 1) {
-            return Result::InvalidPublicKey;
-        }
-        bool all_zero = true;
-        for (size_t i = 0; i < PUBLIC_KEY_LENGTH; ++i) {
-            if (initiator_public_key[i] != 0) {
-                all_zero = false;
-                break;
-            }
-        }
-        if (all_zero) {
+        if (crypto_core_ristretto255_is_valid_point(initiator_public_key) != 1 ||
+            util::is_all_zero(initiator_public_key, PUBLIC_KEY_LENGTH)) {
             return Result::InvalidPublicKey;
         }
 
