@@ -8,7 +8,7 @@ namespace Ecliptix.OPAQUE.Server;
 /// <summary>
 /// P/Invoke declarations for the native OPAQUE server library.
 /// </summary>
-internal static class OpaqueServerNative
+public static class OpaqueServerNative
 {
     private const string LibraryName = "libopaque_server";
 
@@ -95,19 +95,19 @@ internal static class OpaqueServerNative
 
     // Keypair management
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_server_keypair_generate(out IntPtr handle);
+    public static extern int opaque_server_keypair_generate(out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void opaque_server_keypair_destroy(IntPtr handle);
+    public static extern void opaque_server_keypair_destroy(IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_server_keypair_get_public_key(
+    public static extern int opaque_server_keypair_get_public_key(
         IntPtr handle,
         [Out] byte[] publicKey,
         UIntPtr keyBufferSize);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_server_derive_keypair_from_seed(
+    public static extern int opaque_server_derive_keypair_from_seed(
         [In] byte[] seed,
         UIntPtr seedLen,
         [Out] byte[] privateKey,
@@ -117,10 +117,10 @@ internal static class OpaqueServerNative
 
     // Server lifecycle
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_server_create(IntPtr keypairHandle, out IntPtr handle);
+    public static extern int opaque_server_create(IntPtr keypairHandle, out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_server_create_with_keys(
+    public static extern int opaque_server_create_with_keys(
         [In] byte[] privateKey,
         UIntPtr privateKeyLen,
         [In] byte[] publicKey,
@@ -128,21 +128,21 @@ internal static class OpaqueServerNative
         out IntPtr serverHandle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_server_create_default(out IntPtr handle);
+    public static extern int opaque_server_create_default(out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void opaque_server_destroy(IntPtr handle);
+    public static extern void opaque_server_destroy(IntPtr handle);
 
     // State management
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_server_state_create(out IntPtr handle);
+    public static extern int opaque_server_state_create(out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void opaque_server_state_destroy(IntPtr handle);
+    public static extern void opaque_server_state_destroy(IntPtr handle);
 
     // Registration
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_server_create_registration_response(
+    public static extern int opaque_server_create_registration_response(
         IntPtr serverHandle,
         [In] byte[] requestData,
         UIntPtr requestLength,
@@ -153,7 +153,7 @@ internal static class OpaqueServerNative
 
     // Authentication
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_server_generate_ke2(
+    public static extern int opaque_server_generate_ke2(
         IntPtr serverHandle,
         [In] byte[] ke1Data,
         UIntPtr ke1Length,
@@ -166,7 +166,7 @@ internal static class OpaqueServerNative
         IntPtr stateHandle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_server_finish(
+    public static extern int opaque_server_finish(
         IntPtr serverHandle,
         [In] byte[] ke3Data,
         UIntPtr ke3Length,
@@ -178,5 +178,5 @@ internal static class OpaqueServerNative
 
     // Version
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern IntPtr opaque_server_get_version();
+    public static extern IntPtr opaque_server_get_version();
 }
