@@ -121,7 +121,11 @@ apply_protection() {
     if [[ -n "${VMPROTECT_PATH:-}" ]] && [[ -f "$VMPROTECT_PATH" ]]; then
         log_info "Applying VMProtect to Windows binaries..."
 
-        for dll in "$DIST_DIR"/client/windows/lib/*.dll "$DIST_DIR"/server/windows/lib/*.dll; do
+        for dll in \
+            "$DIST_DIR"/client/windows/bin/*.dll \
+            "$DIST_DIR"/client/windows/lib/*.dll \
+            "$DIST_DIR"/server/windows/bin/*.dll \
+            "$DIST_DIR"/server/windows/lib/*.dll; do
             if [[ -f "$dll" ]]; then
                 local output_dll="${dll%.dll}_protected.dll"
                 "$VMPROTECT_PATH" "$dll" "$output_dll" \
@@ -138,7 +142,11 @@ apply_protection() {
     elif [[ -n "${THEMIDA_PATH:-}" ]] && [[ -f "$THEMIDA_PATH" ]]; then
         log_info "Applying Themida protection to Windows binaries..."
 
-        for dll in "$DIST_DIR"/client/windows/lib/*.dll "$DIST_DIR"/server/windows/lib/*.dll; do
+        for dll in \
+            "$DIST_DIR"/client/windows/bin/*.dll \
+            "$DIST_DIR"/client/windows/lib/*.dll \
+            "$DIST_DIR"/server/windows/bin/*.dll \
+            "$DIST_DIR"/server/windows/lib/*.dll; do
             if [[ -f "$dll" ]]; then
                 "$THEMIDA_PATH" /protect "$dll" /output "${dll%.dll}_protected.dll" \
                     /virtualmachine FISH_WHITE \
@@ -245,7 +253,9 @@ copy_to_nuget_structure() {
 
     # Windows x64
     if [[ -d "$DIST_DIR/client/windows" ]]; then
+        cp -f "$DIST_DIR/client/windows/bin/"*.dll "$NUGET_DIR/runtimes/win-x64/native/" 2>/dev/null || true
         cp -f "$DIST_DIR/client/windows/lib/"*.dll "$NUGET_DIR/runtimes/win-x64/native/" 2>/dev/null || true
+        cp -f "$DIST_DIR/server/windows/bin/"*.dll "$NUGET_DIR/runtimes/win-x64/native/" 2>/dev/null || true
         cp -f "$DIST_DIR/server/windows/lib/"*.dll "$NUGET_DIR/runtimes/win-x64/native/" 2>/dev/null || true
     fi
 

@@ -64,7 +64,7 @@ case "${TARGET}" in
             ecliptix-opaque-client-windows
 
         echo "✅ CLIENT Windows build completed!"
-        echo "📦 Client library: dist/client/windows/bin/opaque_client.dll"
+        echo "📦 Client library: dist/client/windows/bin/libopaque_client.dll"
         ;;
 
     "client-linux")
@@ -125,7 +125,7 @@ case "${TARGET}" in
             ecliptix-opaque-server-windows
 
         echo "✅ SERVER Windows build completed!"
-        echo "📦 Server library: dist/server/windows/bin/opaque_server.dll"
+        echo "📦 Server library: dist/server/windows/bin/libopaque_server.dll"
         ;;
 
     "server-all")

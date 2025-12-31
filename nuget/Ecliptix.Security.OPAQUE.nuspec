@@ -14,7 +14,7 @@
       Provides secure password authentication without transmitting passwords to the server.
       Built with C++23 and libsodium cryptographic primitives.
 
-      Supports: Windows (x64/x86), Linux (x64/arm64), macOS (x64/arm64)
+      Supports: Windows (x64), Linux (x64/arm64), macOS (x64/arm64)
     </description>
     <summary>Native OPAQUE PAKE protocol implementation for secure password authentication</summary>
     <releaseNotes>
@@ -45,12 +45,8 @@
     <file src="build\Ecliptix.Security.OPAQUE.targets" target="buildTransitive" />
 
     <!-- Windows x64 -->
-    <file src="runtimes\win-x64\native\opaque_client.dll" target="runtimes\win-x64\native" />
-    <file src="runtimes\win-x64\native\opaque_server.dll" target="runtimes\win-x64\native" />
-
-    <!-- Windows x86 -->
-    <file src="runtimes\win-x86\native\opaque_client.dll" target="runtimes\win-x86\native" />
-    <file src="runtimes\win-x86\native\opaque_server.dll" target="runtimes\win-x86\native" />
+    <file src="runtimes\win-x64\native\libopaque_client.dll" target="runtimes\win-x64\native" />
+    <file src="runtimes\win-x64\native\libopaque_server.dll" target="runtimes\win-x64\native" />
 
     <!-- Linux x64 -->
     <file src="runtimes\linux-x64\native\libopaque_client.so" target="runtimes\linux-x64\native" />

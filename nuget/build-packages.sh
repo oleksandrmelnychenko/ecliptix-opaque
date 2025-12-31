@@ -94,41 +94,77 @@ copy_native_libraries() {
 
     local pkg_dir="$SCRIPT_DIR/$package"
 
-    # Platform mappings
-    declare -A platforms=(
-        ["win-x64"]="windows"
-        ["linux-x64"]="linux"
-        ["osx-x64"]="macos"
-        ["osx-arm64"]="macos"
-    )
+    local rids=(win-x64 linux-x64 osx-x64 osx-arm64)
 
-    declare -A extensions=(
-        ["win-x64"]=".dll"
-        ["linux-x64"]=".so"
-        ["osx-x64"]=".dylib"
-        ["osx-arm64"]=".dylib"
-    )
+    for rid in "${rids[@]}"; do
+        local src_platform=""
+        local ext=""
+        case "$rid" in
+            win-x64)
+                src_platform="windows"
+                ext=".dll"
+                ;;
+            linux-x64)
+                src_platform="linux"
+                ext=".so"
+                ;;
+            osx-x64|osx-arm64)
+                src_platform="macos"
+                ext=".dylib"
+                ;;
+            *)
+                log_warn "  ${rid}: Unsupported RID"
+                continue
+                ;;
+        esac
+        local src_file=""
+        local candidates=()
 
-    for rid in "${!platforms[@]}"; do
-        local src_platform="${platforms[$rid]}"
-        local ext="${extensions[$rid]}"
-        local src_file
-
-        # Determine source file path
-        if [[ "$lib_name" == "client" ]]; then
-            src_file="$DIST_DIR/client/${src_platform}/lib/libopaque_client${ext}"
+        if [[ "$src_platform" == "windows" ]]; then
+            if [[ "$lib_name" == "client" ]]; then
+                candidates=(
+                    "$DIST_DIR/client/windows/bin/libopaque_client${ext}"
+                    "$DIST_DIR/client/windows/bin/opaque_client${ext}"
+                    "$DIST_DIR/client/windows/lib/libopaque_client${ext}"
+                    "$DIST_DIR/client/windows/lib/opaque_client${ext}"
+                )
+            else
+                candidates=(
+                    "$DIST_DIR/server/windows/bin/libopaque_server${ext}"
+                    "$DIST_DIR/server/windows/bin/opaque_server${ext}"
+                    "$DIST_DIR/server/windows/lib/libopaque_server${ext}"
+                    "$DIST_DIR/server/windows/lib/opaque_server${ext}"
+                )
+            fi
         else
-            src_file="$DIST_DIR/server/${src_platform}/lib/libopaque_server${ext}"
+            if [[ "$lib_name" == "client" ]]; then
+                candidates=(
+                    "$DIST_DIR/client/${src_platform}/lib/libopaque_client${ext}"
+                    "$DIST_DIR/client/${src_platform}/lib/opaque_client${ext}"
+                )
+            else
+                candidates=(
+                    "$DIST_DIR/server/${src_platform}/lib/libopaque_server${ext}"
+                    "$DIST_DIR/server/${src_platform}/lib/opaque_server${ext}"
+                )
+            fi
         fi
+
+        for candidate in "${candidates[@]}"; do
+            if [[ -f "$candidate" ]]; then
+                src_file="$candidate"
+                break
+            fi
+        done
 
         local dest_dir="$pkg_dir/runtimes/${rid}/native"
         mkdir -p "$dest_dir"
 
-        if [[ -f "$src_file" ]]; then
+        if [[ -n "$src_file" ]]; then
             cp "$src_file" "$dest_dir/"
             log_success "  ${rid}: $(basename "$src_file")"
         else
-            log_warn "  ${rid}: Not found at $src_file"
+            log_warn "  ${rid}: Not found (checked: ${candidates[*]})"
         fi
     done
 }
@@ -245,6 +281,10 @@ build_package() {
     fi
 
     # Build and pack
+    dotnet pack -c "$CONFIG" -o "$OUTPUT_DIR" \
+        /p:Version="$VERSION" \
+        /p:PackageVersion="$VERSION" \
+        --no-build --no-restore 2>/dev/null || \
     dotnet pack -c "$CONFIG" -o "$OUTPUT_DIR" \
         /p:Version="$VERSION" \
         /p:PackageVersion="$VERSION" \
