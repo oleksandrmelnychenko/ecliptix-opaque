@@ -1,4 +1,5 @@
 #include "opaque/responder.h"
+#include "opaque/debug_log.h"
 #include <sodium.h>
 #include <algorithm>
 
@@ -17,6 +18,7 @@ namespace ecliptix::security::opaque::responder {
                                              const uint8_t *account_id,
                                              const size_t account_id_length,
                                              RegistrationResponse &response) {
+        log::section("SERVER: Create Registration Response");
         if (!registration_request || request_length != REGISTRATION_REQUEST_LENGTH ||
             !account_id || account_id_length == 0) [[unlikely]] {
             return Result::InvalidInput;
@@ -24,6 +26,10 @@ namespace ecliptix::security::opaque::responder {
         if (!crypto::init()) {
             return Result::CryptoError;
         }
+        log::hex("registration_request (blinded element)", registration_request, request_length);
+        log::hex("responder_private_key", responder_private_key);
+        log::hex("responder_public_key", responder_public_key);
+        log::hex("account_id", account_id, account_id_length);
 
         const uint8_t *blinded_element = registration_request;
         if (util::is_all_zero(blinded_element, crypto_core_ristretto255_BYTES) ||
@@ -38,11 +44,13 @@ namespace ecliptix::security::opaque::responder {
             sodium_memzero(oprf_key, sizeof(oprf_key));
             return result;
         }
+        log::hex("oprf_key (derived from responder_private_key + account_id)", oprf_key, sizeof(oprf_key));
         result = oblivious_prf::evaluate(blinded_element, oprf_key, evaluated_element);
         sodium_memzero(oprf_key, sizeof(oprf_key));
         if (result != Result::Success) [[unlikely]] {
             return result;
         }
+        log::hex("evaluated_element (OPRF output)", evaluated_element, sizeof(evaluated_element));
 
         size_t offset = 0;
         std::copy_n(evaluated_element, crypto_core_ristretto255_BYTES,
@@ -50,11 +58,13 @@ namespace ecliptix::security::opaque::responder {
         offset += crypto_core_ristretto255_BYTES;
         std::ranges::copy(responder_public_key,
                           response.data.begin() + static_cast<std::ptrdiff_t>(offset));
+        log::hex("registration_response", response.data);
         return Result::Success;
     }
 
     Result build_credentials(const uint8_t *registration_record, size_t record_length,
                              ResponderCredentials &credentials) {
+        log::section("SERVER: Build Credentials from Registration Record");
         const size_t record_expected = REGISTRATION_RECORD_LENGTH;
         if (!registration_record || record_length < record_expected) {
             return Result::InvalidInput;
@@ -62,6 +72,7 @@ namespace ecliptix::security::opaque::responder {
         if (!crypto::init()) {
             return Result::CryptoError;
         }
+        log::hex("registration_record", registration_record, record_length);
         const uint8_t *initiator_public_key = registration_record + ENVELOPE_LENGTH;
         if (crypto_core_ristretto255_is_valid_point(initiator_public_key) != 1 ||
             util::is_all_zero(initiator_public_key, PUBLIC_KEY_LENGTH)) {
@@ -70,6 +81,8 @@ namespace ecliptix::security::opaque::responder {
 
         credentials.envelope.assign(registration_record, registration_record + ENVELOPE_LENGTH);
         credentials.initiator_public_key.assign(initiator_public_key, initiator_public_key + PUBLIC_KEY_LENGTH);
+        log::hex("credentials.envelope", credentials.envelope);
+        log::hex("credentials.initiator_public_key", credentials.initiator_public_key);
         return Result::Success;
     }
 }

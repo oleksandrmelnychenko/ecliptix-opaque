@@ -1,4 +1,5 @@
 #include "opaque/initiator.h"
+#include "opaque/debug_log.h"
 #include <sodium.h>
 #include <algorithm>
 
@@ -18,6 +19,7 @@ namespace ecliptix::security::opaque::initiator {
 
     Result generate_ke1_impl(const uint8_t *secure_key, size_t secure_key_length,
                              KE1 &ke1, InitiatorState &state) {
+        log::section("CLIENT: Generate KE1 (Authentication Start)");
         if (!secure_key || secure_key_length == 0 ||
             secure_key_length > MAX_SECURE_KEY_LENGTH) {
             return Result::InvalidInput;
@@ -25,28 +27,37 @@ namespace ecliptix::security::opaque::initiator {
         if (!crypto::init()) {
             return Result::CryptoError;
         }
+        log::hex("secure_key (password)", secure_key, secure_key_length);
         state.secure_key.assign(secure_key, secure_key + secure_key_length);
         do {
             crypto_core_ristretto255_scalar_random(state.initiator_ephemeral_private_key.data());
         } while (sodium_is_zero(state.initiator_ephemeral_private_key.data(),
                                 state.initiator_ephemeral_private_key.size()) == 1);
+        log::hex("initiator_ephemeral_private_key", state.initiator_ephemeral_private_key);
         if (crypto_scalarmult_ristretto255_base(state.initiator_ephemeral_public_key.data(),
                                                 state.initiator_ephemeral_private_key.data()) != 0) {
             return Result::CryptoError;
         }
+        log::hex("initiator_ephemeral_public_key", state.initiator_ephemeral_public_key);
         Result result = crypto::random_bytes(ke1.initiator_nonce.data(), NONCE_LENGTH);
         if (result != Result::Success) [[unlikely]] {
             return result;
         }
+        log::hex("initiator_nonce", ke1.initiator_nonce);
         std::ranges::copy(ke1.initiator_nonce, state.initiator_nonce.begin());
         std::ranges::copy(state.initiator_ephemeral_public_key,
                           ke1.initiator_public_key.begin());
-        return oblivious_prf::blind(secure_key, secure_key_length, ke1.credential_request.data(),
+        result = oblivious_prf::blind(secure_key, secure_key_length, ke1.credential_request.data(),
                                     state.oblivious_prf_blind_scalar.data());
+        log::hex("oblivious_prf_blind_scalar", state.oblivious_prf_blind_scalar);
+        log::hex("ke1.credential_request (blinded)", ke1.credential_request);
+        log::hex("ke1.initiator_public_key", ke1.initiator_public_key);
+        return result;
     }
 
     Result generate_ke3_impl(const uint8_t *ke2_data, size_t ke2_length,
                              const uint8_t *responder_public_key, InitiatorState &state, KE3 &ke3) {
+        log::section("CLIENT: Generate KE3 (Process KE2)");
         if (!ke2_data || ke2_length != KE2_LENGTH) {
             return Result::InvalidInput;
         }
@@ -56,6 +67,8 @@ namespace ecliptix::security::opaque::initiator {
         if (!crypto::init()) {
             return Result::CryptoError;
         }
+        log::hex("ke2_data (full)", ke2_data, ke2_length);
+        log::hex("responder_public_key (expected)", responder_public_key, PUBLIC_KEY_LENGTH);
         if (crypto_core_ristretto255_is_valid_point(responder_public_key) != 1 ||
             util::is_all_zero(responder_public_key, PUBLIC_KEY_LENGTH)) {
             return Result::InvalidPublicKey;
@@ -81,6 +94,11 @@ namespace ecliptix::security::opaque::initiator {
         const uint8_t *evaluated_element = credential_response;
         const uint8_t *envelope_data = credential_response + crypto_core_ristretto255_BYTES;
         const uint8_t *responder_mac = ke2_data + NONCE_LENGTH + PUBLIC_KEY_LENGTH + CREDENTIAL_RESPONSE_LENGTH;
+        log::hex("responder_nonce (from KE2)", responder_nonce, NONCE_LENGTH);
+        log::hex("responder_ephemeral_public_key (from KE2)", responder_ephemeral_public_key, PUBLIC_KEY_LENGTH);
+        log::hex("evaluated_element (from KE2)", evaluated_element, crypto_core_ristretto255_BYTES);
+        log::hex("envelope_data (from KE2)", envelope_data, ENVELOPE_LENGTH);
+        log::hex("responder_mac (from KE2)", responder_mac, MAC_LENGTH);
         if (crypto_core_ristretto255_is_valid_point(responder_ephemeral_public_key) != 1 ||
             util::is_all_zero(responder_ephemeral_public_key, PUBLIC_KEY_LENGTH)) {
             return Result::InvalidPublicKey;
@@ -125,17 +143,22 @@ namespace ecliptix::security::opaque::initiator {
         if (result != Result::Success) {
             goto cleanup;
         }
+        log::hex("oblivious_prf_output", oblivious_prf_output, sizeof(oblivious_prf_output));
         result = crypto::derive_randomized_password(oblivious_prf_output, sizeof(oblivious_prf_output),
                                                     state.secure_key.data(), state.secure_key.size(),
                                                     randomized_pwd, sizeof(randomized_pwd));
         if (result != Result::Success) {
             goto cleanup;
         }
+        log::hex("randomized_pwd", randomized_pwd, sizeof(randomized_pwd));
         env.nonce.assign(envelope_data, envelope_data + NONCE_LENGTH);
         env.ciphertext.assign(envelope_data + NONCE_LENGTH,
                               envelope_data + NONCE_LENGTH + ciphertext_size);
         env.auth_tag.assign(envelope_data + NONCE_LENGTH + ciphertext_size,
                             envelope_data + NONCE_LENGTH + ciphertext_size + crypto_secretbox_MACBYTES);
+        log::hex("envelope.nonce", env.nonce);
+        log::hex("envelope.ciphertext", env.ciphertext);
+        log::hex("envelope.auth_tag", env.auth_tag);
 
         result = envelope::open(env, randomized_pwd, sizeof(randomized_pwd),
                                 responder_public_key, recovered_responder_public_key, recovered_initiator_private_key,
@@ -143,6 +166,9 @@ namespace ecliptix::security::opaque::initiator {
         if (result != Result::Success) {
             goto cleanup;
         }
+        log::hex("recovered_responder_public_key", recovered_responder_public_key, PUBLIC_KEY_LENGTH);
+        log::hex("recovered_initiator_private_key", recovered_initiator_private_key, PRIVATE_KEY_LENGTH);
+        log::hex("recovered_initiator_public_key", recovered_initiator_public_key, PUBLIC_KEY_LENGTH);
         if (crypto_verify_32(recovered_responder_public_key, responder_public_key) != 0) {
             result = Result::AuthenticationError;
             goto cleanup;
@@ -152,16 +178,19 @@ namespace ecliptix::security::opaque::initiator {
             result = Result::CryptoError;
             goto cleanup;
         }
+        log::hex("dh1 (initiator_private * responder_public)", dh1, PUBLIC_KEY_LENGTH);
         if (crypto_scalarmult_ristretto255(dh2, state.initiator_ephemeral_private_key.data(),
                                            recovered_responder_public_key) != 0) {
             result = Result::CryptoError;
             goto cleanup;
         }
+        log::hex("dh2 (ephemeral_private * responder_public)", dh2, PUBLIC_KEY_LENGTH);
         if (crypto_scalarmult_ristretto255(dh3, recovered_initiator_private_key,
                                            responder_ephemeral_public_key) != 0) {
             result = Result::CryptoError;
             goto cleanup;
         }
+        log::hex("dh3 (initiator_private * responder_ephemeral)", dh3, PUBLIC_KEY_LENGTH);
         ikm.resize(3 * PUBLIC_KEY_LENGTH);
         std::copy_n(dh1, PUBLIC_KEY_LENGTH,
                     ikm.begin());
@@ -203,40 +232,51 @@ namespace ecliptix::security::opaque::initiator {
         if (result != Result::Success) {
             goto cleanup;
         }
+        log::hex("prk (pseudo-random key)", prk, sizeof(prk));
+        log::hex("ikm (input keying material)", ikm);
         result = crypto::key_derivation_expand(prk, sizeof(prk), session_info, session_info_length,
                                                session_key.data(), session_key.size());
         if (result != Result::Success) {
             goto cleanup;
         }
+        log::hex("session_key (derived)", session_key);
 
         result = crypto::key_derivation_expand(prk, sizeof(prk), master_key_info, master_key_info_length,
                                                derived_master_key, sizeof(derived_master_key));
         if (result != Result::Success) {
             goto cleanup;
         }
+        log::hex("master_key (derived)", derived_master_key, sizeof(derived_master_key));
         result = crypto::key_derivation_expand(prk, sizeof(prk), responder_mac_info, responder_mac_info_length,
                                                responder_mac_key, sizeof(responder_mac_key));
         if (result != Result::Success) {
             goto cleanup;
         }
+        log::hex("responder_mac_key", responder_mac_key, sizeof(responder_mac_key));
         result = crypto::hmac(responder_mac_key, sizeof(responder_mac_key),
                               mac_input.data(), mac_input.size(),
                               expected_responder_mac);
         if (result != Result::Success) {
             goto cleanup;
         }
+        log::hex("expected_responder_mac (calculated)", expected_responder_mac, sizeof(expected_responder_mac));
+        log::hex("responder_mac (received)", responder_mac, MAC_LENGTH);
         if (crypto_verify_64(responder_mac, expected_responder_mac) != 0) {
+            log::msg("ERROR: Responder MAC verification failed!");
             result = Result::AuthenticationError;
             goto cleanup;
         }
+        log::msg("Responder MAC verified successfully");
         result = crypto::key_derivation_expand(prk, sizeof(prk), initiator_mac_info, initiator_mac_info_length,
                                                initiator_mac_key, sizeof(initiator_mac_key));
         if (result != Result::Success) {
             goto cleanup;
         }
+        log::hex("initiator_mac_key", initiator_mac_key, sizeof(initiator_mac_key));
         result = crypto::hmac(initiator_mac_key, sizeof(initiator_mac_key),
                               mac_input.data(), mac_input.size(),
                               ke3.initiator_mac.data());
+        log::hex("ke3.initiator_mac", ke3.initiator_mac);
         if (result == Result::Success) {
             std::copy_n(recovered_responder_public_key, PUBLIC_KEY_LENGTH,
                         state.responder_public_key.begin());
@@ -269,11 +309,14 @@ namespace ecliptix::security::opaque::initiator {
     }
 
     Result initiator_finish_impl(InitiatorState &state, secure_bytes &session_key, secure_bytes &master_key) {
+        log::section("CLIENT: Finish (Export Keys)");
         if (state.session_key.empty() || state.master_key.size() != MASTER_KEY_LENGTH) {
             return Result::InvalidInput;
         }
         session_key = state.session_key;
         master_key = state.master_key;
+        log::hex("FINAL session_key", session_key);
+        log::hex("FINAL master_key", master_key);
         if (!state.session_key.empty()) {
             sodium_memzero(state.session_key.data(), state.session_key.size());
             state.session_key.clear();
