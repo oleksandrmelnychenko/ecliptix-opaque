@@ -51,6 +51,14 @@ if(WIN32)
     if(MSVC)
         target_compile_options(${SERVER_TARGET} PRIVATE /wd4251)
     endif()
+    if(MINGW)
+        # Static linking for MinGW runtime libraries (libgcc, libstdc++, libwinpthread)
+        target_link_options(${SERVER_TARGET} PRIVATE
+            -static-libgcc
+            -static-libstdc++
+            -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic
+        )
+    endif()
 endif()
 
 target_compile_definitions(${SERVER_TARGET} PRIVATE
