@@ -14,13 +14,39 @@ public sealed class ServerKeyPair : IDisposable
     private bool _disposed;
 
 
-    public byte[] GetPublicKeyCopy() => (byte[])_publicKey.Clone();
+    public byte[] GetPublicKeyCopy()
+    {
+        ThrowIfDisposed();
+        return (byte[])_publicKey.Clone();
+    }
 
 
-    public ReadOnlySpan<byte> PublicKey => _publicKey;
+    public ReadOnlySpan<byte> PublicKey
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _publicKey;
+        }
+    }
 
-    internal byte[] PrivateKey => _privateKey;
-    internal IntPtr NativeHandle => _nativeHandle;
+    internal byte[] PrivateKey
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _privateKey;
+        }
+    }
+
+    internal IntPtr NativeHandle
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _nativeHandle;
+        }
+    }
 
     internal ServerKeyPair(byte[] privateKey, byte[] publicKey, IntPtr nativeHandle)
     {
@@ -132,6 +158,14 @@ public sealed class ServerKeyPair : IDisposable
 
 
     ~ServerKeyPair() => Dispose();
+
+    private void ThrowIfDisposed()
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(ServerKeyPair));
+        }
+    }
 }
 
 
@@ -142,7 +176,14 @@ public sealed class AuthenticationState : IDisposable
     private IntPtr _stateHandle;
     private bool _disposed;
 
-    internal IntPtr StateHandle => _stateHandle;
+    internal IntPtr StateHandle
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _stateHandle;
+        }
+    }
 
     internal AuthenticationState(IntPtr stateHandle)
     {
@@ -180,6 +221,14 @@ public sealed class AuthenticationState : IDisposable
 
 
     ~AuthenticationState() => Dispose();
+
+    private void ThrowIfDisposed()
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(AuthenticationState));
+        }
+    }
 }
 
 

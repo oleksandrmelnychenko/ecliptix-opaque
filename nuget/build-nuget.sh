@@ -1,30 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-# =============================================================================
-# Ecliptix.Security.OPAQUE - NuGet Package Builder
-# =============================================================================
-# This script builds, protects, signs, and packages the native libraries
-# for distribution as a NuGet package.
-#
-# Usage:
-#   ./build-nuget.sh [options]
-#
-# Options:
-#   --skip-build        Skip native library compilation
-#   --skip-protect      Skip obfuscation/protection step
-#   --skip-sign         Skip code signing
-#   --version X.Y.Z     Set package version (default: 1.0.0)
-#   --config Release    Build configuration (default: Release)
-#   --macos-min 12.0    Minimum macOS deployment target for native builds
-# =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 NUGET_DIR="$SCRIPT_DIR"
 DIST_DIR="$PROJECT_ROOT/dist"
 
-# Default options
 VERSION="1.0.0"
 CONFIG="Release"
 SKIP_BUILD=false
@@ -32,30 +14,19 @@ SKIP_PROTECT=false
 SKIP_SIGN=false
 MACOS_MIN_VERSION="${MACOS_MIN_VERSION:-12.0}"
 
-# Code signing configuration (set via environment variables)
-# WINDOWS_SIGN_CERT_PATH - Path to .pfx certificate
-# WINDOWS_SIGN_CERT_PASSWORD - Certificate password
-# APPLE_SIGN_IDENTITY - macOS signing identity (e.g., "Developer ID Application: Company Name")
-# NUGET_SIGN_CERT_PATH - NuGet signing certificate
-# NUGET_SIGN_CERT_PASSWORD - NuGet certificate password
 
-# Obfuscation tool configuration
-# VMPROTECT_PATH - Path to VMProtect CLI
-# THEMIDA_PATH - Path to Themida CLI
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --skip-build) SKIP_BUILD=true; shift ;;
@@ -72,21 +43,16 @@ log_info "Building Ecliptix.Security.OPAQUE v${VERSION} NuGet Package"
 log_info "Configuration: ${CONFIG}"
 log_info "macOS minimum version: ${MACOS_MIN_VERSION}"
 
-# =============================================================================
-# Step 1: Build Native Libraries (all platforms)
-# =============================================================================
 build_native_libraries() {
     log_info "Building native libraries for all platforms..."
 
     cd "$PROJECT_ROOT"
 
-    # Build using existing build.sh
     if [[ -f "build.sh" ]]; then
         MACOS_DEPLOYMENT_TARGET="${MACOS_MIN_VERSION}" ./build.sh all-platforms "${CONFIG}"
     else
         log_warn "build.sh not found, building manually..."
 
-        # macOS (current platform)
         if [[ "$(uname)" == "Darwin" ]]; then
             log_info "Building macOS libraries..."
             mkdir -p build-macos && cd build-macos
@@ -95,14 +61,12 @@ build_native_libraries() {
             cd "$PROJECT_ROOT"
         fi
 
-        # Linux (via Docker)
         if command -v docker &> /dev/null; then
             log_info "Building Linux libraries via Docker..."
             docker build -f Dockerfile.linux -t opaque-linux-builder .
             docker run --rm -v "$DIST_DIR:/workspace/dist" opaque-linux-builder
         fi
 
-        # Windows (via Docker)
         if command -v docker &> /dev/null; then
             log_info "Building Windows libraries via Docker..."
             docker build -f Dockerfile.windows -t opaque-windows-builder .
@@ -111,13 +75,9 @@ build_native_libraries() {
     fi
 }
 
-# =============================================================================
-# Step 2: Apply Code Protection/Obfuscation
-# =============================================================================
 apply_protection() {
     log_info "Applying code protection/obfuscation..."
 
-    # VMProtect (Windows DLLs)
     if [[ -n "${VMPROTECT_PATH:-}" ]] && [[ -f "$VMPROTECT_PATH" ]]; then
         log_info "Applying VMProtect to Windows binaries..."
 
@@ -160,14 +120,7 @@ apply_protection() {
         log_warn "No protection tool configured (VMPROTECT_PATH or THEMIDA_PATH)"
         log_warn "Applying compile-time hardening only..."
 
-        # For macOS/Linux, we rely on compile-time hardening:
-        # - -fstack-protector-strong
-        # - -D_FORTIFY_SOURCE=2
-        # - -fPIC, -fPIE
-        # - RELRO, BIND_NOW
-        # - Symbol stripping
 
-        # Strip debug symbols from all binaries
         if command -v strip &> /dev/null; then
             log_info "Stripping debug symbols..."
             find "$DIST_DIR" -name "*.so" -exec strip --strip-all {} \; 2>/dev/null || true
@@ -176,17 +129,12 @@ apply_protection() {
     fi
 }
 
-# =============================================================================
-# Step 3: Sign Native Binaries
-# =============================================================================
 sign_binaries() {
     log_info "Signing native binaries..."
 
-    # Windows Authenticode Signing
     if [[ -n "${WINDOWS_SIGN_CERT_PATH:-}" ]]; then
         log_info "Signing Windows DLLs with Authenticode..."
 
-        # Use signtool (requires Windows SDK or osslsigncode on Linux/Mac)
         if command -v signtool &> /dev/null; then
             for dll in "$NUGET_DIR"/runtimes/win-*/native/*.dll; do
                 if [[ -f "$dll" ]]; then
@@ -217,7 +165,6 @@ sign_binaries() {
         log_warn "WINDOWS_SIGN_CERT_PATH not set, skipping Authenticode signing"
     fi
 
-    # macOS Code Signing
     if [[ -n "${APPLE_SIGN_IDENTITY:-}" ]]; then
         log_info "Signing macOS dylibs..."
 
@@ -234,8 +181,6 @@ sign_binaries() {
         log_warn "APPLE_SIGN_IDENTITY not set, skipping macOS signing"
     fi
 
-    # Linux binaries don't have a standard signing mechanism
-    # but we can compute and store SHA256 hashes
     log_info "Computing checksums for Linux binaries..."
     for so in "$NUGET_DIR"/runtimes/linux-*/native/*.so; do
         if [[ -f "$so" ]]; then
@@ -245,13 +190,9 @@ sign_binaries() {
     done
 }
 
-# =============================================================================
-# Step 4: Copy Built Libraries to NuGet Structure
-# =============================================================================
 copy_to_nuget_structure() {
     log_info "Copying built libraries to NuGet package structure..."
 
-    # Windows x64
     if [[ -d "$DIST_DIR/client/windows" ]]; then
         cp -f "$DIST_DIR/client/windows/bin/"*.dll "$NUGET_DIR/runtimes/win-x64/native/" 2>/dev/null || true
         cp -f "$DIST_DIR/client/windows/lib/"*.dll "$NUGET_DIR/runtimes/win-x64/native/" 2>/dev/null || true
@@ -259,13 +200,11 @@ copy_to_nuget_structure() {
         cp -f "$DIST_DIR/server/windows/lib/"*.dll "$NUGET_DIR/runtimes/win-x64/native/" 2>/dev/null || true
     fi
 
-    # Linux x64
     if [[ -d "$DIST_DIR/client/linux" ]]; then
         cp -f "$DIST_DIR/client/linux/lib/"*.so "$NUGET_DIR/runtimes/linux-x64/native/" 2>/dev/null || true
         cp -f "$DIST_DIR/server/linux/lib/"*.so "$NUGET_DIR/runtimes/linux-x64/native/" 2>/dev/null || true
     fi
 
-    # macOS (determine architecture)
     if [[ -d "$DIST_DIR/client/macos" ]]; then
         ARCH=$(uname -m)
         if [[ "$ARCH" == "arm64" ]]; then
@@ -280,60 +219,36 @@ copy_to_nuget_structure() {
     log_success "Libraries copied to NuGet structure"
 }
 
-# =============================================================================
-# Step 5: Create NuGet Package
-# =============================================================================
 create_nuget_package() {
     log_info "Creating NuGet package..."
 
     cd "$NUGET_DIR"
 
-    # Update version in nuspec
     sed -i.bak "s|<version>.*</version>|<version>${VERSION}</version>|" Ecliptix.Security.OPAQUE.nuspec
     rm -f Ecliptix.Security.OPAQUE.nuspec.bak
 
-    # Create documentation if not exists
     mkdir -p "$PROJECT_ROOT/docs"
     if [[ ! -f "$PROJECT_ROOT/docs/README.md" ]]; then
         cat > "$PROJECT_ROOT/docs/README.md" << 'DOCEOF'
 # Ecliptix.Security.OPAQUE
 
-High-performance native implementation of the OPAQUE Password-Authenticated Key Exchange (PAKE) protocol.
-
-## Features
-
-- **Secure Password Authentication**: Passwords never leave the client device
-- **Ristretto255 Elliptic Curve**: Modern, secure cryptographic primitives
-- **Cross-Platform**: Windows, Linux, macOS, iOS support
-- **P/Invoke Ready**: Native C exports for .NET integration
+Native OPAQUE implementation with ML-KEM-768 integration.
 
 ## Usage
 
 ```csharp
-// Example P/Invoke declarations
-[DllImport("opaque_client", CallingConvention = CallingConvention.Cdecl)]
-private static extern IntPtr opaque_client_create(byte[] serverPublicKey, int keyLength);
+[DllImport("eop.agent", CallingConvention = CallingConvention.Cdecl)]
+static extern IntPtr opaque_client_create(byte[] serverPublicKey, int keyLength);
 
-[DllImport("opaque_client", CallingConvention = CallingConvention.Cdecl)]
-private static extern void opaque_client_destroy(IntPtr handle);
+[DllImport("eop.relay", CallingConvention = CallingConvention.Cdecl)]
+static extern int opaque_server_create_with_keys(byte[] privateKey, int privateKeyLen, byte[] publicKey, int publicKeyLen, out IntPtr handle);
 ```
-
-## Security
-
-This library implements the OPAQUE protocol as specified in the IETF draft.
-All cryptographic operations use libsodium primitives.
-
-## License
-
-MIT License - See LICENSE file for details.
 DOCEOF
     fi
 
-    # Pack with NuGet CLI
     if command -v nuget &> /dev/null; then
         nuget pack Ecliptix.Security.OPAQUE.nuspec -OutputDirectory ./output
     elif command -v dotnet &> /dev/null; then
-        # Create a minimal .csproj for dotnet pack
         cat > temp.csproj << 'CSPROJEOF'
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -352,9 +267,6 @@ CSPROJEOF
     log_success "NuGet package created in: $NUGET_DIR/output/"
 }
 
-# =============================================================================
-# Step 6: Sign NuGet Package
-# =============================================================================
 sign_nuget_package() {
     log_info "Signing NuGet package..."
 
@@ -380,9 +292,6 @@ sign_nuget_package() {
     log_success "NuGet package signed"
 }
 
-# =============================================================================
-# Main Execution
-# =============================================================================
 main() {
     log_info "=========================================="
     log_info "Starting NuGet Package Build Pipeline"

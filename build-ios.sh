@@ -13,7 +13,6 @@ echo "Build Type: ${BUILD_TYPE}"
 echo "Build Client: ${BUILD_CLIENT}"
 echo ""
 
-# Check for required tools
 if ! command -v cmake &> /dev/null; then
     echo "❌ CMake not found. Please install CMake first:"
     echo "   brew install cmake"
@@ -25,17 +24,14 @@ if ! command -v xcodebuild &> /dev/null; then
     exit 1
 fi
 
-# Check for libsodium
 if ! brew list libsodium &> /dev/null; then
     echo "⚠️  libsodium not found. Installing via Homebrew..."
     brew install libsodium
 fi
 
-# Get libsodium paths
 SODIUM_PREFIX=$(brew --prefix libsodium)
 echo "📦 Using libsodium from: ${SODIUM_PREFIX}"
 
-# Output directories
 IOS_OUTPUT_DIR="${SCRIPT_DIR}/dist/ios"
 DEVICE_BUILD_DIR="${SCRIPT_DIR}/build-ios-device"
 SIMULATOR_BUILD_DIR="${SCRIPT_DIR}/build-ios-simulator"
@@ -43,18 +39,13 @@ XCFRAMEWORK_DIR="${IOS_OUTPUT_DIR}/EcliptixOPAQUE.xcframework"
 
 mkdir -p "${IOS_OUTPUT_DIR}"
 
-# Clean previous builds
 echo "🧹 Cleaning previous builds..."
 rm -rf "${DEVICE_BUILD_DIR}" "${SIMULATOR_BUILD_DIR}" "${XCFRAMEWORK_DIR}"
 
-# ==============================================================================
-# Build for iOS Device (arm64)
-# ==============================================================================
 echo ""
 echo "📱 Building for iOS Device (arm64)..."
 echo "=================================================="
 
-# Unset VCPKG env vars to force pkg-config path
 unset VCPKG_ROOT
 
 cmake -B "${DEVICE_BUILD_DIR}" \
@@ -76,9 +67,6 @@ cmake --build "${DEVICE_BUILD_DIR}" --config "${BUILD_TYPE}" --parallel
 
 echo "✅ iOS Device build completed!"
 
-# ==============================================================================
-# Build for iOS Simulator (arm64 + x86_64)
-# ==============================================================================
 echo ""
 echo "🖥️  Building for iOS Simulator (arm64 + x86_64)..."
 echo "=================================================="
@@ -102,17 +90,13 @@ cmake --build "${SIMULATOR_BUILD_DIR}" --config "${BUILD_TYPE}" --parallel
 
 echo "✅ iOS Simulator build completed!"
 
-# ==============================================================================
-# Find the built libraries
-# ==============================================================================
 echo ""
 echo "🔍 Locating built libraries..."
 
-# Find client library (static)
 if [[ "${BUILD_CLIENT}" == "ON" ]]; then
-    DEVICE_LIB=$(find "${DEVICE_BUILD_DIR}" -name "libopaque_client.a" | head -1)
-    SIMULATOR_LIB=$(find "${SIMULATOR_BUILD_DIR}" -name "libopaque_client.a" | head -1)
-    LIB_NAME="opaque_client"
+    DEVICE_LIB=$(find "${DEVICE_BUILD_DIR}" -name "libeop.agent.a" | head -1)
+    SIMULATOR_LIB=$(find "${SIMULATOR_BUILD_DIR}" -name "libeop.agent.a" | head -1)
+    LIB_NAME="eop.agent"
 else
     echo "❌ Server builds for iOS are not supported (only client)"
     exit 1
@@ -120,34 +104,29 @@ fi
 
 if [[ -z "${DEVICE_LIB}" ]] || [[ ! -f "${DEVICE_LIB}" ]]; then
     echo "❌ Device library not found!"
-    echo "Expected to find libopaque_client.a in ${DEVICE_BUILD_DIR}"
+    echo "Expected to find libeop.agent.a in ${DEVICE_BUILD_DIR}"
     exit 1
 fi
 
 if [[ -z "${SIMULATOR_LIB}" ]] || [[ ! -f "${SIMULATOR_LIB}" ]]; then
     echo "❌ Simulator library not found!"
-    echo "Expected to find libopaque_client.a in ${SIMULATOR_BUILD_DIR}"
+    echo "Expected to find libeop.agent.a in ${SIMULATOR_BUILD_DIR}"
     exit 1
 fi
 
 echo "📦 Device library: ${DEVICE_LIB}"
 echo "📦 Simulator library: ${SIMULATOR_LIB}"
 
-# ==============================================================================
-# Create XCFramework
-# ==============================================================================
 echo ""
 echo "📦 Creating XCFramework..."
 echo "=================================================="
 
-# Prepare header files
 HEADERS_DIR="${SCRIPT_DIR}/include/opaque"
 if [[ ! -d "${HEADERS_DIR}" ]]; then
     echo "❌ Headers directory not found: ${HEADERS_DIR}"
     exit 1
 fi
 
-# Create XCFramework
 xcodebuild -create-xcframework \
     -library "${DEVICE_LIB}" \
     -headers "${HEADERS_DIR}" \
@@ -157,9 +136,6 @@ xcodebuild -create-xcframework \
 
 echo "✅ XCFramework created successfully!"
 
-# ==============================================================================
-# Verify XCFramework
-# ==============================================================================
 echo ""
 echo "🔍 Verifying XCFramework..."
 echo "=================================================="
@@ -169,27 +145,22 @@ if [[ -d "${XCFRAMEWORK_DIR}" ]]; then
     ls -la "${XCFRAMEWORK_DIR}"
     echo ""
 
-    # Show architectures
     echo "📊 Device architectures:"
-    lipo -info "${XCFRAMEWORK_DIR}/"*-arm64/libopaque_client.a 2>/dev/null || echo "  (info not available)"
+    lipo -info "${XCFRAMEWORK_DIR}/"*-arm64/libeop.agent.a 2>/dev/null || echo "  (info not available)"
 
     echo ""
     echo "📊 Simulator architectures:"
-    lipo -info "${XCFRAMEWORK_DIR}/"*-simulator/libopaque_client.a 2>/dev/null || echo "  (info not available)"
+    lipo -info "${XCFRAMEWORK_DIR}/"*-simulator/libeop.agent.a 2>/dev/null || echo "  (info not available)"
 else
     echo "❌ XCFramework creation failed!"
     exit 1
 fi
 
-# ==============================================================================
-# Create checksum
-# ==============================================================================
 echo ""
 echo "🔐 Computing checksum..."
 CHECKSUM=$(swift package compute-checksum "${XCFRAMEWORK_DIR}.zip" 2>/dev/null || echo "")
 
 if [[ -z "${CHECKSUM}" ]]; then
-    # Create zip for checksum
     cd "${IOS_OUTPUT_DIR}"
     zip -r EcliptixOPAQUE.xcframework.zip EcliptixOPAQUE.xcframework
     CHECKSUM=$(swift package compute-checksum EcliptixOPAQUE.xcframework.zip)
@@ -198,9 +169,6 @@ fi
 
 echo "Checksum: ${CHECKSUM}"
 
-# ==============================================================================
-# Summary
-# ==============================================================================
 echo ""
 echo "🎉 iOS Build Complete!"
 echo "=================================================="

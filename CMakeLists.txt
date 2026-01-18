@@ -1,12 +1,10 @@
 cmake_minimum_required(VERSION 3.20)
 project(Ecliptix_Security_OPAQUE VERSION 1.0.0 LANGUAGES CXX)
 
-# Require C++23 for modern features (concepts, std::expected, etc.)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Compiler version checks for C++23 support
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "13.0")
         message(WARNING "GCC version ${CMAKE_CXX_COMPILER_VERSION} may have incomplete C++23 support. GCC 13+ recommended.")
@@ -31,34 +29,41 @@ option(BUILD_STATIC_SODIUM "Link libsodium statically" OFF)
 option(STATIC_MSVC_RUNTIME "Link MSVC runtime statically (Windows only)" OFF)
 option(ENABLE_OBFUSCATION "Enable LLVM-based code obfuscation (requires Clang)" OFF)
 
-# Static MSVC runtime linking - eliminates need for VC++ Redistributable
 if(MSVC AND STATIC_MSVC_RUNTIME)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     message(STATUS "Using static MSVC runtime (/MT)")
 endif()
 set(OBFUSCATION_LEVEL "standard" CACHE STRING "Obfuscation level: light, standard, aggressive")
 
-# Include obfuscation module
 include(${CMAKE_SOURCE_DIR}/cmake/LLVMObfuscator.cmake)
 
-# Find libsodium - support both vcpkg (find_package) and pkg-config
-# For iOS builds, always use pkg-config (brew)
 if(IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    # iOS build - use Homebrew's libsodium via pkg-config
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(SODIUM REQUIRED libsodium)
     message(STATUS "Using libsodium from pkg-config for iOS")
 elseif(DEFINED ENV{VCPKG_ROOT})
-    # Using vcpkg or another package manager that provides find_package
     find_package(unofficial-sodium CONFIG REQUIRED)
     set(SODIUM_LIBRARIES unofficial-sodium::sodium)
-    set(SODIUM_INCLUDE_DIRS "")  # Handled by target
-    set(SODIUM_LIBRARY_DIRS "")  # Handled by target
+    set(SODIUM_INCLUDE_DIRS "")
+    set(SODIUM_LIBRARY_DIRS "")
 else()
-    # Using system package manager (apt, brew, etc.)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(SODIUM REQUIRED libsodium)
 endif()
+
+if(IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    pkg_check_modules(OQS REQUIRED liboqs)
+    message(STATUS "Using liboqs from pkg-config for iOS")
+elseif(DEFINED ENV{VCPKG_ROOT})
+    find_package(liboqs CONFIG REQUIRED)
+    set(OQS_LIBRARIES OQS::oqs)
+    set(OQS_INCLUDE_DIRS "")
+    set(OQS_LIBRARY_DIRS "")
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(OQS REQUIRED liboqs)
+endif()
+message(STATUS "liboqs found - ML-KEM-768 post-quantum security enabled")
 if(WIN32)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF)
 elseif(APPLE)
@@ -95,11 +100,14 @@ if(ENABLE_HARDENING)
 endif()
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${SODIUM_INCLUDE_DIRS})
+include_directories(${OQS_INCLUDE_DIRS})
 set(CORE_SOURCES
     src/core/oprf.cpp
     src/core/envelope.cpp
     src/core/memory.cpp
     src/core/crypto.cpp
+    src/core/pq_kem.cpp
+    src/core/protocol.cpp
 )
 if(BUILD_TESTS)
     enable_testing()
@@ -114,7 +122,6 @@ if(BUILD_TESTS)
         )
         FetchContent_MakeAvailable(Catch2)
 
-        # Disable strict warnings for third-party Catch2 library
         if(TARGET Catch2)
             target_compile_options(Catch2 PRIVATE -Wno-sign-conversion -Wno-conversion)
         endif()

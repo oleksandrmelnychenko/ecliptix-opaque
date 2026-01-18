@@ -6,6 +6,8 @@ set(SERVER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/core/oprf.cpp
     ${CMAKE_SOURCE_DIR}/src/core/crypto.cpp
     ${CMAKE_SOURCE_DIR}/src/core/envelope.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/pq_kem.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/protocol.cpp
     ${CMAKE_SOURCE_DIR}/src/responder/registration.cpp
     ${CMAKE_SOURCE_DIR}/src/responder/authentication.cpp
     ${CMAKE_SOURCE_DIR}/src/responder/server.cpp
@@ -14,11 +16,12 @@ set(SERVER_SOURCES
     ${CMAKE_SOURCE_DIR}/include/opaque/version.h
     ${CMAKE_SOURCE_DIR}/include/opaque/opaque.h
     ${CMAKE_SOURCE_DIR}/include/opaque/responder.h
+    ${CMAKE_SOURCE_DIR}/include/opaque/pq.h
     ${CMAKE_SOURCE_DIR}/include/opaque/hardcoded_keys.h
 )
 add_library(opaque_server SHARED ${SERVER_SOURCES})
 set_target_properties(opaque_server PROPERTIES
-    OUTPUT_NAME "opaque_server"
+    OUTPUT_NAME "eop.relay"
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
 )
@@ -26,11 +29,10 @@ set(SERVER_TARGET opaque_server)
 target_include_directories(${SERVER_TARGET} PUBLIC
     ${CMAKE_SOURCE_DIR}/include
     ${SODIUM_INCLUDE_DIRS}
+    ${OQS_INCLUDE_DIRS}
 )
 
-# Link libsodium - handle vcpkg target vs pkg-config variables
 if(TARGET unofficial-sodium::sodium)
-    # vcpkg provides a target
     target_link_libraries(${SERVER_TARGET} unofficial-sodium::sodium)
 elseif(BUILD_STATIC_SODIUM)
     find_library(SODIUM_STATIC_LIB NAMES libsodium.a PATHS ${SODIUM_LIBRARY_DIRS} REQUIRED)
@@ -43,7 +45,28 @@ else()
     endif()
 endif()
 
+if(TARGET OQS::oqs)
+    target_link_libraries(${SERVER_TARGET} OQS::oqs)
+else()
+    target_link_libraries(${SERVER_TARGET} ${OQS_LIBRARIES})
+    target_link_directories(${SERVER_TARGET} PRIVATE ${OQS_LIBRARY_DIRS})
+    if(NOT OQS_LIBRARIES)
+        target_link_libraries(${SERVER_TARGET} oqs)
+    endif()
+endif()
+
+find_package(OpenSSL QUIET)
+if(OPENSSL_FOUND)
+    target_link_libraries(${SERVER_TARGET} OpenSSL::SSL OpenSSL::Crypto)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(OPENSSL REQUIRED openssl)
+    target_link_libraries(${SERVER_TARGET} ${OPENSSL_LIBRARIES})
+    target_link_directories(${SERVER_TARGET} PRIVATE ${OPENSSL_LIBRARY_DIRS})
+endif()
+
 if(WIN32)
+    set_target_properties(opaque_server PROPERTIES PREFIX "")
     target_compile_definitions(opaque_server PRIVATE
             BUILDING_DLL
             ECLIPTIX_OPAQUE_EXPORTS
@@ -52,7 +75,6 @@ if(WIN32)
         target_compile_options(${SERVER_TARGET} PRIVATE /wd4251)
     endif()
     if(MINGW)
-        # Static linking for MinGW runtime libraries (libgcc, libstdc++, libwinpthread)
         target_link_options(${SERVER_TARGET} PRIVATE
             -static-libgcc
             -static-libstdc++
@@ -65,7 +87,6 @@ target_compile_definitions(${SERVER_TARGET} PRIVATE
     OPAQUE_SERVER_BUILD
 )
 
-# Apply LLVM obfuscation if enabled
 if(ENABLE_OBFUSCATION)
     target_enable_obfuscation(${SERVER_TARGET})
 endif()

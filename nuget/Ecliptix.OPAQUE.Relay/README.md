@@ -1,121 +1,75 @@
 # Ecliptix.OPAQUE.Relay
 
-High-performance native implementation of the **OPAQUE Password-Authenticated Key Exchange (PAKE)** protocol for server/backend applications.
+Native OPAQUE server package for .NET. The managed wrapper loads the native library `eop.relay` and exposes a Kyber-enabled OPAQUE API.
 
-## Features
-
-- **Zero-Knowledge Verification**: Server never sees or stores actual passwords
-- **Strong Cryptography**: Ristretto255 elliptic curve, XChaCha20-Poly1305, HMAC-SHA512
-- **Cross-Platform**: Windows (x64), Linux (x64/arm64), macOS (x64/arm64)
-- **Native Performance**: C++ core with C# wrapper
-- **Database Agnostic**: Store credentials in any database
-
-## Installation
+## Install
 
 ```bash
 dotnet add package Ecliptix.OPAQUE.Relay
 ```
 
-## Quick Start
-
-### Server Setup
+## Server Setup
 
 ```csharp
 using Ecliptix.OPAQUE.Relay;
 
-// Generate or load server keypair (do this once, store securely)
 using var keyPair = ServerKeyPair.Generate();
 byte[] publicKey = keyPair.GetPublicKeyCopy();
-// Share 'publicKey' with clients
-
-// Or derive from a seed for deterministic keys
-byte[] seed = /* secure 32-byte seed */;
-using var keyPair = ServerKeyPair.DeriveFromSeed(seed);
 ```
 
-### Registration Handler
+## Registration
 
 ```csharp
+using System.Text;
+using Ecliptix.OPAQUE.Relay;
+
 using var server = OpaqueServer.Create(keyPair);
 
-// Receive registration request from client
-byte[] request = await ReceiveFromClient();
+byte[] request = await ReceiveRegistrationRequestAsync();
 byte[] accountId = Encoding.UTF8.GetBytes("user@example.com");
 
-// Generate response
 byte[] response = server.CreateRegistrationResponse(request, accountId);
+await SendRegistrationResponseAsync(response);
 
-// Send 'response' to client, then receive the registration record
-await SendToClient(response);
-byte[] registrationRecord = await ReceiveRegistrationRecord();
-
-// Store 'registrationRecord' in database for this user
-await database.StoreCredentials(accountId, registrationRecord);
+byte[] record = await ReceiveRegistrationRecordAsync();
+await StoreRegistrationRecordAsync(accountId, record);
 ```
 
-### Authentication Handler
+## Authentication
 
 ```csharp
+using System.Text;
+using Ecliptix.OPAQUE.Relay;
+
 using var server = OpaqueServer.Create(keyPair);
 
-// Receive KE1 from client
-byte[] ke1 = await ReceiveKe1();
+byte[] ke1 = await ReceiveKe1Async();
 byte[] accountId = Encoding.UTF8.GetBytes("user@example.com");
+byte[] credentials = await LoadRegistrationRecordAsync(accountId);
 
-// Load stored credentials
-byte[] storedCredentials = await database.GetCredentials(accountId);
-
-// Create authentication state and generate KE2
 using var authState = AuthenticationState.Create();
-byte[] ke2 = server.GenerateKe2(ke1, accountId, storedCredentials, authState);
+byte[] ke2 = server.GenerateKe2(ke1, accountId, credentials, authState);
+await SendKe2Async(ke2);
 
-// Send KE2, receive KE3
-await SendKe2(ke2);
-byte[] ke3 = await ReceiveKe3();
-
-// Verify KE3 and derive session keys
-DerivedKeys? keys = server.FinishAuthentication(ke3, authState);
-if (keys == null)
-{
-    throw new AuthenticationException("Authentication failed");
-}
-
-// Use keys.Value.SessionKey for encrypted communication
-// Use keys.Value.MasterKey if needed for user-specific encryption
+byte[] ke3 = await ReceiveKe3Async();
+DerivedKeys keys = server.FinishAuthentication(ke3, authState);
 ```
 
-## Protocol Constants
+## Constants
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `PRIVATE_KEY_LENGTH` | 32 | Server private key size |
-| `PUBLIC_KEY_LENGTH` | 32 | Server public key size |
-| `REGISTRATION_REQUEST_LENGTH` | 32 | Client registration request |
-| `REGISTRATION_RESPONSE_LENGTH` | 64 | Server registration response |
-| `SERVER_CREDENTIALS_LENGTH` | 168 | Stored user credentials |
-| `KE1_LENGTH` | 1272 | Key exchange message 1 |
-| `KE2_LENGTH` | 1376 | Key exchange message 2 |
-| `KE3_LENGTH` | 64 | Key exchange message 3 |
+| Constant | Value |
+| --- | --- |
+| PRIVATE_KEY_LENGTH | 32 |
+| PUBLIC_KEY_LENGTH | 32 |
+| REGISTRATION_REQUEST_LENGTH | 32 |
+| REGISTRATION_RESPONSE_LENGTH | 64 |
+| SERVER_CREDENTIALS_LENGTH | 168 |
+| KE1_LENGTH | 1272 |
+| KE2_LENGTH | 1376 |
+| KE3_LENGTH | 64 |
 
-## Key Management Best Practices
+## Targets
 
-1. **Generate keys once** during initial server setup
-2. **Store private keys securely** using HSM, Azure Key Vault, or similar
-3. **Derive from seed** for reproducible keys (useful for key rotation planning)
-4. **Rotate keys periodically** by re-registering users with new keys
-
-## Security
-
-- Server stores only password verifiers (168 bytes per user)
-- Verifiers cannot be used to recover passwords
-- Compromised database doesn't expose passwords
-- Forward secrecy protects past sessions
-
-## Requirements
-
-- .NET 6.0+ / .NET Standard 2.0+
-- Windows x64, Linux x64/arm64, or macOS x64/arm64
-
-## License
-
-MIT License - Copyright (c) 2024-2025 Ecliptix
+- net8.0
+- net9.0
+- net10.0

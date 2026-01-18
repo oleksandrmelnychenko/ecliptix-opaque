@@ -1,36 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-# =============================================================================
-# Ecliptix.Security.OPAQUE - Complete NuGet Package Builder
-# =============================================================================
-# Builds, protects, signs, and packages both Client and Server NuGet packages.
-#
-# Prerequisites:
-#   - .NET SDK 6.0+
-#   - Native libraries built (run ../build.sh all-platforms first)
-#   - Optional: VMProtect/Themida for protection
-#   - Optional: Code signing certificates
-#
-# Usage:
-#   ./build-packages.sh [options]
-#
-# Options:
-#   --version X.Y.Z     Package version (default: 1.0.0)
-#   --config Release    Build configuration (default: Release)
-#   --skip-native       Skip copying native libraries (use existing)
-#   --skip-protect      Skip obfuscation/protection
-#   --skip-sign         Skip code signing
-#   --agent-only        Build only agent (client) package
-#   --relay-only        Build only relay (server) package
-# =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 DIST_DIR="$PROJECT_ROOT/dist"
 OUTPUT_DIR="$SCRIPT_DIR/output"
 
-# Default options
 VERSION="1.0.0"
 CONFIG="Release"
 SKIP_NATIVE=false
@@ -40,7 +16,6 @@ BUILD_AGENT=true
 BUILD_RELAY=true
 AUTO_PUBLISH=false
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -54,7 +29,6 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step() { echo -e "${CYAN}==>${NC} $1"; }
 
-# Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --version) VERSION="$2"; shift 2 ;;
@@ -80,12 +54,8 @@ echo "  Relay:       ${BUILD_RELAY}"
 echo "=============================================="
 echo ""
 
-# Ensure output directory exists
 mkdir -p "$OUTPUT_DIR"
 
-# =============================================================================
-# Copy Native Libraries
-# =============================================================================
 copy_native_libraries() {
     local package=$1
     local lib_name=$2
@@ -163,9 +133,6 @@ copy_native_libraries() {
     done
 }
 
-# =============================================================================
-# Apply Protection
-# =============================================================================
 apply_protection() {
     local package=$1
 
@@ -178,7 +145,6 @@ apply_protection() {
 
     local pkg_dir="$SCRIPT_DIR/$package"
 
-    # Strip symbols from Linux/macOS binaries
     if command -v strip &> /dev/null; then
         for so in "$pkg_dir"/runtimes/linux-*/native/*.so; do
             if [[ -f "$so" ]]; then
@@ -194,7 +160,6 @@ apply_protection() {
         done
     fi
 
-    # VMProtect for Windows DLLs
     if [[ -n "${VMPROTECT_PATH:-}" ]] && [[ -f "${VMPROTECT_PATH}" ]]; then
         for dll in "$pkg_dir"/runtimes/win-*/native/*.dll; do
             if [[ -f "$dll" ]]; then
@@ -210,9 +175,6 @@ apply_protection() {
     fi
 }
 
-# =============================================================================
-# Sign Binaries
-# =============================================================================
 sign_binaries() {
     local package=$1
 
@@ -225,7 +187,6 @@ sign_binaries() {
 
     local pkg_dir="$SCRIPT_DIR/$package"
 
-    # Windows Authenticode
     if [[ -n "${WINDOWS_SIGN_CERT_PATH:-}" ]]; then
         if command -v osslsigncode &> /dev/null; then
             for dll in "$pkg_dir"/runtimes/win-*/native/*.dll; do
@@ -244,7 +205,6 @@ sign_binaries() {
         fi
     fi
 
-    # macOS codesign
     if [[ -n "${APPLE_SIGN_IDENTITY:-}" ]]; then
         for dylib in "$pkg_dir"/runtimes/osx-*/native/*.dylib; do
             if [[ -f "$dylib" ]]; then
@@ -256,9 +216,6 @@ sign_binaries() {
     fi
 }
 
-# =============================================================================
-# Build Package
-# =============================================================================
 build_package() {
     local package=$1
     local lib_name=$2
@@ -268,13 +225,11 @@ build_package() {
     local pkg_dir="$SCRIPT_DIR/$package"
     cd "$pkg_dir"
 
-    # Update version in csproj
     if [[ -f "${package}.csproj" ]]; then
         sed -i.bak "s|<Version>.*</Version>|<Version>${VERSION}</Version>|" "${package}.csproj"
         rm -f "${package}.csproj.bak"
     fi
 
-    # Build and pack
     dotnet pack -c "$CONFIG" -o "$OUTPUT_DIR" \
         /p:Version="$VERSION" \
         /p:PackageVersion="$VERSION" \
@@ -290,9 +245,6 @@ build_package() {
     log_success "Built: ${package}.${VERSION}.nupkg"
 }
 
-# =============================================================================
-# Sign NuGet Package
-# =============================================================================
 sign_nuget_package() {
     local package=$1
 
@@ -317,11 +269,7 @@ sign_nuget_package() {
     fi
 }
 
-# =============================================================================
-# Main
-# =============================================================================
 main() {
-    # Build Agent Package
     if [[ "$BUILD_AGENT" == true ]]; then
         echo ""
         log_info "========== AGENT PACKAGE =========="
@@ -336,7 +284,6 @@ main() {
         sign_nuget_package "Ecliptix.OPAQUE.Agent"
     fi
 
-    # Build Relay Package
     if [[ "$BUILD_RELAY" == true ]]; then
         echo ""
         log_info "========== RELAY PACKAGE =========="
@@ -351,7 +298,6 @@ main() {
         sign_nuget_package "Ecliptix.OPAQUE.Relay"
     fi
 
-    # Auto-publish if requested
     if [[ "$AUTO_PUBLISH" == true ]]; then
         publish_to_private
     fi
@@ -381,9 +327,6 @@ main() {
     echo ""
 }
 
-# =============================================================================
-# Publish to Private Repository
-# =============================================================================
 publish_to_private() {
     local feed_url="${NUGET_FEED_URL:-}"
     local api_key="${NUGET_API_KEY:-${NUGET_TOKEN:-}}"

@@ -47,7 +47,7 @@ case "${TARGET}" in
         cmake --install "${BUILD_DIR}"
 
         echo "✅ CLIENT macOS build completed!"
-        echo "📦 Client library: ${INSTALL_DIR}/lib/libopaque_client.dylib"
+        echo "📦 Client library: ${INSTALL_DIR}/lib/libeop.agent.dylib"
         ;;
 
     "client-windows")
@@ -64,7 +64,7 @@ case "${TARGET}" in
             ecliptix-opaque-client-windows
 
         echo "✅ CLIENT Windows build completed!"
-        echo "📦 Client library: dist/client/windows/bin/libopaque_client.dll"
+        echo "📦 Client library: dist/client/windows/bin/eop.agent.dll"
         ;;
 
     "client-linux")
@@ -81,7 +81,7 @@ case "${TARGET}" in
             ecliptix-opaque-client-linux
 
         echo "✅ CLIENT Linux build completed!"
-        echo "📦 Client library: dist/client/linux/lib/libopaque_client.so"
+        echo "📦 Client library: dist/client/linux/lib/libeop.agent.so"
         ;;
 
     "client-all")
@@ -108,7 +108,7 @@ case "${TARGET}" in
             ecliptix-opaque-server-linux
 
         echo "✅ SERVER Linux build completed!"
-        echo "📦 Server library: dist/server/linux/lib/libopaque_server.so"
+        echo "📦 Server library: dist/server/linux/lib/libeop.relay.so"
         ;;
 
     "server-windows")
@@ -125,7 +125,7 @@ case "${TARGET}" in
             ecliptix-opaque-server-windows
 
         echo "✅ SERVER Windows build completed!"
-        echo "📦 Server library: dist/server/windows/bin/libopaque_server.dll"
+        echo "📦 Server library: dist/server/windows/bin/eop.relay.dll"
         ;;
 
     "server-all")
@@ -146,7 +146,7 @@ case "${TARGET}" in
         echo "✅ Complete multi-platform build finished!"
         ;;
 
-    "legacy-native"|"native"|"macos")
+    "native"|"macos")
         echo "🍎 Building natively for macOS..."
 
         if ! command -v cmake &> /dev/null; then
@@ -243,7 +243,7 @@ case "${TARGET}" in
         echo "  Complete builds:"
         echo "    all-platforms"
         echo ""
-        echo "  Legacy:"
+        echo "  Native:"
         echo "    native, macos, linux, windows"
         echo ""
         echo "Usage: $0 [target] [Debug|Release] [ON|OFF]"

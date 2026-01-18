@@ -14,9 +14,20 @@ public sealed class RegistrationResult : IDisposable
         _stateHandle = stateHandle;
     }
 
-    public byte[] GetRequestCopy() => (byte[])_request.Clone();
+    public byte[] GetRequestCopy()
+    {
+        ThrowIfDisposed();
+        return (byte[])_request.Clone();
+    }
 
-    internal IntPtr StateHandle => _stateHandle;
+    internal IntPtr StateHandle
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _stateHandle;
+        }
+    }
 
     public void Dispose()
     {
@@ -38,6 +49,14 @@ public sealed class RegistrationResult : IDisposable
     }
 
     ~RegistrationResult() => Dispose(false);
+
+    private void ThrowIfDisposed()
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(RegistrationResult));
+        }
+    }
 }
 
 public sealed class KeyExchangeResult : IDisposable
@@ -52,9 +71,20 @@ public sealed class KeyExchangeResult : IDisposable
         _stateHandle = stateHandle;
     }
 
-    public byte[] GetKeyExchangeDataCopy() => (byte[])_keyExchangeData.Clone();
+    public byte[] GetKeyExchangeDataCopy()
+    {
+        ThrowIfDisposed();
+        return (byte[])_keyExchangeData.Clone();
+    }
 
-    internal IntPtr StateHandle => _stateHandle;
+    internal IntPtr StateHandle
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _stateHandle;
+        }
+    }
 
     public void Dispose()
     {
@@ -76,4 +106,12 @@ public sealed class KeyExchangeResult : IDisposable
     }
 
     ~KeyExchangeResult() => Dispose(false);
+
+    private void ThrowIfDisposed()
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(KeyExchangeResult));
+        }
+    }
 }

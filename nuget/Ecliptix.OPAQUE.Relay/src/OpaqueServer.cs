@@ -190,13 +190,20 @@ public sealed class OpaqueServer : IDisposable
 
 
 
-    public DerivedKeys? FinishAuthentication(byte[] ke3, AuthenticationState authState)
+    public DerivedKeys FinishAuthentication(byte[] ke3, AuthenticationState authState)
     {
         ThrowIfDisposed();
 
-        if (ke3 == null || ke3.Length != OpaqueConstants.KE3_LENGTH)
+        if (ke3 == null)
         {
-            return null;
+            throw new ArgumentNullException(nameof(ke3));
+        }
+
+        if (ke3.Length != OpaqueConstants.KE3_LENGTH)
+        {
+            throw new ArgumentException(
+                $"KE3 must be exactly {OpaqueConstants.KE3_LENGTH} bytes",
+                nameof(ke3));
         }
 
         if (authState == null)
@@ -219,7 +226,7 @@ public sealed class OpaqueServer : IDisposable
         {
             CryptographicOperations.ZeroMemory(sessionKey);
             CryptographicOperations.ZeroMemory(masterKey);
-            return null;
+            throw new OpaqueException((OpaqueResult)result, "Failed to finish authentication");
         }
 
         return new DerivedKeys(sessionKey, masterKey);

@@ -45,24 +45,24 @@
     <file src="build\Ecliptix.Security.OPAQUE.targets" target="buildTransitive" />
 
     <!-- Windows x64 -->
-    <file src="runtimes\win-x64\native\libopaque_client.dll" target="runtimes\win-x64\native" />
-    <file src="runtimes\win-x64\native\libopaque_server.dll" target="runtimes\win-x64\native" />
+    <file src="runtimes\win-x64\native\eop.agent.dll" target="runtimes\win-x64\native" />
+    <file src="runtimes\win-x64\native\eop.relay.dll" target="runtimes\win-x64\native" />
 
     <!-- Linux x64 -->
-    <file src="runtimes\linux-x64\native\libopaque_client.so" target="runtimes\linux-x64\native" />
-    <file src="runtimes\linux-x64\native\libopaque_server.so" target="runtimes\linux-x64\native" />
+    <file src="runtimes\linux-x64\native\libeop.agent.so" target="runtimes\linux-x64\native" />
+    <file src="runtimes\linux-x64\native\libeop.relay.so" target="runtimes\linux-x64\native" />
 
     <!-- Linux ARM64 -->
-    <file src="runtimes\linux-arm64\native\libopaque_client.so" target="runtimes\linux-arm64\native" />
-    <file src="runtimes\linux-arm64\native\libopaque_server.so" target="runtimes\linux-arm64\native" />
+    <file src="runtimes\linux-arm64\native\libeop.agent.so" target="runtimes\linux-arm64\native" />
+    <file src="runtimes\linux-arm64\native\libeop.relay.so" target="runtimes\linux-arm64\native" />
 
     <!-- macOS x64 (Intel) -->
-    <file src="runtimes\osx-x64\native\libopaque_client.dylib" target="runtimes\osx-x64\native" />
-    <file src="runtimes\osx-x64\native\libopaque_server.dylib" target="runtimes\osx-x64\native" />
+    <file src="runtimes\osx-x64\native\libeop.agent.dylib" target="runtimes\osx-x64\native" />
+    <file src="runtimes\osx-x64\native\libeop.relay.dylib" target="runtimes\osx-x64\native" />
 
     <!-- macOS ARM64 (Apple Silicon) -->
-    <file src="runtimes\osx-arm64\native\libopaque_client.dylib" target="runtimes\osx-arm64\native" />
-    <file src="runtimes\osx-arm64\native\libopaque_server.dylib" target="runtimes\osx-arm64\native" />
+    <file src="runtimes\osx-arm64\native\libeop.agent.dylib" target="runtimes\osx-arm64\native" />
+    <file src="runtimes\osx-arm64\native\libeop.relay.dylib" target="runtimes\osx-arm64\native" />
 
     <!-- Documentation -->
     <file src="..\docs\README.md" target="docs" />
