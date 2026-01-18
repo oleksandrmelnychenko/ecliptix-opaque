@@ -4,7 +4,7 @@ set -euo pipefail
 # =============================================================================
 # Ecliptix.Security.OPAQUE - Complete NuGet Package Builder
 # =============================================================================
-# Builds, protects, signs, and packages both Client and Server NuGet packages.
+# Builds, protects, signs, and packages both Agent and Relay NuGet packages.
 #
 # Prerequisites:
 #   - .NET SDK 6.0+
@@ -21,8 +21,8 @@ set -euo pipefail
 #   --skip-native       Skip copying native libraries (use existing)
 #   --skip-protect      Skip obfuscation/protection
 #   --skip-sign         Skip code signing
-#   --client-only       Build only client package
-#   --server-only       Build only server package
+#   --agent-only        Build only agent package
+#   --relay-only        Build only relay package
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,8 +36,8 @@ CONFIG="Release"
 SKIP_NATIVE=false
 SKIP_PROTECT=false
 SKIP_SIGN=false
-BUILD_CLIENT=true
-BUILD_SERVER=true
+BUILD_AGENT=true
+BUILD_RELAY=true
 AUTO_PUBLISH=false
 
 # Colors
@@ -62,8 +62,8 @@ while [[ $# -gt 0 ]]; do
         --skip-native) SKIP_NATIVE=true; shift ;;
         --skip-protect) SKIP_PROTECT=true; shift ;;
         --skip-sign) SKIP_SIGN=true; shift ;;
-        --client-only) BUILD_SERVER=false; shift ;;
-        --server-only) BUILD_CLIENT=false; shift ;;
+        --agent-only) BUILD_RELAY=false; shift ;;
+        --relay-only) BUILD_AGENT=false; shift ;;
         --publish) AUTO_PUBLISH=true; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
@@ -75,8 +75,8 @@ echo "  Ecliptix.Security.OPAQUE Package Builder"
 echo "=============================================="
 echo "  Version:     ${VERSION}"
 echo "  Config:      ${CONFIG}"
-echo "  Client:      ${BUILD_CLIENT}"
-echo "  Server:      ${BUILD_SERVER}"
+echo "  Agent:       ${BUILD_AGENT}"
+echo "  Relay:       ${BUILD_RELAY}"
 echo "=============================================="
 echo ""
 
@@ -121,31 +121,25 @@ copy_native_libraries() {
         local candidates=()
 
         if [[ "$src_platform" == "windows" ]]; then
-            if [[ "$lib_name" == "client" ]]; then
+            if [[ "$lib_name" == "agent" ]]; then
                 candidates=(
-                    "$DIST_DIR/client/windows/bin/libopaque_client${ext}"
-                    "$DIST_DIR/client/windows/bin/opaque_client${ext}"
-                    "$DIST_DIR/client/windows/lib/libopaque_client${ext}"
-                    "$DIST_DIR/client/windows/lib/opaque_client${ext}"
+                    "$DIST_DIR/client/windows/bin/eop.agent${ext}"
+                    "$DIST_DIR/client/windows/lib/eop.agent${ext}"
                 )
             else
                 candidates=(
-                    "$DIST_DIR/server/windows/bin/libopaque_server${ext}"
-                    "$DIST_DIR/server/windows/bin/opaque_server${ext}"
-                    "$DIST_DIR/server/windows/lib/libopaque_server${ext}"
-                    "$DIST_DIR/server/windows/lib/opaque_server${ext}"
+                    "$DIST_DIR/server/windows/bin/eop.relay${ext}"
+                    "$DIST_DIR/server/windows/lib/eop.relay${ext}"
                 )
             fi
         else
-            if [[ "$lib_name" == "client" ]]; then
+            if [[ "$lib_name" == "agent" ]]; then
                 candidates=(
-                    "$DIST_DIR/client/${src_platform}/lib/libopaque_client${ext}"
-                    "$DIST_DIR/client/${src_platform}/lib/opaque_client${ext}"
+                    "$DIST_DIR/client/${src_platform}/lib/libeop.agent${ext}"
                 )
             else
                 candidates=(
-                    "$DIST_DIR/server/${src_platform}/lib/libopaque_server${ext}"
-                    "$DIST_DIR/server/${src_platform}/lib/opaque_server${ext}"
+                    "$DIST_DIR/server/${src_platform}/lib/libeop.relay${ext}"
                 )
             fi
         fi
@@ -327,34 +321,34 @@ sign_nuget_package() {
 # Main
 # =============================================================================
 main() {
-    # Build Client Package
-    if [[ "$BUILD_CLIENT" == true ]]; then
+    # Build Agent Package
+    if [[ "$BUILD_AGENT" == true ]]; then
         echo ""
-        log_info "========== CLIENT PACKAGE =========="
+        log_info "========== AGENT PACKAGE =========="
 
         if [[ "$SKIP_NATIVE" != true ]]; then
-            copy_native_libraries "Ecliptix.OPAQUE.Client" "client"
+            copy_native_libraries "Ecliptix.OPAQUE.Agent" "agent"
         fi
 
-        apply_protection "Ecliptix.OPAQUE.Client"
-        sign_binaries "Ecliptix.OPAQUE.Client"
-        build_package "Ecliptix.OPAQUE.Client" "client"
-        sign_nuget_package "Ecliptix.OPAQUE.Client"
+        apply_protection "Ecliptix.OPAQUE.Agent"
+        sign_binaries "Ecliptix.OPAQUE.Agent"
+        build_package "Ecliptix.OPAQUE.Agent" "agent"
+        sign_nuget_package "Ecliptix.OPAQUE.Agent"
     fi
 
-    # Build Server Package
-    if [[ "$BUILD_SERVER" == true ]]; then
+    # Build Relay Package
+    if [[ "$BUILD_RELAY" == true ]]; then
         echo ""
-        log_info "========== SERVER PACKAGE =========="
+        log_info "========== RELAY PACKAGE =========="
 
         if [[ "$SKIP_NATIVE" != true ]]; then
-            copy_native_libraries "Ecliptix.OPAQUE.Server" "server"
+            copy_native_libraries "Ecliptix.OPAQUE.Relay" "relay"
         fi
 
-        apply_protection "Ecliptix.OPAQUE.Server"
-        sign_binaries "Ecliptix.OPAQUE.Server"
-        build_package "Ecliptix.OPAQUE.Server" "server"
-        sign_nuget_package "Ecliptix.OPAQUE.Server"
+        apply_protection "Ecliptix.OPAQUE.Relay"
+        sign_binaries "Ecliptix.OPAQUE.Relay"
+        build_package "Ecliptix.OPAQUE.Relay" "relay"
+        sign_nuget_package "Ecliptix.OPAQUE.Relay"
     fi
 
     # Auto-publish if requested
