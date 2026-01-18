@@ -32,6 +32,26 @@ RUN curl -L -o libsodium.tar.gz https://download.libsodium.org/libsodium/release
     && cd / \
     && rm -rf /tmp/libsodium*
 
+# Build liboqs for Windows cross-compilation
+ARG OQS_VERSION=0.10.1
+RUN curl -L -o liboqs.tar.gz https://github.com/open-quantum-safe/liboqs/archive/refs/tags/${OQS_VERSION}.tar.gz \
+    && tar -xzf liboqs.tar.gz \
+    && cd liboqs-${OQS_VERSION} \
+    && mkdir build && cd build \
+    && cmake .. \
+        -DCMAKE_SYSTEM_NAME=Windows \
+        -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+        -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+        -DCMAKE_INSTALL_PREFIX=/usr/x86_64-w64-mingw32 \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DOQS_BUILD_ONLY_LIB=ON \
+        -DOQS_USE_OPENSSL=OFF \
+        -DOQS_MINIMAL_BUILD="KEM_kyber_768" \
+    && make -j$(nproc) \
+    && make install \
+    && cd / \
+    && rm -rf /tmp/liboqs*
+
 ENV PKG_CONFIG_LIBDIR=/usr/x86_64-w64-mingw32/lib/pkgconfig
 ENV PKG_CONFIG_PATH=/usr/x86_64-w64-mingw32/lib/pkgconfig
 

@@ -33,7 +33,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install libsodium cmake
+          brew install libsodium liboqs cmake
 
       - name: Build Client (macOS ${{ matrix.arch }})
         run: |
