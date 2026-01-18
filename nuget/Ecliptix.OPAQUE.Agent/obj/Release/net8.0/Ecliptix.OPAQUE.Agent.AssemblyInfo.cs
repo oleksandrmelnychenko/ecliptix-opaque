@@ -16,7 +16,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyDescriptionAttribute(("High-performance native OPAQUE PAKE protocol client implementation for secure pas" +
     "sword authentication. Passwords never leave the client device."))]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+24407b455677a272582134c2244789d6d5b0f71a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+45b70314e9a8e964e70f297fd4053ef382622299")]
 [assembly: System.Reflection.AssemblyProductAttribute("Ecliptix OPAQUE Agent")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Ecliptix.OPAQUE.Agent")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

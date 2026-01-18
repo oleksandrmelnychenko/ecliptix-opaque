@@ -1,0 +1,14 @@
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/bin/Debug/net8.0/Ecliptix.OPAQUE.Relay.deps.json
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/bin/Debug/net8.0/Ecliptix.OPAQUE.Relay.dll
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/bin/Debug/net8.0/Ecliptix.OPAQUE.Relay.pdb
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/bin/Debug/net8.0/Ecliptix.OPAQUE.Relay.xml
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/obj/Debug/net8.0/Ecliptix.OPAQUE.Relay.GeneratedMSBuildEditorConfig.editorconfig
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/obj/Debug/net8.0/Ecliptix.OPAQUE.Relay.AssemblyInfoInputs.cache
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/obj/Debug/net8.0/Ecliptix.OPAQUE.Relay.AssemblyInfo.cs
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/obj/Debug/net8.0/Ecliptix.OPAQUE.Relay.csproj.CoreCompileInputs.cache
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/obj/Debug/net8.0/Ecliptix.OPAQUE.Relay.sourcelink.json
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/obj/Debug/net8.0/Ecliptix.OPAQUE.Relay.dll
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/obj/Debug/net8.0/refint/Ecliptix.OPAQUE.Relay.dll
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/obj/Debug/net8.0/Ecliptix.OPAQUE.Relay.xml
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/obj/Debug/net8.0/Ecliptix.OPAQUE.Relay.pdb
+/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/obj/Debug/net8.0/ref/Ecliptix.OPAQUE.Relay.dll

@@ -11,7 +11,7 @@
     <description>High-performance native OPAQUE PAKE protocol server implementation for secure password authentication. Server only stores verifiers - passwords are never transmitted.</description>
     <copyright>Copyright (c) 2024-2025 Ecliptix. All rights reserved.</copyright>
     <tags>opaque pake password authentication security cryptography native relay</tags>
-    <repository type="git" url="https://github.com/oleksandrmelnychenko/Ecliptix.OPAQUE.git" commit="24407b455677a272582134c2244789d6d5b0f71a" />
+    <repository type="git" url="https://github.com/oleksandrmelnychenko/Ecliptix.OPAQUE.git" commit="56613b14670847320fe4c404ade49102e69d0d35" />
     <dependencies>
       <group targetFramework="net8.0" />
       <group targetFramework="net9.0" />
@@ -25,10 +25,6 @@
     <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/bin/Release/net8.0/Ecliptix.OPAQUE.Relay.xml" target="lib/net8.0/Ecliptix.OPAQUE.Relay.xml" />
     <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/bin/Release/net9.0/Ecliptix.OPAQUE.Relay.dll" target="lib/net9.0/Ecliptix.OPAQUE.Relay.dll" />
     <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/bin/Release/net9.0/Ecliptix.OPAQUE.Relay.xml" target="lib/net9.0/Ecliptix.OPAQUE.Relay.xml" />
-    <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/runtimes/linux-x64/native/libopaque_server.so" target="runtimes/linux-x64/native/libopaque_server.so" />
-    <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/runtimes/win-x64/native/libopaque_server.dll" target="runtimes/win-x64/native/libopaque_server.dll" />
-    <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/build/Ecliptix.OPAQUE.Server.targets" target="build/Ecliptix.OPAQUE.Server.targets" />
-    <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/build/Ecliptix.OPAQUE.Server.targets" target="buildTransitive/Ecliptix.OPAQUE.Server.targets" />
     <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Relay/README.md" target="README.md" />
   </files>
 </package>

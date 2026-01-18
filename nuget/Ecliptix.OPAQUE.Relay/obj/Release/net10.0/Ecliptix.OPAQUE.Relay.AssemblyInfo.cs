@@ -17,7 +17,7 @@ using System.Reflection;
     "sword authentication. Server only stores verifiers - passwords are never transmi" +
     "tted."))]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+24407b455677a272582134c2244789d6d5b0f71a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+45b70314e9a8e964e70f297fd4053ef382622299")]
 [assembly: System.Reflection.AssemblyProductAttribute("Ecliptix OPAQUE Relay")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Ecliptix.OPAQUE.Relay")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

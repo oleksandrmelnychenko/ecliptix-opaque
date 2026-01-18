@@ -11,7 +11,7 @@
     <description>High-performance native OPAQUE PAKE protocol client implementation for secure password authentication. Passwords never leave the client device.</description>
     <copyright>Copyright (c) 2024-2025 Ecliptix. All rights reserved.</copyright>
     <tags>opaque pake password authentication security cryptography native agent</tags>
-    <repository type="git" url="https://github.com/oleksandrmelnychenko/Ecliptix.OPAQUE.git" commit="24407b455677a272582134c2244789d6d5b0f71a" />
+    <repository type="git" url="https://github.com/oleksandrmelnychenko/Ecliptix.OPAQUE.git" commit="56613b14670847320fe4c404ade49102e69d0d35" />
     <dependencies>
       <group targetFramework="net8.0" />
       <group targetFramework="net9.0" />
