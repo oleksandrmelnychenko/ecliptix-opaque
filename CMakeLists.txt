@@ -60,8 +60,39 @@ elseif(DEFINED ENV{VCPKG_ROOT})
     set(OQS_INCLUDE_DIRS "")
     set(OQS_LIBRARY_DIRS "")
 else()
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(OQS REQUIRED liboqs)
+    # Try pkg-config first, then fall back to find_library
+    find_package(PkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(OQS QUIET liboqs)
+    endif()
+
+    if(NOT OQS_FOUND)
+        # Fallback: find liboqs manually
+        find_library(OQS_LIBRARY NAMES oqs liboqs
+            HINTS
+                /opt/homebrew/lib
+                /usr/local/lib
+                /usr/lib
+                $ENV{HOME}/.local/lib
+        )
+        find_path(OQS_INCLUDE_DIR NAMES oqs/oqs.h
+            HINTS
+                /opt/homebrew/include
+                /usr/local/include
+                /usr/include
+                $ENV{HOME}/.local/include
+        )
+
+        if(OQS_LIBRARY AND OQS_INCLUDE_DIR)
+            set(OQS_FOUND TRUE)
+            set(OQS_LIBRARIES ${OQS_LIBRARY})
+            set(OQS_INCLUDE_DIRS ${OQS_INCLUDE_DIR})
+            set(OQS_LIBRARY_DIRS "")
+            message(STATUS "Found liboqs via find_library: ${OQS_LIBRARY}")
+        else()
+            message(FATAL_ERROR "liboqs not found. Install with: brew install liboqs (macOS) or apt install liboqs-dev (Linux)")
+        endif()
+    endif()
 endif()
 message(STATUS "liboqs found - ML-KEM-768 post-quantum security enabled")
 if(WIN32)
