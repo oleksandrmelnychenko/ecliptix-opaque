@@ -4,7 +4,7 @@ set -euo pipefail
 # =============================================================================
 # Ecliptix.Security.OPAQUE - Complete NuGet Package Builder
 # =============================================================================
-# Builds, protects, signs, and packages both Agent and Relay NuGet packages.
+# Builds, protects, signs, and packages both Client and Server NuGet packages.
 #
 # Prerequisites:
 #   - .NET SDK 6.0+
@@ -21,8 +21,8 @@ set -euo pipefail
 #   --skip-native       Skip copying native libraries (use existing)
 #   --skip-protect      Skip obfuscation/protection
 #   --skip-sign         Skip code signing
-#   --agent-only        Build only agent package
-#   --relay-only        Build only relay package
+#   --agent-only        Build only agent (client) package
+#   --relay-only        Build only relay (server) package
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -121,7 +121,7 @@ copy_native_libraries() {
         local candidates=()
 
         if [[ "$src_platform" == "windows" ]]; then
-            if [[ "$lib_name" == "agent" ]]; then
+            if [[ "$lib_name" == "client" ]]; then
                 candidates=(
                     "$DIST_DIR/client/windows/bin/eop.agent${ext}"
                     "$DIST_DIR/client/windows/lib/eop.agent${ext}"
@@ -133,7 +133,7 @@ copy_native_libraries() {
                 )
             fi
         else
-            if [[ "$lib_name" == "agent" ]]; then
+            if [[ "$lib_name" == "client" ]]; then
                 candidates=(
                     "$DIST_DIR/client/${src_platform}/lib/libeop.agent${ext}"
                 )
@@ -327,12 +327,12 @@ main() {
         log_info "========== AGENT PACKAGE =========="
 
         if [[ "$SKIP_NATIVE" != true ]]; then
-            copy_native_libraries "Ecliptix.OPAQUE.Agent" "agent"
+            copy_native_libraries "Ecliptix.OPAQUE.Agent" "client"
         fi
 
         apply_protection "Ecliptix.OPAQUE.Agent"
         sign_binaries "Ecliptix.OPAQUE.Agent"
-        build_package "Ecliptix.OPAQUE.Agent" "agent"
+        build_package "Ecliptix.OPAQUE.Agent" "client"
         sign_nuget_package "Ecliptix.OPAQUE.Agent"
     fi
 
@@ -342,12 +342,12 @@ main() {
         log_info "========== RELAY PACKAGE =========="
 
         if [[ "$SKIP_NATIVE" != true ]]; then
-            copy_native_libraries "Ecliptix.OPAQUE.Relay" "relay"
+            copy_native_libraries "Ecliptix.OPAQUE.Relay" "server"
         fi
 
         apply_protection "Ecliptix.OPAQUE.Relay"
         sign_binaries "Ecliptix.OPAQUE.Relay"
-        build_package "Ecliptix.OPAQUE.Relay" "relay"
+        build_package "Ecliptix.OPAQUE.Relay" "server"
         sign_nuget_package "Ecliptix.OPAQUE.Relay"
     fi
 
