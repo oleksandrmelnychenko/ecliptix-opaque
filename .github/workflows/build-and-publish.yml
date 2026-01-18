@@ -63,14 +63,14 @@ jobs:
 
       - name: Strip symbols
         run: |
-          strip -x build-client/cmake/client/libopaque_client.dylib || true
-          strip -x build-server/cmake/server/libopaque_server.dylib || true
+          strip -x build-client/cmake/client/libeop.agent.dylib || true
+          strip -x build-server/cmake/server/libeop.relay.dylib || true
 
       - name: Prepare artifacts
         run: |
           mkdir -p artifacts/osx-${{ matrix.arch }}
-          cp build-client/cmake/client/libopaque_client.dylib artifacts/osx-${{ matrix.arch }}/
-          cp build-server/cmake/server/libopaque_server.dylib artifacts/osx-${{ matrix.arch }}/
+          cp build-client/cmake/client/libeop.agent.dylib artifacts/osx-${{ matrix.arch }}/
+          cp build-server/cmake/server/libeop.relay.dylib artifacts/osx-${{ matrix.arch }}/
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -109,11 +109,11 @@ jobs:
           find dist -type f 2>/dev/null || echo "dist directory not found or empty"
           echo "=== Copying artifacts ==="
           mkdir -p artifacts/linux-x64
-          cp dist/client/linux/lib/libopaque_client.so artifacts/linux-x64/ || true
-          cp dist/server/linux/lib/libopaque_server.so artifacts/linux-x64/ || true
+          cp dist/client/linux/lib/libeop.agent.so artifacts/linux-x64/ || true
+          cp dist/server/linux/lib/libeop.relay.so artifacts/linux-x64/ || true
           # Handle versioned library names
-          find dist -name "libopaque_client.so*" -exec cp {} artifacts/linux-x64/libopaque_client.so \; 2>/dev/null || true
-          find dist -name "libopaque_server.so*" -exec cp {} artifacts/linux-x64/libopaque_server.so \; 2>/dev/null || true
+          find dist -name "libeop.agent.so*" -exec cp {} artifacts/linux-x64/libeop.agent.so \; 2>/dev/null || true
+          find dist -name "libeop.relay.so*" -exec cp {} artifacts/linux-x64/libeop.relay.so \; 2>/dev/null || true
           echo "=== Final artifacts ==="
           ls -la artifacts/linux-x64/
 
@@ -152,10 +152,10 @@ jobs:
           find dist -type f 2>/dev/null || echo "dist directory not found or empty"
           echo "=== Copying artifacts ==="
           mkdir -p artifacts/win-x64
-          cp dist/client/windows/bin/*.dll artifacts/win-x64/ 2>/dev/null || true
-          cp dist/client/windows/lib/*.dll artifacts/win-x64/ 2>/dev/null || true
-          cp dist/server/windows/bin/*.dll artifacts/win-x64/ 2>/dev/null || true
-          cp dist/server/windows/lib/*.dll artifacts/win-x64/ 2>/dev/null || true
+          cp dist/client/windows/bin/eop.agent.dll artifacts/win-x64/ 2>/dev/null || true
+          cp dist/client/windows/lib/eop.agent.dll artifacts/win-x64/ 2>/dev/null || true
+          cp dist/server/windows/bin/eop.relay.dll artifacts/win-x64/ 2>/dev/null || true
+          cp dist/server/windows/lib/eop.relay.dll artifacts/win-x64/ 2>/dev/null || true
           echo "=== Final artifacts ==="
           ls -la artifacts/win-x64/ || echo "No Windows artifacts found"
 
@@ -213,40 +213,38 @@ jobs:
 
       - name: Copy native libs to NuGet structure
         run: |
-          # Client package
-          mkdir -p nuget/Ecliptix.OPAQUE.Client/runtimes/osx-arm64/native
-          mkdir -p nuget/Ecliptix.OPAQUE.Client/runtimes/linux-x64/native
-          mkdir -p nuget/Ecliptix.OPAQUE.Client/runtimes/win-x64/native
+          # Agent package (client)
+          mkdir -p nuget/Ecliptix.OPAQUE.Agent/runtimes/osx-arm64/native
+          mkdir -p nuget/Ecliptix.OPAQUE.Agent/runtimes/linux-x64/native
+          mkdir -p nuget/Ecliptix.OPAQUE.Agent/runtimes/win-x64/native
 
-          cp native-libs/native-osx-arm64/libopaque_client.dylib nuget/Ecliptix.OPAQUE.Client/runtimes/osx-arm64/native/ || true
-          cp native-libs/native-linux-x64/libopaque_client.so nuget/Ecliptix.OPAQUE.Client/runtimes/linux-x64/native/ || true
-          cp native-libs/native-win-x64/libopaque_client.dll nuget/Ecliptix.OPAQUE.Client/runtimes/win-x64/native/ 2>/dev/null || \
-          cp native-libs/native-win-x64/opaque_client.dll nuget/Ecliptix.OPAQUE.Client/runtimes/win-x64/native/libopaque_client.dll 2>/dev/null || true
+          cp native-libs/native-osx-arm64/libeop.agent.dylib nuget/Ecliptix.OPAQUE.Agent/runtimes/osx-arm64/native/ || true
+          cp native-libs/native-linux-x64/libeop.agent.so nuget/Ecliptix.OPAQUE.Agent/runtimes/linux-x64/native/ || true
+          cp native-libs/native-win-x64/eop.agent.dll nuget/Ecliptix.OPAQUE.Agent/runtimes/win-x64/native/ || true
 
-          # Server package
-          mkdir -p nuget/Ecliptix.OPAQUE.Server/runtimes/osx-arm64/native
-          mkdir -p nuget/Ecliptix.OPAQUE.Server/runtimes/linux-x64/native
-          mkdir -p nuget/Ecliptix.OPAQUE.Server/runtimes/win-x64/native
+          # Relay package (server)
+          mkdir -p nuget/Ecliptix.OPAQUE.Relay/runtimes/osx-arm64/native
+          mkdir -p nuget/Ecliptix.OPAQUE.Relay/runtimes/linux-x64/native
+          mkdir -p nuget/Ecliptix.OPAQUE.Relay/runtimes/win-x64/native
 
-          cp native-libs/native-osx-arm64/libopaque_server.dylib nuget/Ecliptix.OPAQUE.Server/runtimes/osx-arm64/native/ || true
-          cp native-libs/native-linux-x64/libopaque_server.so nuget/Ecliptix.OPAQUE.Server/runtimes/linux-x64/native/ || true
-          cp native-libs/native-win-x64/libopaque_server.dll nuget/Ecliptix.OPAQUE.Server/runtimes/win-x64/native/ 2>/dev/null || \
-          cp native-libs/native-win-x64/opaque_server.dll nuget/Ecliptix.OPAQUE.Server/runtimes/win-x64/native/libopaque_server.dll 2>/dev/null || true
+          cp native-libs/native-osx-arm64/libeop.relay.dylib nuget/Ecliptix.OPAQUE.Relay/runtimes/osx-arm64/native/ || true
+          cp native-libs/native-linux-x64/libeop.relay.so nuget/Ecliptix.OPAQUE.Relay/runtimes/linux-x64/native/ || true
+          cp native-libs/native-win-x64/eop.relay.dll nuget/Ecliptix.OPAQUE.Relay/runtimes/win-x64/native/ || true
 
-          echo "=== Client package contents ==="
-          find nuget/Ecliptix.OPAQUE.Client/runtimes -type f
-          echo "=== Server package contents ==="
-          find nuget/Ecliptix.OPAQUE.Server/runtimes -type f
+          echo "=== Agent package contents ==="
+          find nuget/Ecliptix.OPAQUE.Agent/runtimes -type f || echo "No Agent artifacts"
+          echo "=== Relay package contents ==="
+          find nuget/Ecliptix.OPAQUE.Relay/runtimes -type f || echo "No Relay artifacts"
 
       - name: Build NuGet packages
         run: |
           cd nuget
-          dotnet pack Ecliptix.OPAQUE.Client/Ecliptix.OPAQUE.Client.csproj \
+          dotnet pack Ecliptix.OPAQUE.Agent/Ecliptix.OPAQUE.Agent.csproj \
             -c Release \
             -o output \
             /p:Version=${{ steps.version.outputs.VERSION }}
 
-          dotnet pack Ecliptix.OPAQUE.Server/Ecliptix.OPAQUE.Server.csproj \
+          dotnet pack Ecliptix.OPAQUE.Relay/Ecliptix.OPAQUE.Relay.csproj \
             -c Release \
             -o output \
             /p:Version=${{ steps.version.outputs.VERSION }}
