@@ -71,6 +71,9 @@ namespace {
 
     template<SecurelyAllocatable T>
     T *SecureAllocator<T>::allocate(size_t n) {
+        if (n == 0) {
+            return nullptr;
+        }
         if (n > SIZE_MAX / sizeof(T)) [[unlikely]] {
             throw std::bad_alloc();
         }
@@ -191,13 +194,7 @@ namespace {
         if (key_data.size() != PUBLIC_KEY_LENGTH) [[unlikely]] {
             return false;
         }
-        if (!crypto::init()) {
-            return false;
-        }
-        if ([[maybe_unused]] const bool all_zero = std::ranges::all_of(key_data, [](auto byte) { return byte == 0; })) {
-            return false;
-        }
-        return crypto_core_ristretto255_is_valid_point(key_data.data()) == 1;
+        return crypto::validate_public_key(key_data.data(), key_data.size()) == Result::Success;
     }
 
     InitiatorCredentials::InitiatorCredentials() : envelope(ENVELOPE_LENGTH), responder_public_key(PUBLIC_KEY_LENGTH) {

@@ -1,4 +1,6 @@
 #include "opaque/responder.h"
+#include "opaque/protocol.h"
+#include "opaque/pq.h"
 #include "opaque/version.h"
 #include "opaque/hardcoded_keys.h"
 #include "opaque/export.h"
@@ -87,18 +89,10 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create(server_keypair_handle_t *keypa
     if (!crypto::init()) {
         return static_cast<int>(Result::CryptoError);
     }
-    if (crypto_core_ristretto255_is_valid_point(keypair_handle->keypair->public_key.data()) != 1) {
-        return static_cast<int>(Result::InvalidPublicKey);
-    }
-    bool all_zero = true;
-    for (size_t i = 0; i < PUBLIC_KEY_LENGTH; ++i) {
-        if (keypair_handle->keypair->public_key[i] != 0) {
-            all_zero = false;
-            break;
-        }
-    }
-    if (all_zero) {
-        return static_cast<int>(Result::InvalidPublicKey);
+    if (Result key_result = crypto::validate_public_key(keypair_handle->keypair->public_key.data(),
+                                                        keypair_handle->keypair->public_key.size());
+        key_result != Result::Success) {
+        return static_cast<int>(key_result);
     }
     uint8_t derived_public_key[PUBLIC_KEY_LENGTH];
     if (crypto_scalarmult_ristretto255_base(derived_public_key, keypair_handle->keypair->private_key.data()) != 0) {
@@ -185,8 +179,8 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_build_credentials(const uint8_t *regi
     OPAQUE_SERVER_LOG("=== opaque_server_build_credentials ===");
     const size_t record_expected = REGISTRATION_RECORD_LENGTH;
     const size_t credentials_expected = RESPONDER_CREDENTIALS_LENGTH;
-    OPAQUE_SERVER_LOG("record_length=%zu (expected=%zu), credentials_out_length=%zu",
-                      record_length, record_expected, credentials_out_length);
+    OPAQUE_SERVER_LOG("record_length=%zu (expected=%zu), credentials_out_length=%zu (expected=%zu)",
+                      record_length, record_expected, credentials_out_length, credentials_expected);
 
     if (!registration_record || record_length < record_expected ||
         !credentials_out || credentials_out_length < credentials_expected) {
@@ -200,9 +194,14 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_build_credentials(const uint8_t *regi
         OPAQUE_SERVER_LOG("ERROR: build_credentials failed: %d", static_cast<int>(result));
         return static_cast<int>(result);
     }
-    std::memcpy(credentials_out, credentials.envelope.data(), ENVELOPE_LENGTH);
-    std::memcpy(credentials_out + ENVELOPE_LENGTH,
-                credentials.initiator_public_key.data(), PUBLIC_KEY_LENGTH);
+    Result write_result = protocol::write_registration_record(
+        credentials.envelope.data(), credentials.envelope.size(),
+        credentials.initiator_public_key.data(), credentials.initiator_public_key.size(),
+        credentials_out, credentials_out_length);
+    if (write_result != Result::Success) {
+        OPAQUE_SERVER_LOG("ERROR: write_registration_record failed: %d", static_cast<int>(write_result));
+        return static_cast<int>(write_result);
+    }
     OPAQUE_SERVER_LOG_HEX("credentials_out", credentials_out, credentials_expected);
     OPAQUE_SERVER_LOG("SUCCESS: credentials built");
     return static_cast<int>(Result::Success);
@@ -216,8 +215,10 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_generate_ke2(const opaque_server_hand
                                const server_state_handle_t *state_handle) {
     OPAQUE_SERVER_LOG("=== opaque_server_generate_ke2 ===");
     OPAQUE_SERVER_LOG("server_handle=%p, state_handle=%p", (void*)server_handle, (void*)state_handle);
-    OPAQUE_SERVER_LOG("ke1_length=%zu (expected=%zu), credentials_length=%zu, ke2_buffer_size=%zu",
-                      ke1_length, KE1_LENGTH, credentials_length, ke2_buffer_size);
+    OPAQUE_SERVER_LOG("ke1_length=%zu (expected=%zu), credentials_length=%zu (expected=%zu), ke2_buffer_size=%zu (expected=%zu)",
+                      ke1_length, KE1_LENGTH,
+                      credentials_length, RESPONDER_CREDENTIALS_LENGTH,
+                      ke2_buffer_size, KE2_LENGTH);
     if (!server_handle || !server_handle->server || !ke1_data || ke1_length != KE1_LENGTH ||
         !account_id || account_id_length == 0 ||
         !credentials_data || credentials_length < RESPONDER_CREDENTIALS_LENGTH ||
@@ -228,24 +229,33 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_generate_ke2(const opaque_server_hand
     }
     OPAQUE_SERVER_LOG_HEX("ke1_data", ke1_data, ke1_length);
     OPAQUE_SERVER_LOG_HEX("credentials_data", credentials_data, credentials_length);
+    protocol::RegistrationRecordView record_view{};
+    Result parse_result = protocol::parse_registration_record(credentials_data, credentials_length, record_view);
+    if (parse_result != Result::Success) {
+        OPAQUE_SERVER_LOG("ERROR: Invalid credentials record (%d)", static_cast<int>(parse_result));
+        return static_cast<int>(parse_result);
+    }
     ResponderCredentials credentials;
-    credentials.envelope.assign(credentials_data, credentials_data + ENVELOPE_LENGTH);
-    credentials.initiator_public_key.assign(credentials_data + ENVELOPE_LENGTH,
-                                            credentials_data + ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH);
+    credentials.envelope.assign(record_view.envelope, record_view.envelope + ENVELOPE_LENGTH);
+    credentials.initiator_public_key.assign(record_view.initiator_public_key,
+                                            record_view.initiator_public_key + PUBLIC_KEY_LENGTH);
     KE2 ke2;
     OPAQUE_SERVER_LOG("Calling generate_ke2...");
     Result result = server_handle->server->generate_ke2(
         ke1_data, ke1_length, account_id, account_id_length, credentials, ke2, *state_handle->state);
     OPAQUE_SERVER_LOG("generate_ke2 returned: %d", static_cast<int>(result));
     if (result == Result::Success) {
-        size_t offset = 0;
-        std::memcpy(ke2_data + offset, ke2.responder_nonce.data(), NONCE_LENGTH);
-        offset += NONCE_LENGTH;
-        std::memcpy(ke2_data + offset, ke2.responder_public_key.data(), PUBLIC_KEY_LENGTH);
-        offset += PUBLIC_KEY_LENGTH;
-        std::memcpy(ke2_data + offset, ke2.credential_response.data(), CREDENTIAL_RESPONSE_LENGTH);
-        offset += CREDENTIAL_RESPONSE_LENGTH;
-        std::memcpy(ke2_data + offset, ke2.responder_mac.data(), MAC_LENGTH);
+        Result write_result = protocol::write_ke2(
+            ke2.responder_nonce.data(), ke2.responder_nonce.size(),
+            ke2.responder_public_key.data(), ke2.responder_public_key.size(),
+            ke2.credential_response.data(), ke2.credential_response.size(),
+            ke2.responder_mac.data(), ke2.responder_mac.size(),
+            ke2.kem_ciphertext.data(), ke2.kem_ciphertext.size(),
+            ke2_data, ke2_buffer_size);
+        if (write_result != Result::Success) {
+            OPAQUE_SERVER_LOG("ERROR: write_ke2 failed (%d)", static_cast<int>(write_result));
+            return static_cast<int>(write_result);
+        }
         OPAQUE_SERVER_LOG_HEX("ke2_data", ke2_data, KE2_LENGTH);
         OPAQUE_SERVER_LOG("SUCCESS: KE2 generated");
     }
@@ -367,20 +377,10 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create_with_keys(
         OPAQUE_SERVER_LOG("ERROR: crypto::init() failed");
         return static_cast<int>(Result::CryptoError);
     }
-    if (crypto_core_ristretto255_is_valid_point(public_key) != 1) {
-        OPAQUE_SERVER_LOG("ERROR: Invalid ristretto255 point");
-        return static_cast<int>(Result::InvalidPublicKey);
-    }
-    bool all_zero = true;
-    for (size_t i = 0; i < PUBLIC_KEY_LENGTH; ++i) {
-        if (public_key[i] != 0) {
-            all_zero = false;
-            break;
-        }
-    }
-    if (all_zero) {
-        OPAQUE_SERVER_LOG("ERROR: All-zero public key");
-        return static_cast<int>(Result::InvalidPublicKey);
+    if (Result key_result = crypto::validate_public_key(public_key, PUBLIC_KEY_LENGTH);
+        key_result != Result::Success) {
+        OPAQUE_SERVER_LOG("ERROR: Invalid public key (%d)", static_cast<int>(key_result));
+        return static_cast<int>(key_result);
     }
     uint8_t derived_public_key[PUBLIC_KEY_LENGTH];
     if (crypto_scalarmult_ristretto255_base(derived_public_key, private_key) != 0) {
@@ -416,5 +416,21 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create_with_keys(
 
 ECLIPTIX_OPAQUE_C_EXPORT const char *opaque_server_get_version() {
     return OPAQUE_SERVER_VERSION;
+}
+
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_server_get_ke2_length() {
+    return KE2_LENGTH;
+}
+
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_server_get_registration_record_length() {
+    return REGISTRATION_RECORD_LENGTH;
+}
+
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_server_get_credentials_length() {
+    return RESPONDER_CREDENTIALS_LENGTH;
+}
+
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_server_get_kem_ciphertext_length() {
+    return pq_constants::KEM_CIPHERTEXT_LENGTH;
 }
 }

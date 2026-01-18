@@ -1,8 +1,5 @@
 #pragma once
 
-// Development logging for OPAQUE protocol - always enabled
-// Logs all keys and values to console for development purposes
-
 #include <cstdint>
 #include <cstdio>
 #include <cstddef>
@@ -41,7 +38,7 @@ namespace log {
         fflush(stdout);
     }
 
-} // namespace log
-} // namespace opaque
-} // namespace security
-} // namespace ecliptix
+}
+}
+}
+}

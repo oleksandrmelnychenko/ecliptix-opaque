@@ -1,4 +1,6 @@
 #include "opaque/responder.h"
+#include "opaque/protocol.h"
+#include "opaque/pq.h"
 #include "opaque/debug_log.h"
 #include <sodium.h>
 #include <algorithm>
@@ -32,8 +34,8 @@ namespace ecliptix::security::opaque::responder {
         log::hex("account_id", account_id, account_id_length);
 
         const uint8_t *blinded_element = registration_request;
-        if (util::is_all_zero(blinded_element, crypto_core_ristretto255_BYTES) ||
-            crypto_core_ristretto255_is_valid_point(blinded_element) != 1) {
+        if (Result point_result = crypto::validate_ristretto_point(blinded_element, REGISTRATION_REQUEST_LENGTH);
+            point_result != Result::Success) {
             return Result::InvalidInput;
         }
         uint8_t evaluated_element[crypto_core_ristretto255_BYTES];
@@ -73,16 +75,21 @@ namespace ecliptix::security::opaque::responder {
             return Result::CryptoError;
         }
         log::hex("registration_record", registration_record, record_length);
-        const uint8_t *initiator_public_key = registration_record + ENVELOPE_LENGTH;
-        if (crypto_core_ristretto255_is_valid_point(initiator_public_key) != 1 ||
-            util::is_all_zero(initiator_public_key, PUBLIC_KEY_LENGTH)) {
-            return Result::InvalidPublicKey;
+        protocol::RegistrationRecordView record_view{};
+        Result parse_result = protocol::parse_registration_record(registration_record, record_length, record_view);
+        if (parse_result != Result::Success) {
+            return parse_result;
+        }
+        if (Result key_result = crypto::validate_public_key(record_view.initiator_public_key, PUBLIC_KEY_LENGTH);
+            key_result != Result::Success) {
+            return key_result;
         }
 
-        credentials.envelope.assign(registration_record, registration_record + ENVELOPE_LENGTH);
-        credentials.initiator_public_key.assign(initiator_public_key, initiator_public_key + PUBLIC_KEY_LENGTH);
+        credentials.envelope.assign(record_view.envelope, record_view.envelope + ENVELOPE_LENGTH);
+        credentials.initiator_public_key.assign(record_view.initiator_public_key,
+                                                record_view.initiator_public_key + PUBLIC_KEY_LENGTH);
         log::hex("credentials.envelope", credentials.envelope);
-        log::hex("credentials.initiator_public_key", credentials.initiator_public_key);
+        log::hex("credentials.initiator_public_key (EC)", credentials.initiator_public_key);
         return Result::Success;
     }
 }

@@ -2,6 +2,7 @@
 #include "opaque.h"
 
 namespace ecliptix::security::opaque::initiator {
+
     struct RegistrationRequest {
         secure_bytes data;
 
@@ -19,6 +20,7 @@ namespace ecliptix::security::opaque::initiator {
         secure_bytes initiator_nonce;
         secure_bytes initiator_public_key;
         secure_bytes credential_request;
+        secure_bytes pq_ephemeral_public_key;
 
         KE1();
     };
@@ -41,6 +43,10 @@ namespace ecliptix::security::opaque::initiator {
         secure_bytes initiator_nonce;
         secure_bytes master_key;
 
+        secure_bytes pq_ephemeral_public_key;
+        secure_bytes pq_ephemeral_secret_key;
+        secure_bytes pq_shared_secret;
+
         InitiatorState();
 
         ~InitiatorState();
@@ -61,7 +67,6 @@ namespace ecliptix::security::opaque::initiator {
             size_t secure_key_length,
             RegistrationRequest &request,
             InitiatorState &state);
-
 
         [[nodiscard]] Result finalize_registration(
             const uint8_t *registration_response,

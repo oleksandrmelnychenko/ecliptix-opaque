@@ -75,6 +75,34 @@ namespace ecliptix::security::opaque::crypto {
         return Result::Success;
     }
 
+    Result validate_ristretto_point(const uint8_t *point, size_t length) {
+        if (!point || length != PUBLIC_KEY_LENGTH) [[unlikely]] {
+            return Result::InvalidInput;
+        }
+        if (!init()) {
+            return Result::CryptoError;
+        }
+        if (crypto_core_ristretto255_is_valid_point(point) != 1 ||
+            util::is_all_zero(point, length)) {
+            return Result::InvalidInput;
+        }
+        return Result::Success;
+    }
+
+    Result validate_public_key(const uint8_t *key, size_t length) {
+        if (!key || length != PUBLIC_KEY_LENGTH) [[unlikely]] {
+            return Result::InvalidInput;
+        }
+        if (!init()) {
+            return Result::CryptoError;
+        }
+        if (crypto_core_ristretto255_is_valid_point(key) != 1 ||
+            util::is_all_zero(key, length)) {
+            return Result::InvalidPublicKey;
+        }
+        return Result::Success;
+    }
+
     Result hash_to_scalar(const uint8_t *input, const size_t input_length, uint8_t *scalar) {
         if (!input || input_length == 0 || !scalar) [[unlikely]] {
             return Result::InvalidInput;
@@ -138,6 +166,17 @@ namespace ecliptix::security::opaque::crypto {
         if (!init()) {
             return Result::CryptoError;
         }
+        uint8_t oprf_seed_full[crypto_auth_hmacsha512_BYTES];
+        if (const Result seed_result = hmac(server_secret, server_secret_length,
+                                            reinterpret_cast<const uint8_t *>(labels::kOprfSeedInfo),
+                                            labels::kOprfSeedInfoLength,
+                                            oprf_seed_full);
+            seed_result != Result::Success) [[unlikely]] {
+            return seed_result;
+        }
+        uint8_t oprf_seed[OPRF_SEED_LENGTH];
+        std::copy_n(oprf_seed_full, sizeof(oprf_seed), oprf_seed);
+        sodium_memzero(oprf_seed_full, sizeof(oprf_seed_full));
         secure_bytes input(labels::kOprfKeyInfoLength + account_id_length + 1);
         std::copy_n(reinterpret_cast<const uint8_t *>(labels::kOprfKeyInfo),
                     labels::kOprfKeyInfoLength, input.begin());
@@ -147,19 +186,22 @@ namespace ecliptix::security::opaque::crypto {
         const size_t counter_offset = labels::kOprfKeyInfoLength + account_id_length;
         for (uint16_t counter = 0; counter < 255; ++counter) {
             input[counter_offset] = static_cast<uint8_t>(counter);
-            if (const Result result = hmac(server_secret, server_secret_length,
+            if (const Result result = hmac(oprf_seed, sizeof(oprf_seed),
                                            input.data(), input.size(), mac);
                 result != Result::Success) [[unlikely]] {
                 sodium_memzero(mac, sizeof(mac));
+                sodium_memzero(oprf_seed, sizeof(oprf_seed));
                 return result;
             }
             crypto_core_ristretto255_scalar_reduce(oprf_key, mac);
             if (sodium_is_zero(oprf_key, PRIVATE_KEY_LENGTH) == 0) {
                 sodium_memzero(mac, sizeof(mac));
+                sodium_memzero(oprf_seed, sizeof(oprf_seed));
                 return Result::Success;
             }
         }
         sodium_memzero(mac, sizeof(mac));
+        sodium_memzero(oprf_seed, sizeof(oprf_seed));
         return Result::CryptoError;
     }
 
@@ -253,12 +295,15 @@ namespace ecliptix::security::opaque::crypto {
         if (!prk || prk_length == 0 || !okm || okm_length == 0) [[unlikely]] {
             return Result::InvalidInput;
         }
-            constexpr size_t hash_length = crypto_auth_hmacsha512_BYTES;
-            constexpr size_t kHkdfMaxBlocks = 255;
-            const size_t n = (okm_length + hash_length - 1) / hash_length;
-            if (n > kHkdfMaxBlocks) [[unlikely]] {
-                return Result::InvalidInput;
-            }
+        if (info_length > 0 && !info) [[unlikely]] {
+            return Result::InvalidInput;
+        }
+        constexpr size_t hash_length = crypto_auth_hmacsha512_BYTES;
+        constexpr size_t kHkdfMaxBlocks = 255;
+        const size_t n = (okm_length + hash_length - 1) / hash_length;
+        if (n > kHkdfMaxBlocks) [[unlikely]] {
+            return Result::InvalidInput;
+        }
         secure_bytes t_prev(hash_length);
         secure_bytes t_current(hash_length);
         const size_t max_input_size = hash_length + info_length + 1;
@@ -282,6 +327,15 @@ namespace ecliptix::security::opaque::crypto {
                         okm + (i - 1) * hash_length);
             std::swap(t_prev, t_current);
         }
+        if (!t_prev.empty()) {
+            sodium_memzero(t_prev.data(), t_prev.size());
+        }
+        if (!t_current.empty()) {
+            sodium_memzero(t_current.data(), t_current.size());
+        }
+        if (!input.empty()) {
+            sodium_memzero(input.data(), input.size());
+        }
         return Result::Success;
     }
 
@@ -291,6 +345,9 @@ namespace ecliptix::security::opaque::crypto {
                             uint8_t *ciphertext, uint8_t *auth_tag) {
         if (!key || key_length == 0 || !plaintext || plaintext_length == 0 ||
             !nonce || !ciphertext || !auth_tag) [[unlikely]] {
+            return Result::InvalidInput;
+        }
+        if (key_length != crypto_secretbox_KEYBYTES) [[unlikely]] {
             return Result::InvalidInput;
         }
         if (!init()) {
@@ -307,6 +364,9 @@ namespace ecliptix::security::opaque::crypto {
                             uint8_t *plaintext) {
         if (!key || key_length == 0 || !ciphertext || ciphertext_length == 0 ||
             !nonce || !auth_tag || !plaintext) [[unlikely]] {
+            return Result::InvalidInput;
+        }
+        if (key_length != crypto_secretbox_KEYBYTES) [[unlikely]] {
             return Result::InvalidInput;
         }
         if (!init()) {

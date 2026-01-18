@@ -1,5 +1,6 @@
 #include "opaque/opaque.h"
 #include "opaque/initiator.h"
+#include "opaque/protocol.h"
 #include "opaque/version.h"
 #include "opaque/hardcoded_keys.h"
 #include "opaque/export.h"
@@ -74,20 +75,10 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_create(
         OPAQUE_CLIENT_LOG("ERROR: crypto::init() failed");
         return static_cast<int>(Result::CryptoError);
     }
-    if (crypto_core_ristretto255_is_valid_point(server_public_key) != 1) {
-        OPAQUE_CLIENT_LOG("ERROR: Invalid ristretto255 point");
-        return static_cast<int>(Result::InvalidPublicKey);
-    }
-    bool all_zero = true;
-    for (size_t i = 0; i < PUBLIC_KEY_LENGTH; ++i) {
-        if (server_public_key[i] != 0) {
-            all_zero = false;
-            break;
-        }
-    }
-    if (all_zero) {
-        OPAQUE_CLIENT_LOG("ERROR: All-zero public key");
-        return static_cast<int>(Result::InvalidPublicKey);
+    if (Result key_result = crypto::validate_public_key(server_public_key, PUBLIC_KEY_LENGTH);
+        key_result != Result::Success) {
+        OPAQUE_CLIENT_LOG("ERROR: Invalid server public key (%d)", static_cast<int>(key_result));
+        return static_cast<int>(key_result);
     }
     try {
         auto client = std::make_unique<OpaqueClientHandle>(server_public_key, key_length);
@@ -191,8 +182,9 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_finalize_registration(
     const size_t record_length) {
     OPAQUE_CLIENT_LOG("=== opaque_client_finalize_registration ===");
     OPAQUE_CLIENT_LOG("client_handle=%p, state_handle=%p", client_handle, state_handle);
-    OPAQUE_CLIENT_LOG("response_length=%zu (expected=%zu), record_length=%zu",
-                      response_length, REGISTRATION_RESPONSE_LENGTH, record_length);
+    OPAQUE_CLIENT_LOG("response_length=%zu (expected=%zu), record_length=%zu (expected=%zu)",
+                      response_length, REGISTRATION_RESPONSE_LENGTH,
+                      record_length, REGISTRATION_RECORD_LENGTH);
     if (!client_handle || !response || response_length != REGISTRATION_RESPONSE_LENGTH ||
         !state_handle || !record_out || record_length < REGISTRATION_RECORD_LENGTH) {
         OPAQUE_CLIENT_LOG("ERROR: InvalidInput - response=%p, record_out=%p",
@@ -216,20 +208,18 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_finalize_registration(
             return static_cast<int>(result);
         }
 
-        const size_t expected_record_size = record.envelope.size() + record.initiator_public_key.size();
-        OPAQUE_CLIENT_LOG("envelope.size=%zu, initiator_public_key.size=%zu, expected_record_size=%zu",
-                          record.envelope.size(), record.initiator_public_key.size(), expected_record_size);
-        if (record_length < expected_record_size) {
-            OPAQUE_CLIENT_LOG("ERROR: record_length too small");
-            return static_cast<int>(Result::InvalidInput);
+        OPAQUE_CLIENT_LOG("envelope.size=%zu, initiator_public_key.size=%zu",
+                          record.envelope.size(), record.initiator_public_key.size());
+        Result write_result = protocol::write_registration_record(
+            record.envelope.data(), record.envelope.size(),
+            record.initiator_public_key.data(), record.initiator_public_key.size(),
+            record_out, record_length);
+        if (write_result != Result::Success) {
+            OPAQUE_CLIENT_LOG("ERROR: write_registration_record failed (%d)", static_cast<int>(write_result));
+            return static_cast<int>(write_result);
         }
 
-        size_t offset = 0;
-        std::ranges::copy(record.envelope, record_out + offset);
-        offset += record.envelope.size();
-        std::ranges::copy(record.initiator_public_key, record_out + offset);
-
-        OPAQUE_CLIENT_LOG_HEX("record_out", record_out, expected_record_size);
+        OPAQUE_CLIENT_LOG_HEX("record_out", record_out, REGISTRATION_RECORD_LENGTH);
         OPAQUE_CLIENT_LOG("SUCCESS: registration finalized");
         return static_cast<int>(Result::Success);
     } catch (const std::exception &e) {
@@ -246,8 +236,8 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_generate_ke1(
     uint8_t *ke1_out,
     size_t ke1_length) {
     OPAQUE_CLIENT_LOG("=== opaque_client_generate_ke1 ===");
-    OPAQUE_CLIENT_LOG("client_handle=%p, state_handle=%p, secure_key_length=%zu, ke1_length=%zu",
-                      client_handle, state_handle, secure_key_length, ke1_length);
+    OPAQUE_CLIENT_LOG("client_handle=%p, state_handle=%p, secure_key_length=%zu, ke1_length=%zu (expected=%zu)",
+                      client_handle, state_handle, secure_key_length, ke1_length, KE1_LENGTH);
     if (!client_handle || !secure_key || secure_key_length == 0 ||
         !state_handle || !ke1_out || ke1_length < KE1_LENGTH) {
         OPAQUE_CLIENT_LOG("ERROR: InvalidInput");
@@ -269,12 +259,16 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_generate_ke1(
             return static_cast<int>(result);
         }
 
-        size_t offset = 0;
-        std::ranges::copy(ke1.credential_request, ke1_out + offset);
-        offset += ke1.credential_request.size();
-        std::ranges::copy(ke1.initiator_public_key, ke1_out + offset);
-        offset += ke1.initiator_public_key.size();
-        std::ranges::copy(ke1.initiator_nonce, ke1_out + offset);
+        Result write_result = protocol::write_ke1(
+            ke1.credential_request.data(), ke1.credential_request.size(),
+            ke1.initiator_public_key.data(), ke1.initiator_public_key.size(),
+            ke1.initiator_nonce.data(), ke1.initiator_nonce.size(),
+            ke1.pq_ephemeral_public_key.data(), ke1.pq_ephemeral_public_key.size(),
+            ke1_out, ke1_length);
+        if (write_result != Result::Success) {
+            OPAQUE_CLIENT_LOG("ERROR: write_ke1 failed (%d)", static_cast<int>(write_result));
+            return static_cast<int>(write_result);
+        }
 
         OPAQUE_CLIENT_LOG_HEX("ke1_out", ke1_out, KE1_LENGTH);
         OPAQUE_CLIENT_LOG("SUCCESS: KE1 generated");
@@ -317,7 +311,13 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_generate_ke3(
             return static_cast<int>(result);
         }
 
-        std::ranges::copy(ke3.initiator_mac, ke3_out);
+        Result write_result = protocol::write_ke3(
+            ke3.initiator_mac.data(), ke3.initiator_mac.size(),
+            ke3_out, ke3_length);
+        if (write_result != Result::Success) {
+            OPAQUE_CLIENT_LOG("ERROR: write_ke3 failed (%d)", static_cast<int>(write_result));
+            return static_cast<int>(write_result);
+        }
         OPAQUE_CLIENT_LOG_HEX("ke3_out", ke3_out, KE3_LENGTH);
         OPAQUE_CLIENT_LOG("SUCCESS: KE3 generated");
         return static_cast<int>(Result::Success);
@@ -339,7 +339,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_finish(
                       client_handle, state_handle, session_key_length, master_key_length);
     if (!client_handle || !state_handle ||
         !session_key_out || session_key_length < HASH_LENGTH ||
-        !master_key_out || master_key_length != MASTER_KEY_LENGTH) {
+        !master_key_out || master_key_length < MASTER_KEY_LENGTH) {
         OPAQUE_CLIENT_LOG("ERROR: InvalidInput");
         return static_cast<int>(Result::InvalidInput);
     }
@@ -390,5 +390,29 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_create_default(void **handle) {
 
 ECLIPTIX_OPAQUE_C_EXPORT const char *opaque_client_get_version() {
     return OPAQUE_CLIENT_VERSION;
+}
+
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_get_ke1_length() {
+    return KE1_LENGTH;
+}
+
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_get_ke2_length() {
+    return KE2_LENGTH;
+}
+
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_get_ke3_length() {
+    return KE3_LENGTH;
+}
+
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_get_registration_record_length() {
+    return REGISTRATION_RECORD_LENGTH;
+}
+
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_get_kem_public_key_length() {
+    return pq_constants::KEM_PUBLIC_KEY_LENGTH;
+}
+
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_get_kem_ciphertext_length() {
+    return pq_constants::KEM_CIPHERTEXT_LENGTH;
 }
 }

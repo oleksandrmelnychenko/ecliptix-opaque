@@ -37,12 +37,31 @@ namespace ecliptix::security::opaque::responder {
             if (!crypto::init()) {
                 throw std::runtime_error("Failed to initialize cryptographic library");
             }
-            if (crypto_core_ristretto255_is_valid_point(responder_keypair_.public_key.data()) != 1) {
+            if (responder_keypair_.private_key.size() != PRIVATE_KEY_LENGTH) {
+                throw std::runtime_error("Invalid responder private key length");
+            }
+            if (responder_keypair_.public_key.size() != PUBLIC_KEY_LENGTH) {
+                throw std::runtime_error("Invalid responder public key length");
+            }
+            if (sodium_is_zero(responder_keypair_.private_key.data(),
+                               responder_keypair_.private_key.size()) == 1) {
+                throw std::runtime_error("Responder private key is zero");
+            }
+            if (crypto::validate_public_key(responder_keypair_.public_key.data(),
+                                            responder_keypair_.public_key.size()) != Result::Success) {
                 throw std::runtime_error("Invalid responder public key");
             }
-            if (sodium_is_zero(responder_keypair_.public_key.data(), responder_keypair_.public_key.size()) == 1) {
-                throw std::runtime_error("Invalid responder public key");
+            uint8_t derived_public_key[PUBLIC_KEY_LENGTH];
+            if (crypto_scalarmult_ristretto255_base(derived_public_key,
+                                                    responder_keypair_.private_key.data()) != 0) {
+                sodium_memzero(derived_public_key, sizeof(derived_public_key));
+                throw std::runtime_error("Failed to derive responder public key");
             }
+            if (crypto_verify_32(derived_public_key, responder_keypair_.public_key.data()) != 0) {
+                sodium_memzero(derived_public_key, sizeof(derived_public_key));
+                throw std::runtime_error("Responder keypair mismatch");
+            }
+            sodium_memzero(derived_public_key, sizeof(derived_public_key));
         }
 
         Result create_registration_response(const uint8_t *registration_request, const size_t request_length,
@@ -108,4 +127,5 @@ namespace ecliptix::security::opaque::responder {
     const secure_bytes &OpaqueResponder::get_public_key() const {
         return impl_->get_public_key();
     }
+
 }

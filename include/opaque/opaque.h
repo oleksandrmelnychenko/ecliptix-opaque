@@ -6,6 +6,7 @@
 #include <concepts>
 
 namespace ecliptix::security::opaque {
+
     constexpr inline size_t OPRF_SEED_LENGTH = 32;
     constexpr inline size_t PRIVATE_KEY_LENGTH = 32;
     constexpr inline size_t PUBLIC_KEY_LENGTH = 32;
@@ -14,24 +15,43 @@ namespace ecliptix::security::opaque {
     constexpr inline size_t MAC_LENGTH = 64;
     constexpr inline size_t HASH_LENGTH = 64;
 
-
     constexpr inline size_t ENVELOPE_LENGTH = 136;
     constexpr inline size_t REGISTRATION_REQUEST_LENGTH = 32;
     constexpr inline size_t REGISTRATION_RESPONSE_LENGTH = 64;
-    constexpr inline size_t CREDENTIAL_REQUEST_LENGTH = 88;
+    constexpr inline size_t CREDENTIAL_REQUEST_LENGTH = REGISTRATION_REQUEST_LENGTH;
     constexpr inline size_t CREDENTIAL_RESPONSE_LENGTH = 168;
-    constexpr inline size_t KE1_LENGTH = 88;
-    constexpr inline size_t KE2_LENGTH = 288;
-    constexpr inline size_t KE3_LENGTH = 64;
     constexpr inline size_t MAX_SECURE_KEY_LENGTH = 4096;
+
+    constexpr inline size_t KE1_BASE_LENGTH = REGISTRATION_REQUEST_LENGTH + PUBLIC_KEY_LENGTH + NONCE_LENGTH;
+    constexpr inline size_t KE2_BASE_LENGTH = NONCE_LENGTH + PUBLIC_KEY_LENGTH + CREDENTIAL_RESPONSE_LENGTH + MAC_LENGTH;
+    constexpr inline size_t KE3_LENGTH = MAC_LENGTH;
     constexpr inline size_t REGISTRATION_RECORD_LENGTH = ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH;
-    constexpr inline size_t RESPONDER_CREDENTIALS_LENGTH = ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH;
+    constexpr inline size_t RESPONDER_CREDENTIALS_LENGTH = REGISTRATION_RECORD_LENGTH;
+
+    namespace pq_constants {
+
+        constexpr inline size_t KEM_PUBLIC_KEY_LENGTH = 1184;
+
+        constexpr inline size_t KEM_SECRET_KEY_LENGTH = 2400;
+
+        constexpr inline size_t KEM_CIPHERTEXT_LENGTH = 1088;
+
+        constexpr inline size_t KEM_SHARED_SECRET_LENGTH = 32;
+
+        constexpr inline size_t COMBINED_IKM_LENGTH = 96 + KEM_SHARED_SECRET_LENGTH;
+
+    }
+
+    constexpr inline size_t KE1_LENGTH = KE1_BASE_LENGTH + pq_constants::KEM_PUBLIC_KEY_LENGTH;
+    constexpr inline size_t KE2_LENGTH = KE2_BASE_LENGTH + pq_constants::KEM_CIPHERTEXT_LENGTH;
 
     namespace labels {
         constexpr inline char kOprfContext[] = "ECLIPTIX-OPAQUE-v1/OPRF";
         constexpr inline size_t kOprfContextLength = sizeof(kOprfContext) - 1;
         constexpr inline char kOprfKeyInfo[] = "ECLIPTIX-OPAQUE-v1/OPRF-Key";
         constexpr inline size_t kOprfKeyInfoLength = sizeof(kOprfKeyInfo) - 1;
+        constexpr inline char kOprfSeedInfo[] = "ECLIPTIX-OPAQUE-v1/OPRF-Seed";
+        constexpr inline size_t kOprfSeedInfoLength = sizeof(kOprfSeedInfo) - 1;
         constexpr inline char kEnvelopeContext[] = "ECLIPTIX-OPAQUE-v1/EnvelopeKey";
         constexpr inline size_t kEnvelopeContextLength = sizeof(kEnvelopeContext) - 1;
         constexpr inline char kHkdfSalt[] = "ECLIPTIX-OPAQUE-v1/HKDF-Salt";
@@ -56,10 +76,15 @@ namespace ecliptix::security::opaque {
     static_assert(PRIVATE_KEY_LENGTH == 32, "ristretto255 requires 32-byte keys");
     static_assert(NONCE_LENGTH == 24, "Nonce length must match crypto_secretbox nonce size");
     static_assert(MAC_LENGTH == 64, "HMAC-SHA512 produces 64-byte MACs");
+    static_assert(CREDENTIAL_REQUEST_LENGTH == REGISTRATION_REQUEST_LENGTH,
+                  "Credential request length must match registration request length");
     static_assert(CREDENTIAL_RESPONSE_LENGTH == PUBLIC_KEY_LENGTH + ENVELOPE_LENGTH,
                   "Credential response size mismatch: 32 + 136 = 168");
-    static_assert(KE2_LENGTH == NONCE_LENGTH + PUBLIC_KEY_LENGTH + CREDENTIAL_RESPONSE_LENGTH + MAC_LENGTH,
-                  "KE2 length calculation error: 24 + 32 + 168 + 64 = 288");
+    static_assert(KE1_BASE_LENGTH == 88, "Base KE1 length: 32 + 32 + 24 = 88");
+    static_assert(KE2_BASE_LENGTH == 288, "Base KE2 length: 24 + 32 + 168 + 64 = 288");
+    static_assert(REGISTRATION_RECORD_LENGTH == 168, "Registration record length: 136 + 32 = 168");
+    static_assert(KE1_LENGTH == 1272, "KE1 length: 88 + 1184 = 1272");
+    static_assert(KE2_LENGTH == 1376, "KE2 length: 288 + 1088 = 1376");
 
     enum class [[nodiscard]] Result {
         Success = 0,
@@ -200,6 +225,10 @@ namespace ecliptix::security::opaque {
                                              uint8_t *private_key, uint8_t *public_key);
 
         [[nodiscard]] Result scalar_mult(const uint8_t *scalar, const uint8_t *point, uint8_t *result);
+
+        [[nodiscard]] Result validate_ristretto_point(const uint8_t *point, size_t length);
+
+        [[nodiscard]] Result validate_public_key(const uint8_t *key, size_t length);
 
         [[nodiscard]] Result key_derivation_extract(const uint8_t *salt, size_t salt_length, const uint8_t *ikm,
                                                     size_t ikm_length, uint8_t *prk);

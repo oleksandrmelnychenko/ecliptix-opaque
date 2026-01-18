@@ -8,7 +8,6 @@ namespace ecliptix::security::opaque::initiator {
     Result create_registration_request_impl(const uint8_t *secure_key, size_t secure_key_length,
                                             RegistrationRequest &request, InitiatorState &state);
 
-
     Result finalize_registration_impl(const uint8_t *registration_response, size_t response_length,
                                       const uint8_t *expected_responder_public_key, size_t expected_key_length,
                                       InitiatorState &state, RegistrationRecord &record);
@@ -29,7 +28,10 @@ namespace ecliptix::security::opaque::initiator {
                                        session_key(0),
                                        oblivious_prf_blind_scalar(PRIVATE_KEY_LENGTH),
                                        initiator_nonce(NONCE_LENGTH),
-                                       master_key(0) {
+                                       master_key(0),
+                                       pq_ephemeral_public_key(0),
+                                       pq_ephemeral_secret_key(0),
+                                       pq_shared_secret(0) {
     }
 
     InitiatorState::~InitiatorState() {
@@ -48,6 +50,16 @@ namespace ecliptix::security::opaque::initiator {
         sodium_memzero(initiator_nonce.data(), initiator_nonce.size());
         if (!master_key.empty()) {
             sodium_memzero(master_key.data(), master_key.size());
+        }
+
+        if (!pq_ephemeral_public_key.empty()) {
+            sodium_memzero(pq_ephemeral_public_key.data(), pq_ephemeral_public_key.size());
+        }
+        if (!pq_ephemeral_secret_key.empty()) {
+            sodium_memzero(pq_ephemeral_secret_key.data(), pq_ephemeral_secret_key.size());
+        }
+        if (!pq_shared_secret.empty()) {
+            sodium_memzero(pq_shared_secret.data(), pq_shared_secret.size());
         }
     }
 

@@ -2,6 +2,7 @@
 #include "opaque.h"
 
 namespace ecliptix::security::opaque::responder {
+
     struct RegistrationResponse {
         secure_bytes data;
 
@@ -13,6 +14,7 @@ namespace ecliptix::security::opaque::responder {
         secure_bytes responder_public_key;
         secure_bytes credential_response;
         secure_bytes responder_mac;
+        secure_bytes kem_ciphertext;
 
         KE2();
     };
@@ -27,6 +29,8 @@ namespace ecliptix::security::opaque::responder {
         secure_bytes expected_initiator_mac;
         secure_bytes master_key;
         bool handshake_complete;
+
+        secure_bytes pq_shared_secret;
 
         ResponderState();
 
