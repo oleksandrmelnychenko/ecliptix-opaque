@@ -40,12 +40,14 @@ RUN curl -L -o liboqs.tar.gz https://github.com/open-quantum-safe/liboqs/archive
     && mkdir build && cd build \
     && cmake .. \
         -DCMAKE_SYSTEM_NAME=Windows \
+        -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
         -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
         -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
         -DCMAKE_INSTALL_PREFIX=/usr/x86_64-w64-mingw32 \
         -DBUILD_SHARED_LIBS=OFF \
         -DOQS_BUILD_ONLY_LIB=ON \
         -DOQS_USE_OPENSSL=OFF \
+        -DOQS_PERMIT_UNSUPPORTED_ARCHITECTURE=ON \
         -DOQS_MINIMAL_BUILD="KEM_kyber_768" \
     && make -j$(nproc) \
     && make install \
