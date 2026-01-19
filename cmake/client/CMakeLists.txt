@@ -86,14 +86,18 @@ else()
     endif()
 endif()
 
+# OpenSSL is optional - liboqs can be built without it
 find_package(OpenSSL QUIET)
 if(OPENSSL_FOUND)
     target_link_libraries(${CLIENT_TARGET} OpenSSL::SSL OpenSSL::Crypto)
-else()
+elseif(NOT MINGW)
+    # Only require OpenSSL on non-MinGW builds
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(OPENSSL REQUIRED openssl)
-    target_link_libraries(${CLIENT_TARGET} ${OPENSSL_LIBRARIES})
-    target_link_directories(${CLIENT_TARGET} PRIVATE ${OPENSSL_LIBRARY_DIRS})
+    pkg_check_modules(OPENSSL QUIET openssl)
+    if(OPENSSL_FOUND)
+        target_link_libraries(${CLIENT_TARGET} ${OPENSSL_LIBRARIES})
+        target_link_directories(${CLIENT_TARGET} PRIVATE ${OPENSSL_LIBRARY_DIRS})
+    endif()
 endif()
 
 if(WIN32)
