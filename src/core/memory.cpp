@@ -38,17 +38,17 @@ namespace {
 #ifdef _WIN32
             void *ptr = VirtualAlloc(nullptr, aligned_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
             if (!ptr) return nullptr;
-            if (!VirtualLock(ptr, aligned_size)) {
-                VirtualFree(ptr, 0, MEM_RELEASE);
-                return nullptr;
-            }
+            // Best-effort memory locking - continue even if VirtualLock fails
+            // (Windows has strict working set quotas that can be exceeded)
+            // Memory is still securely wiped on free regardless of lock status
+            (void)VirtualLock(ptr, aligned_size);
 #else
             void *ptr = aligned_alloc(page_size, aligned_size);
             if (!ptr) return nullptr;
-            if (mlock(ptr, aligned_size) != 0) {
-                free(ptr);
-                return nullptr;
-            }
+            // Best-effort memory locking - continue even if mlock fails
+            // (may fail due to RLIMIT_MEMLOCK quota)
+            // Memory is still securely wiped on free regardless of lock status
+            (void)mlock(ptr, aligned_size);
 #endif
             std::memset(ptr, 0, aligned_size);
             return ptr;
