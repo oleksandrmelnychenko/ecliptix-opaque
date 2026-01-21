@@ -22,12 +22,22 @@ namespace {
 
     OQS_KEM* get_kem_ctx() {
         thread_local std::unique_ptr<OQS_KEM, KemCtxDeleter> kem_ctx{OQS_KEM_new(OQS_KEM_alg_ml_kem_768)};
+        if (!kem_ctx) {
+            log::msg("get_kem_ctx: OQS_KEM_new returned nullptr");
+            log::msg("Checking if ML-KEM-768 is enabled...");
+            if (OQS_KEM_alg_is_enabled(OQS_KEM_alg_ml_kem_768)) {
+                log::msg("ML-KEM-768 IS enabled in liboqs");
+            } else {
+                log::msg("ML-KEM-768 is NOT enabled in liboqs build");
+            }
+        }
         return kem_ctx.get();
     }
 }
 
 bool init() {
     std::call_once(init_flag, [] {
+        OQS_init();
 
         if (sodium_init() == -1) {
             init_success = false;
