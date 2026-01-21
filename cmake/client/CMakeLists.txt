@@ -19,6 +19,14 @@ set(CLIENT_SOURCES
     ${CMAKE_SOURCE_DIR}/include/opaque/pq.h
     ${CMAKE_SOURCE_DIR}/include/opaque/hardcoded_keys.h
 )
+
+# Add JNI sources for Android builds
+if(BUILD_ANDROID_JNI AND ANDROID)
+    list(APPEND CLIENT_SOURCES
+        ${CMAKE_SOURCE_DIR}/src/interop/jni/OpaqueJni.cpp
+    )
+    message(STATUS "Building with JNI bindings for Android")
+endif()
 if(IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
     add_library(opaque_client STATIC ${CLIENT_SOURCES})
 else()

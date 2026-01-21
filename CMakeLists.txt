@@ -28,6 +28,7 @@ option(RUN_TESTS_BEFORE_BUILD "Run tests before building libraries" ON)
 option(BUILD_STATIC_SODIUM "Link libsodium statically" OFF)
 option(STATIC_MSVC_RUNTIME "Link MSVC runtime statically (Windows only)" OFF)
 option(ENABLE_OBFUSCATION "Enable LLVM-based code obfuscation (requires Clang)" OFF)
+option(BUILD_ANDROID_JNI "Build JNI bindings for Android" OFF)
 
 if(MSVC AND STATIC_MSVC_RUNTIME)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

@@ -13,7 +13,7 @@ on:
 
 # Workflow-level permissions
 permissions:
-  contents: read
+  contents: write  # For GitHub Releases
   packages: write
 
 env:
@@ -135,6 +135,85 @@ jobs:
           retention-days: 1
 
   # ==========================================================================
+  # Android Build (Docker with NDK)
+  # ==========================================================================
+  build-android:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Client (Android ${{ matrix.abi }})
+        run: |
+          docker build -f Dockerfile.android \
+            --build-arg ABI=${{ matrix.abi }} \
+            --build-arg BUILD_TYPE=Release \
+            -t opaque-android-${{ matrix.abi }} .
+
+          # Create a temporary container and copy artifacts
+          docker create --name extract-${{ matrix.abi }} opaque-android-${{ matrix.abi }}
+          mkdir -p dist/android/${{ matrix.abi }}/lib
+          docker cp extract-${{ matrix.abi }}:/workspace/dist/android/${{ matrix.abi }}/lib/. dist/android/${{ matrix.abi }}/lib/
+          docker rm extract-${{ matrix.abi }}
+
+      - name: Prepare artifacts
+        run: |
+          mkdir -p artifacts/android-${{ matrix.abi }}
+          cp dist/android/${{ matrix.abi }}/lib/libeop.agent.so artifacts/android-${{ matrix.abi }}/
+          echo "=== Android ${{ matrix.abi }} artifacts ==="
+          ls -la artifacts/android-${{ matrix.abi }}/
+          file artifacts/android-${{ matrix.abi }}/libeop.agent.so
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-android-${{ matrix.abi }}
+          path: artifacts/android-${{ matrix.abi }}/
+          retention-days: 1
+
+  # ==========================================================================
+  # Apple XCFramework Build (iOS + macOS)
+  # ==========================================================================
+  build-apple-xcframework:
+    runs-on: macos-14  # Apple Silicon
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install libsodium liboqs cmake
+          echo "=== Validating ML-KEM-768 in Homebrew liboqs ==="
+          if nm /opt/homebrew/lib/liboqs.a 2>/dev/null | grep -q "_OQS_KEM_ml_kem_768_new"; then
+            echo "ML-KEM-768 symbols found"
+          else
+            echo "ERROR: ML-KEM-768 symbols NOT found"
+            exit 1
+          fi
+
+      - name: Build XCFramework (iOS + macOS)
+        run: |
+          chmod +x build-xcframework.sh
+          ./build-xcframework.sh Release
+
+      - name: Prepare XCFramework artifacts
+        run: |
+          mkdir -p artifacts/apple
+          cp -r dist/apple/EcliptixOPAQUE.xcframework artifacts/apple/
+          cp dist/apple/EcliptixOPAQUE.xcframework.zip artifacts/apple/
+          cp dist/apple/EcliptixOPAQUE.xcframework.zip.sha256 artifacts/apple/
+          echo "=== XCFramework contents ==="
+          ls -laR artifacts/apple/
+
+      - name: Upload XCFramework artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-xcframework
+          path: artifacts/apple/
+          retention-days: 30
+
+  # ==========================================================================
   # Windows Build (Docker with MinGW cross-compile)
   # ==========================================================================
   build-windows:
@@ -175,6 +254,126 @@ jobs:
           name: native-win-x64
           path: artifacts/win-x64/
           retention-days: 1
+
+  # ==========================================================================
+  # Package Android AAR
+  # ==========================================================================
+  package-android:
+    needs: [build-android]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Download Android artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-android-*
+          path: android-libs
+
+      - name: Prepare Android native libraries
+        run: |
+          mkdir -p dist/android
+          for abi_dir in android-libs/native-android-*/; do
+            abi=$(basename "$abi_dir" | sed 's/native-android-//')
+            mkdir -p "dist/android/${abi}/lib"
+            cp "${abi_dir}"/*.so "dist/android/${abi}/lib/" || true
+          done
+          echo "=== Android native libraries ==="
+          find dist/android -name "*.so" -exec ls -la {} \;
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event.inputs.version }}" != "" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="1.0.0-SNAPSHOT"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building Android version: $VERSION"
+
+      - name: Build Android AAR
+        working-directory: android
+        run: |
+          chmod +x gradlew 2>/dev/null || true
+          ./gradlew :lib:assembleRelease -PVERSION_NAME=${{ steps.version.outputs.VERSION }}
+
+      - name: Publish to GitHub Packages (Maven)
+        working-directory: android
+        run: |
+          ./gradlew :lib:publish -PVERSION_NAME=${{ steps.version.outputs.VERSION }}
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload AAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aar
+          path: android/lib/build/outputs/aar/*.aar
+          retention-days: 30
+
+  # ==========================================================================
+  # Publish XCFramework to GitHub Releases
+  # ==========================================================================
+  publish-xcframework:
+    needs: [build-apple-xcframework]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download XCFramework
+        uses: actions/download-artifact@v4
+        with:
+          name: apple-xcframework
+          path: xcframework
+
+      - name: Determine version
+        id: version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            xcframework/EcliptixOPAQUE.xcframework.zip
+            xcframework/EcliptixOPAQUE.xcframework.zip.sha256
+          body: |
+            ## Ecliptix OPAQUE v${{ steps.version.outputs.VERSION }}
+
+            ### Swift Package
+            Add to your `Package.swift`:
+            ```swift
+            .binaryTarget(
+                name: "EcliptixOPAQUEBinary",
+                url: "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/EcliptixOPAQUE.xcframework.zip",
+                checksum: "$(cat xcframework/EcliptixOPAQUE.xcframework.zip.sha256)"
+            )
+            ```
+
+            ### Platforms
+            - iOS Device (arm64)
+            - iOS Simulator (arm64, x86_64)
+            - macOS (arm64, x86_64)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ==========================================================================
   # Package and Publish NuGet
