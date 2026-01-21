@@ -35,9 +35,15 @@ jobs:
         run: |
           brew install libsodium liboqs cmake
           echo "=== Validating ML-KEM-768 in Homebrew liboqs ==="
-          nm /opt/homebrew/lib/liboqs.dylib 2>/dev/null | grep -q "OQS_KEM_ml_kem_768" \
-            && echo "✓ ML-KEM-768 symbols found in liboqs.dylib" \
-            || (echo "✗ ERROR: ML-KEM-768 symbols NOT found - update liboqs: brew upgrade liboqs" && exit 1)
+          # macOS nm adds underscore prefix to symbols, check .a (static lib)
+          if nm /opt/homebrew/lib/liboqs.a 2>/dev/null | grep -q "_OQS_KEM_ml_kem_768_new"; then
+            echo "✓ ML-KEM-768 symbols found in liboqs.a"
+          else
+            echo "✗ ERROR: ML-KEM-768 symbols NOT found"
+            echo "Available KEM symbols:"
+            nm /opt/homebrew/lib/liboqs.a 2>/dev/null | grep "OQS_KEM.*_new" | head -10
+            exit 1
+          fi
 
       - name: Build Client (macOS ${{ matrix.arch }})
         run: |
