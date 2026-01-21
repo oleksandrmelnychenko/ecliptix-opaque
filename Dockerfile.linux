@@ -21,8 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Build liboqs from source
-ARG OQS_VERSION=0.10.1
+# Build liboqs from source with ML-KEM-768 support
+ARG OQS_VERSION=0.12.0
 RUN curl -L -o /tmp/liboqs.tar.gz https://github.com/open-quantum-safe/liboqs/archive/refs/tags/${OQS_VERSION}.tar.gz \
     && cd /tmp \
     && tar -xzf liboqs.tar.gz \
@@ -32,10 +32,16 @@ RUN curl -L -o /tmp/liboqs.tar.gz https://github.com/open-quantum-safe/liboqs/ar
         -DCMAKE_INSTALL_PREFIX=/usr/local \
         -DBUILD_SHARED_LIBS=ON \
         -DOQS_BUILD_ONLY_LIB=ON \
-        -DOQS_MINIMAL_BUILD="KEM_kyber_768" \
+        -DOQS_ENABLE_KEM_ml_kem_768=ON \
+        -DOQS_ENABLE_KEM_ml_kem_512=ON \
+        -DOQS_ENABLE_KEM_ml_kem_1024=ON \
     && make -j$(nproc) \
     && make install \
     && ldconfig \
+    && echo "=== Validating ML-KEM-768 symbols in liboqs ===" \
+    && nm /usr/local/lib/liboqs.so 2>/dev/null | grep -q "OQS_KEM_ml_kem_768" \
+    && echo "✓ ML-KEM-768 symbols found in liboqs.so" \
+    || (echo "✗ ERROR: ML-KEM-768 symbols NOT found in liboqs.so" && exit 1) \
     && rm -rf /tmp/liboqs*
 
 WORKDIR /workspace

@@ -34,6 +34,10 @@ jobs:
       - name: Install dependencies
         run: |
           brew install libsodium liboqs cmake
+          echo "=== Validating ML-KEM-768 in Homebrew liboqs ==="
+          nm /opt/homebrew/lib/liboqs.dylib 2>/dev/null | grep -q "OQS_KEM_ml_kem_768" \
+            && echo "✓ ML-KEM-768 symbols found in liboqs.dylib" \
+            || (echo "✗ ERROR: ML-KEM-768 symbols NOT found - update liboqs: brew upgrade liboqs" && exit 1)
 
       - name: Build Client (macOS ${{ matrix.arch }})
         run: |
@@ -91,7 +95,7 @@ jobs:
         run: |
           docker build -f Dockerfile.linux \
             --build-arg BUILD_TARGET=client \
-            --build-arg RUN_TESTS=OFF \
+            --build-arg RUN_TESTS=ON \
             -t opaque-linux-client .
           docker run --rm -v ${{ github.workspace }}/dist:/workspace/dist opaque-linux-client
 
@@ -99,7 +103,7 @@ jobs:
         run: |
           docker build -f Dockerfile.linux \
             --build-arg BUILD_TARGET=server \
-            --build-arg RUN_TESTS=OFF \
+            --build-arg RUN_TESTS=ON \
             -t opaque-linux-server .
           docker run --rm -v ${{ github.workspace }}/dist:/workspace/dist opaque-linux-server
 

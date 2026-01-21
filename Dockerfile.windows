@@ -32,8 +32,8 @@ RUN curl -L -o libsodium.tar.gz https://download.libsodium.org/libsodium/release
     && cd / \
     && rm -rf /tmp/libsodium*
 
-# Build liboqs for Windows cross-compilation
-ARG OQS_VERSION=0.10.1
+# Build liboqs for Windows cross-compilation with ML-KEM-768 support
+ARG OQS_VERSION=0.12.0
 RUN curl -L -o liboqs.tar.gz https://github.com/open-quantum-safe/liboqs/archive/refs/tags/${OQS_VERSION}.tar.gz \
     && tar -xzf liboqs.tar.gz \
     && cd liboqs-${OQS_VERSION} \
@@ -48,9 +48,15 @@ RUN curl -L -o liboqs.tar.gz https://github.com/open-quantum-safe/liboqs/archive
         -DOQS_BUILD_ONLY_LIB=ON \
         -DOQS_USE_OPENSSL=OFF \
         -DOQS_PERMIT_UNSUPPORTED_ARCHITECTURE=ON \
-        -DOQS_MINIMAL_BUILD="KEM_kyber_768" \
+        -DOQS_ENABLE_KEM_ml_kem_768=ON \
+        -DOQS_ENABLE_KEM_ml_kem_512=ON \
+        -DOQS_ENABLE_KEM_ml_kem_1024=ON \
     && make -j$(nproc) \
     && make install \
+    && echo "=== Validating ML-KEM-768 symbols in liboqs ===" \
+    && x86_64-w64-mingw32-nm /usr/x86_64-w64-mingw32/lib/liboqs.a 2>/dev/null | grep -q "OQS_KEM_ml_kem_768" \
+    && echo "✓ ML-KEM-768 symbols found in liboqs.a" \
+    || (echo "✗ ERROR: ML-KEM-768 symbols NOT found in liboqs.a" && exit 1) \
     && cd / \
     && rm -rf /tmp/liboqs*
 
