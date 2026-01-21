@@ -8,9 +8,10 @@
 #include <new>
 #ifdef _WIN32
 #include <windows.h>
-#elif defined(__APPLE__) || defined(__linux__)
+#elif defined(__APPLE__) || defined(__linux__) || defined(__ANDROID__)
 #include <sys/mman.h>
 #include <unistd.h>
+#include <cstdlib>
 #endif
 namespace ecliptix::security::opaque {
 namespace {
@@ -43,8 +44,11 @@ namespace {
             // Memory is still securely wiped on free regardless of lock status
             (void)VirtualLock(ptr, aligned_size);
 #else
-            void *ptr = aligned_alloc(page_size, aligned_size);
-            if (!ptr) return nullptr;
+            // Use posix_memalign for portability (aligned_alloc not available on older Android)
+            void *ptr = nullptr;
+            if (posix_memalign(&ptr, page_size, aligned_size) != 0) {
+                return nullptr;
+            }
             // Best-effort memory locking - continue even if mlock fails
             // (may fail due to RLIMIT_MEMLOCK quota)
             // Memory is still securely wiped on free regardless of lock status
