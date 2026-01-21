@@ -85,9 +85,10 @@ publishing {
             }
 
             pom {
+                val repoSlug = System.getenv("GITHUB_REPOSITORY") ?: "oleksandrmelnychenko/ecliptix-opaque"
                 name.set("Ecliptix OPAQUE")
                 description.set("OPAQUE Password-Authenticated Key Exchange with Post-Quantum Security")
-                url.set("https://github.com/ecliptix/Ecliptix.Security.OPAQUE")
+                url.set("https://github.com/$repoSlug")
 
                 licenses {
                     license {
@@ -104,9 +105,9 @@ publishing {
                 }
 
                 scm {
-                    connection.set("scm:git:git://github.com/ecliptix/Ecliptix.Security.OPAQUE.git")
-                    developerConnection.set("scm:git:ssh://github.com:ecliptix/Ecliptix.Security.OPAQUE.git")
-                    url.set("https://github.com/ecliptix/Ecliptix.Security.OPAQUE")
+                    connection.set("scm:git:git://github.com/$repoSlug.git")
+                    developerConnection.set("scm:git:ssh://github.com:$repoSlug.git")
+                    url.set("https://github.com/$repoSlug")
                 }
             }
         }
@@ -115,7 +116,7 @@ publishing {
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/ecliptix/Ecliptix.Security.OPAQUE")
+            url = uri("https://maven.pkg.github.com/${System.getenv("GITHUB_REPOSITORY") ?: "oleksandrmelnychenko/ecliptix-opaque"}")
             credentials {
                 username = System.getenv("GITHUB_ACTOR") ?: findProperty("gpr.user")?.toString()
                 password = System.getenv("GITHUB_TOKEN") ?: findProperty("gpr.key")?.toString()

@@ -274,6 +274,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.4'
 
       - name: Download Android artifacts
         uses: actions/download-artifact@v4
