@@ -32,7 +32,11 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "17.0" CACHE STRING "Minimum iOS deployment vers
 
 set(CMAKE_C_COMPILER_WORKS TRUE)
 set(CMAKE_CXX_COMPILER_WORKS TRUE)
-set(CMAKE_SYSTEM_PROCESSOR ${CMAKE_OSX_ARCHITECTURES})
+
+# CMAKE_SYSTEM_PROCESSOR must be a single value, not a list
+# For multi-arch builds, use the first architecture
+list(GET CMAKE_OSX_ARCHITECTURES 0 _FIRST_ARCH)
+set(CMAKE_SYSTEM_PROCESSOR ${_FIRST_ARCH})
 
 set(CMAKE_CXX_FLAGS_INIT "-stdlib=libc++")
 
