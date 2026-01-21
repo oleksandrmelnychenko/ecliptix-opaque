@@ -99,4 +99,5 @@ core.*
 # Legacy directories
 client/
 server/
-extern/
+extern/.agent/
+.agents/
