@@ -11,11 +11,19 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
-#include <stdexcept>
-#include "opaque/opaque.h"
-#include "opaque/export.h"
 
-using namespace ecliptix::security::opaque;
+// Protocol constants (matching opaque.h)
+namespace {
+    constexpr size_t PUBLIC_KEY_LENGTH = 32;
+    constexpr size_t HASH_LENGTH = 64;
+    constexpr size_t MASTER_KEY_LENGTH = 32;
+    constexpr size_t REGISTRATION_REQUEST_LENGTH = 32;
+    constexpr size_t REGISTRATION_RESPONSE_LENGTH = 64;
+    constexpr size_t REGISTRATION_RECORD_LENGTH = 168;
+    constexpr size_t KE1_LENGTH = 1272;
+    constexpr size_t KE2_LENGTH = 1376;
+    constexpr size_t KE3_LENGTH = 64;
+}
 
 // External C functions from initiator_exports.cpp
 extern "C" {
@@ -43,11 +51,10 @@ extern "C" {
     size_t opaque_get_registration_record_length();
     size_t opaque_get_kem_public_key_length();
     size_t opaque_get_kem_ciphertext_length();
-}
 
-// JNI package name mangling
-#define JNI_PACKAGE com_ecliptix_security_opaque
-#define JNI_CLASS OpaqueNative
+    // libsodium init
+    int sodium_init(void);
+}
 
 // JNI function name macro
 #define JNI_FUNC(name) Java_com_ecliptix_security_opaque_OpaqueNative_##name
@@ -61,7 +68,7 @@ namespace {
             jmethodID constructor = env->GetMethodID(exceptionClass, "<init>", "(Ljava/lang/String;I)V");
             if (constructor != nullptr) {
                 jstring jMessage = env->NewStringUTF(message);
-                jthrowable exception = (jthrowable)env->NewObject(exceptionClass, constructor, jMessage, errorCode);
+                jthrowable exception = static_cast<jthrowable>(env->NewObject(exceptionClass, constructor, jMessage, errorCode));
                 env->Throw(exception);
                 env->DeleteLocalRef(jMessage);
             } else {
@@ -105,15 +112,15 @@ extern "C" {
  * Must be called before any other operations
  */
 JNIEXPORT jboolean JNICALL
-JNI_FUNC(nativeInit)(JNIEnv *env, jclass clazz) {
-    return crypto::init() ? JNI_TRUE : JNI_FALSE;
+JNI_FUNC(nativeInit)(JNIEnv * /*env*/, jclass /*clazz*/) {
+    return sodium_init() >= 0 ? JNI_TRUE : JNI_FALSE;
 }
 
 /**
  * Get the library version string
  */
 JNIEXPORT jstring JNICALL
-JNI_FUNC(nativeGetVersion)(JNIEnv *env, jclass clazz) {
+JNI_FUNC(nativeGetVersion)(JNIEnv *env, jclass /*clazz*/) {
     const char *version = opaque_client_get_version();
     return env->NewStringUTF(version);
 }
@@ -124,24 +131,24 @@ JNI_FUNC(nativeGetVersion)(JNIEnv *env, jclass clazz) {
  * @return Native handle pointer as long, 0 on error
  */
 JNIEXPORT jlong JNICALL
-JNI_FUNC(nativeClientCreate)(JNIEnv *env, jclass clazz, jbyteArray serverPublicKey) {
+JNI_FUNC(nativeClientCreate)(JNIEnv *env, jclass /*clazz*/, jbyteArray serverPublicKey) {
     if (serverPublicKey == nullptr) {
-        throwOpaqueException(env, "Server public key cannot be null", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "Server public key cannot be null", -1);
         return 0;
     }
 
-    jsize keyLength;
+    jsize keyLength = 0;
     auto keyData = byteArrayToNative(env, serverPublicKey, keyLength);
 
     if (static_cast<size_t>(keyLength) != PUBLIC_KEY_LENGTH) {
-        throwOpaqueException(env, "Invalid server public key length", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "Invalid server public key length", -1);
         return 0;
     }
 
     void *handle = nullptr;
     int result = opaque_client_create(keyData.get(), static_cast<size_t>(keyLength), &handle);
 
-    if (result != static_cast<int>(Result::Success)) {
+    if (result != 0) {
         throwOpaqueException(env, "Failed to create OPAQUE client", result);
         return 0;
     }
@@ -153,7 +160,7 @@ JNI_FUNC(nativeClientCreate)(JNIEnv *env, jclass clazz, jbyteArray serverPublicK
  * Destroy an OPAQUE client handle
  */
 JNIEXPORT void JNICALL
-JNI_FUNC(nativeClientDestroy)(JNIEnv *env, jclass clazz, jlong handle) {
+JNI_FUNC(nativeClientDestroy)(JNIEnv * /*env*/, jclass /*clazz*/, jlong handle) {
     if (handle != 0) {
         opaque_client_destroy(reinterpret_cast<void*>(handle));
     }
@@ -164,11 +171,11 @@ JNI_FUNC(nativeClientDestroy)(JNIEnv *env, jclass clazz, jlong handle) {
  * @return Native handle pointer as long, 0 on error
  */
 JNIEXPORT jlong JNICALL
-JNI_FUNC(nativeStateCreate)(JNIEnv *env, jclass clazz) {
+JNI_FUNC(nativeStateCreate)(JNIEnv *env, jclass /*clazz*/) {
     void *handle = nullptr;
     int result = opaque_client_state_create(&handle);
 
-    if (result != static_cast<int>(Result::Success)) {
+    if (result != 0) {
         throwOpaqueException(env, "Failed to create client state", result);
         return 0;
     }
@@ -180,7 +187,7 @@ JNI_FUNC(nativeStateCreate)(JNIEnv *env, jclass clazz) {
  * Destroy a client state handle
  */
 JNIEXPORT void JNICALL
-JNI_FUNC(nativeStateDestroy)(JNIEnv *env, jclass clazz, jlong handle) {
+JNI_FUNC(nativeStateDestroy)(JNIEnv * /*env*/, jclass /*clazz*/, jlong handle) {
     if (handle != 0) {
         opaque_client_state_destroy(reinterpret_cast<void*>(handle));
     }
@@ -194,19 +201,19 @@ JNI_FUNC(nativeStateDestroy)(JNIEnv *env, jclass clazz, jlong handle) {
  * @return Registration request bytes
  */
 JNIEXPORT jbyteArray JNICALL
-JNI_FUNC(nativeCreateRegistrationRequest)(JNIEnv *env, jclass clazz,
+JNI_FUNC(nativeCreateRegistrationRequest)(JNIEnv *env, jclass /*clazz*/,
                                            jlong clientHandle, jbyteArray secureKey, jlong stateHandle) {
     if (clientHandle == 0 || stateHandle == 0) {
-        throwOpaqueException(env, "Invalid handle", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "Invalid handle", -1);
         return nullptr;
     }
 
     if (secureKey == nullptr) {
-        throwOpaqueException(env, "Secure key cannot be null", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "Secure key cannot be null", -1);
         return nullptr;
     }
 
-    jsize keyLength;
+    jsize keyLength = 0;
     auto keyData = byteArrayToNative(env, secureKey, keyLength);
 
     auto requestBuffer = std::make_unique<uint8_t[]>(REGISTRATION_REQUEST_LENGTH);
@@ -220,7 +227,7 @@ JNI_FUNC(nativeCreateRegistrationRequest)(JNIEnv *env, jclass clazz,
         REGISTRATION_REQUEST_LENGTH
     );
 
-    if (result != static_cast<int>(Result::Success)) {
+    if (result != 0) {
         throwOpaqueException(env, "Failed to create registration request", result);
         return nullptr;
     }
@@ -236,23 +243,23 @@ JNI_FUNC(nativeCreateRegistrationRequest)(JNIEnv *env, jclass clazz,
  * @return Registration record bytes to send to server
  */
 JNIEXPORT jbyteArray JNICALL
-JNI_FUNC(nativeFinalizeRegistration)(JNIEnv *env, jclass clazz,
+JNI_FUNC(nativeFinalizeRegistration)(JNIEnv *env, jclass /*clazz*/,
                                       jlong clientHandle, jbyteArray response, jlong stateHandle) {
     if (clientHandle == 0 || stateHandle == 0) {
-        throwOpaqueException(env, "Invalid handle", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "Invalid handle", -1);
         return nullptr;
     }
 
     if (response == nullptr) {
-        throwOpaqueException(env, "Response cannot be null", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "Response cannot be null", -1);
         return nullptr;
     }
 
-    jsize responseLength;
+    jsize responseLength = 0;
     auto responseData = byteArrayToNative(env, response, responseLength);
 
     if (static_cast<size_t>(responseLength) != REGISTRATION_RESPONSE_LENGTH) {
-        throwOpaqueException(env, "Invalid registration response length", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "Invalid registration response length", -1);
         return nullptr;
     }
 
@@ -267,7 +274,7 @@ JNI_FUNC(nativeFinalizeRegistration)(JNIEnv *env, jclass clazz,
         REGISTRATION_RECORD_LENGTH
     );
 
-    if (result != static_cast<int>(Result::Success)) {
+    if (result != 0) {
         throwOpaqueException(env, "Failed to finalize registration", result);
         return nullptr;
     }
@@ -283,19 +290,19 @@ JNI_FUNC(nativeFinalizeRegistration)(JNIEnv *env, jclass clazz,
  * @return KE1 message bytes
  */
 JNIEXPORT jbyteArray JNICALL
-JNI_FUNC(nativeGenerateKe1)(JNIEnv *env, jclass clazz,
+JNI_FUNC(nativeGenerateKe1)(JNIEnv *env, jclass /*clazz*/,
                             jlong clientHandle, jbyteArray secureKey, jlong stateHandle) {
     if (clientHandle == 0 || stateHandle == 0) {
-        throwOpaqueException(env, "Invalid handle", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "Invalid handle", -1);
         return nullptr;
     }
 
     if (secureKey == nullptr) {
-        throwOpaqueException(env, "Secure key cannot be null", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "Secure key cannot be null", -1);
         return nullptr;
     }
 
-    jsize keyLength;
+    jsize keyLength = 0;
     auto keyData = byteArrayToNative(env, secureKey, keyLength);
 
     auto ke1Buffer = std::make_unique<uint8_t[]>(KE1_LENGTH);
@@ -309,7 +316,7 @@ JNI_FUNC(nativeGenerateKe1)(JNIEnv *env, jclass clazz,
         KE1_LENGTH
     );
 
-    if (result != static_cast<int>(Result::Success)) {
+    if (result != 0) {
         throwOpaqueException(env, "Failed to generate KE1", result);
         return nullptr;
     }
@@ -325,23 +332,23 @@ JNI_FUNC(nativeGenerateKe1)(JNIEnv *env, jclass clazz,
  * @return KE3 message bytes
  */
 JNIEXPORT jbyteArray JNICALL
-JNI_FUNC(nativeGenerateKe3)(JNIEnv *env, jclass clazz,
+JNI_FUNC(nativeGenerateKe3)(JNIEnv *env, jclass /*clazz*/,
                             jlong clientHandle, jbyteArray ke2, jlong stateHandle) {
     if (clientHandle == 0 || stateHandle == 0) {
-        throwOpaqueException(env, "Invalid handle", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "Invalid handle", -1);
         return nullptr;
     }
 
     if (ke2 == nullptr) {
-        throwOpaqueException(env, "KE2 cannot be null", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "KE2 cannot be null", -1);
         return nullptr;
     }
 
-    jsize ke2Length;
+    jsize ke2Length = 0;
     auto ke2Data = byteArrayToNative(env, ke2, ke2Length);
 
     if (static_cast<size_t>(ke2Length) != KE2_LENGTH) {
-        throwOpaqueException(env, "Invalid KE2 length", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "Invalid KE2 length", -1);
         return nullptr;
     }
 
@@ -356,7 +363,7 @@ JNI_FUNC(nativeGenerateKe3)(JNIEnv *env, jclass clazz,
         KE3_LENGTH
     );
 
-    if (result != static_cast<int>(Result::Success)) {
+    if (result != 0) {
         throwOpaqueException(env, "Failed to generate KE3", result);
         return nullptr;
     }
@@ -368,9 +375,9 @@ JNI_FUNC(nativeGenerateKe3)(JNIEnv *env, jclass clazz,
  * Result class for finish operation containing session and master keys
  */
 JNIEXPORT jobject JNICALL
-JNI_FUNC(nativeFinish)(JNIEnv *env, jclass clazz, jlong clientHandle, jlong stateHandle) {
+JNI_FUNC(nativeFinish)(JNIEnv *env, jclass /*clazz*/, jlong clientHandle, jlong stateHandle) {
     if (clientHandle == 0 || stateHandle == 0) {
-        throwOpaqueException(env, "Invalid handle", static_cast<int>(Result::InvalidInput));
+        throwOpaqueException(env, "Invalid handle", -1);
         return nullptr;
     }
 
@@ -386,7 +393,7 @@ JNI_FUNC(nativeFinish)(JNIEnv *env, jclass clazz, jlong clientHandle, jlong stat
         MASTER_KEY_LENGTH
     );
 
-    if (result != static_cast<int>(Result::Success)) {
+    if (result != 0) {
         throwOpaqueException(env, "Failed to finish authentication", result);
         return nullptr;
     }
@@ -394,13 +401,13 @@ JNI_FUNC(nativeFinish)(JNIEnv *env, jclass clazz, jlong clientHandle, jlong stat
     // Create FinishResult object
     jclass resultClass = env->FindClass("com/ecliptix/security/opaque/FinishResult");
     if (resultClass == nullptr) {
-        throwOpaqueException(env, "FinishResult class not found", static_cast<int>(Result::MemoryError));
+        throwOpaqueException(env, "FinishResult class not found", -3);
         return nullptr;
     }
 
     jmethodID constructor = env->GetMethodID(resultClass, "<init>", "([B[B)V");
     if (constructor == nullptr) {
-        throwOpaqueException(env, "FinishResult constructor not found", static_cast<int>(Result::MemoryError));
+        throwOpaqueException(env, "FinishResult constructor not found", -3);
         return nullptr;
     }
 
@@ -414,47 +421,47 @@ JNI_FUNC(nativeFinish)(JNIEnv *env, jclass clazz, jlong clientHandle, jlong stat
  * Get protocol constant lengths
  */
 JNIEXPORT jint JNICALL
-JNI_FUNC(nativeGetKe1Length)(JNIEnv *env, jclass clazz) {
+JNI_FUNC(nativeGetKe1Length)(JNIEnv * /*env*/, jclass /*clazz*/) {
     return static_cast<jint>(opaque_get_ke1_length());
 }
 
 JNIEXPORT jint JNICALL
-JNI_FUNC(nativeGetKe2Length)(JNIEnv *env, jclass clazz) {
+JNI_FUNC(nativeGetKe2Length)(JNIEnv * /*env*/, jclass /*clazz*/) {
     return static_cast<jint>(opaque_get_ke2_length());
 }
 
 JNIEXPORT jint JNICALL
-JNI_FUNC(nativeGetKe3Length)(JNIEnv *env, jclass clazz) {
+JNI_FUNC(nativeGetKe3Length)(JNIEnv * /*env*/, jclass /*clazz*/) {
     return static_cast<jint>(opaque_get_ke3_length());
 }
 
 JNIEXPORT jint JNICALL
-JNI_FUNC(nativeGetRegistrationRecordLength)(JNIEnv *env, jclass clazz) {
+JNI_FUNC(nativeGetRegistrationRecordLength)(JNIEnv * /*env*/, jclass /*clazz*/) {
     return static_cast<jint>(opaque_get_registration_record_length());
 }
 
 JNIEXPORT jint JNICALL
-JNI_FUNC(nativeGetPublicKeyLength)(JNIEnv *env, jclass clazz) {
+JNI_FUNC(nativeGetPublicKeyLength)(JNIEnv * /*env*/, jclass /*clazz*/) {
     return static_cast<jint>(PUBLIC_KEY_LENGTH);
 }
 
 JNIEXPORT jint JNICALL
-JNI_FUNC(nativeGetRegistrationRequestLength)(JNIEnv *env, jclass clazz) {
+JNI_FUNC(nativeGetRegistrationRequestLength)(JNIEnv * /*env*/, jclass /*clazz*/) {
     return static_cast<jint>(REGISTRATION_REQUEST_LENGTH);
 }
 
 JNIEXPORT jint JNICALL
-JNI_FUNC(nativeGetRegistrationResponseLength)(JNIEnv *env, jclass clazz) {
+JNI_FUNC(nativeGetRegistrationResponseLength)(JNIEnv * /*env*/, jclass /*clazz*/) {
     return static_cast<jint>(REGISTRATION_RESPONSE_LENGTH);
 }
 
 JNIEXPORT jint JNICALL
-JNI_FUNC(nativeGetSessionKeyLength)(JNIEnv *env, jclass clazz) {
+JNI_FUNC(nativeGetSessionKeyLength)(JNIEnv * /*env*/, jclass /*clazz*/) {
     return static_cast<jint>(HASH_LENGTH);
 }
 
 JNIEXPORT jint JNICALL
-JNI_FUNC(nativeGetMasterKeyLength)(JNIEnv *env, jclass clazz) {
+JNI_FUNC(nativeGetMasterKeyLength)(JNIEnv * /*env*/, jclass /*clazz*/) {
     return static_cast<jint>(MASTER_KEY_LENGTH);
 }
 
