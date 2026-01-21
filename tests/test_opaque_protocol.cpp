@@ -2025,7 +2025,7 @@ TEST_CASE("PQ Edge Cases Tests", "[opaque][pq][integration][edge]") {
 
         std::string long_password(1000, 'A');
         for (size_t i = 0; i < long_password.size(); ++i) {
-            long_password[i] = 'A' + (i % 26);
+            long_password[i] = static_cast<char>('A' + (i % 26));
         }
 
         void* reg_state = nullptr;
