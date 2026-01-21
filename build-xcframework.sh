@@ -56,6 +56,7 @@ HEADERS_DIR="${SCRIPT_DIR}/include/opaque"
 # Clean previous builds
 echo "Cleaning previous builds..."
 rm -rf "${IOS_DEVICE_BUILD}" "${IOS_SIM_BUILD}" "${MACOS_BUILD}"
+rm -rf "${SCRIPT_DIR}/build-macos-arm64" "${SCRIPT_DIR}/build-macos-x86_64"
 rm -rf "${OUTPUT_DIR}"
 mkdir -p "${OUTPUT_DIR}"
 
@@ -113,15 +114,16 @@ cmake --build "${IOS_SIM_BUILD}" --config "${BUILD_TYPE}" --parallel
 echo "iOS Simulator build completed!"
 
 # ============================================
-# macOS Universal Build (arm64 + x86_64)
+# macOS Build (arm64 and x86_64 separately, then lipo)
 # ============================================
+MACOS_ARM64_BUILD="${SCRIPT_DIR}/build-macos-arm64"
+MACOS_X64_BUILD="${SCRIPT_DIR}/build-macos-x86_64"
+
 echo ""
-echo "Building macOS Universal (arm64 + x86_64)..."
+echo "Building macOS arm64..."
 echo "=============================================="
 
-cmake -B "${MACOS_BUILD}" \
-    -DCMAKE_TOOLCHAIN_FILE="${SCRIPT_DIR}/cmake/macos-toolchain.cmake" \
-    -DMACOS_ARCH=universal \
+cmake -B "${MACOS_ARM64_BUILD}" \
     -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
     -DBUILD_CLIENT=ON \
     -DBUILD_SERVER=OFF \
@@ -131,11 +133,45 @@ cmake -B "${MACOS_BUILD}" \
     -DENABLE_HARDENING=ON \
     -DBUILD_STATIC_SODIUM=ON \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
-    -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+    -DCMAKE_OSX_ARCHITECTURES=arm64
 
-cmake --build "${MACOS_BUILD}" --config "${BUILD_TYPE}" --parallel
+cmake --build "${MACOS_ARM64_BUILD}" --config "${BUILD_TYPE}" --parallel
+
+echo "macOS arm64 build completed!"
+
+echo ""
+echo "Building macOS x86_64..."
+echo "=============================================="
+
+cmake -B "${MACOS_X64_BUILD}" \
+    -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+    -DBUILD_CLIENT=ON \
+    -DBUILD_SERVER=OFF \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DBUILD_TESTS=OFF \
+    -DBUILD_DOTNET_INTEROP=OFF \
+    -DENABLE_HARDENING=ON \
+    -DBUILD_STATIC_SODIUM=ON \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+    -DCMAKE_OSX_ARCHITECTURES=x86_64
+
+cmake --build "${MACOS_X64_BUILD}" --config "${BUILD_TYPE}" --parallel
+
+echo "macOS x86_64 build completed!"
+
+# Create universal binary with lipo
+echo ""
+echo "Creating macOS universal binary with lipo..."
+echo "=============================================="
+
+MACOS_ARM64_LIB=$(find "${MACOS_ARM64_BUILD}" -name "libeop.agent.a" | head -1)
+MACOS_X64_LIB=$(find "${MACOS_X64_BUILD}" -name "libeop.agent.a" | head -1)
+
+mkdir -p "${MACOS_BUILD}"
+lipo -create "${MACOS_ARM64_LIB}" "${MACOS_X64_LIB}" -output "${MACOS_BUILD}/libeop.agent.a"
 
 echo "macOS Universal build completed!"
+lipo -info "${MACOS_BUILD}/libeop.agent.a"
 
 # ============================================
 # Locate Built Libraries
@@ -145,7 +181,7 @@ echo "Locating built libraries..."
 
 IOS_DEVICE_LIB=$(find "${IOS_DEVICE_BUILD}" -name "libeop.agent.a" | head -1)
 IOS_SIM_LIB=$(find "${IOS_SIM_BUILD}" -name "libeop.agent.a" | head -1)
-MACOS_LIB=$(find "${MACOS_BUILD}" -name "libeop.agent.a" | head -1)
+MACOS_LIB="${MACOS_BUILD}/libeop.agent.a"
 
 if [[ -z "${IOS_DEVICE_LIB}" ]] || [[ ! -f "${IOS_DEVICE_LIB}" ]]; then
     echo "Error: iOS Device library not found!"
