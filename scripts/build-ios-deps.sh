@@ -144,13 +144,7 @@ build_liboqs() {
         -DOQS_DIST_BUILD=OFF \
         -DOQS_PERMIT_UNSUPPORTED_ARCHITECTURE=ON \
         -DOQS_USE_CPU_EXTENSIONS=OFF \
-        -DOQS_ENABLE_KEM_BIKE=OFF \
-        -DOQS_ENABLE_KEM_FRODOKEM=OFF \
-        -DOQS_ENABLE_KEM_NTRUPRIME=OFF \
-        -DOQS_ENABLE_KEM_CLASSIC_MCELIECE=OFF \
-        -DOQS_ENABLE_KEM_HQC=OFF \
-        -DOQS_ENABLE_SIG_STFL_XMSS=OFF \
-        -DOQS_ENABLE_SIG_STFL_LMS=OFF
+        -DOQS_MINIMAL_BUILD="KEM_ml_kem_768"
 
     cmake --build . --config "${BUILD_TYPE}" --parallel
     cmake --install . --config "${BUILD_TYPE}"
