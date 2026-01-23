@@ -195,6 +195,7 @@ jobs:
       - name: Build XCFramework (iOS + macOS)
         run: |
           chmod +x build-xcframework.sh
+          chmod +x scripts/build-ios-deps.sh
           ./build-xcframework.sh Release
 
       - name: Prepare XCFramework artifacts

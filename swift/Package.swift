@@ -13,7 +13,7 @@ let package = Package(
         // Swift wrapper library
         .library(
             name: "EcliptixOPAQUE",
-            targets: ["EcliptixOPAQUE", "EcliptixOPAQUEBinary"]
+            targets: ["EcliptixOPAQUE"]
         )
     ],
     targets: [
@@ -24,7 +24,7 @@ let package = Package(
             path: "Sources/EcliptixOPAQUE"
         ),
 
-        // Binary target - XCFramework
+        // Binary target - XCFramework with all dependencies bundled
         // For local development, use path:
         .binaryTarget(
             name: "EcliptixOPAQUEBinary",
@@ -34,7 +34,7 @@ let package = Package(
         // For release distribution via GitHub Releases, use:
         // .binaryTarget(
         //     name: "EcliptixOPAQUEBinary",
-        //     url: "https://github.com/ecliptix/Ecliptix.Security.OPAQUE/releases/download/v1.0.0/EcliptixOPAQUE.xcframework.zip",
+        //     url: "https://github.com/oleksandrmelnychenko/ecliptix-opaque/releases/download/v1.x.x/EcliptixOPAQUE.xcframework.zip",
         //     checksum: "<SHA256_CHECKSUM>"
         // )
     ]

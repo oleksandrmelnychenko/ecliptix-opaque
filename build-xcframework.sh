@@ -3,15 +3,14 @@
 # XCFramework Build Script for Ecliptix.Security.OPAQUE
 # Creates a combined XCFramework for iOS + macOS Swift Package distribution
 #
-# Usage:
-#   ./build-xcframework.sh [Release|Debug]
-#
 # This script:
-# 1. Builds iOS Device (arm64)
-# 2. Builds iOS Simulator (arm64 + x86_64)
-# 3. Builds macOS (arm64 + x86_64 universal)
-# 4. Combines all into a single XCFramework
+# 1. Builds iOS dependencies (libsodium + liboqs) if needed
+# 2. Builds the OPAQUE library for iOS Device, Simulator, and macOS
+# 3. Merges all static libraries (opaque + sodium + oqs) into one fat library
+# 4. Creates a single XCFramework with all dependencies bundled
 # 5. Creates a zipped archive with checksum for SPM
+#
+# Usage: ./build-xcframework.sh [Release|Debug]
 
 set -euo pipefail
 
@@ -20,8 +19,9 @@ cd "${SCRIPT_DIR}"
 
 BUILD_TYPE="${1:-Release}"
 
-echo "XCFramework Build - Ecliptix.Security.OPAQUE"
-echo "=============================================="
+echo "========================================"
+echo "XCFramework Build - Ecliptix OPAQUE"
+echo "========================================"
 echo "Build Type: ${BUILD_TYPE}"
 echo ""
 
@@ -36,39 +36,69 @@ if ! command -v xcodebuild &> /dev/null; then
     exit 1
 fi
 
-# Check for libsodium
-if ! brew list libsodium &> /dev/null; then
-    echo "Installing libsodium..."
-    brew install libsodium
-fi
-
-SODIUM_PREFIX=$(brew --prefix libsodium)
-echo "Using libsodium from: ${SODIUM_PREFIX}"
-
-# Define directories
+# Paths
+DEPS_DIR="${SCRIPT_DIR}/.deps/ios"
 IOS_DEVICE_BUILD="${SCRIPT_DIR}/build-ios-device"
 IOS_SIM_BUILD="${SCRIPT_DIR}/build-ios-simulator"
-MACOS_BUILD="${SCRIPT_DIR}/build-macos-universal"
+MACOS_ARM64_BUILD="${SCRIPT_DIR}/build-macos-arm64"
+MACOS_X64_BUILD="${SCRIPT_DIR}/build-macos-x86_64"
 OUTPUT_DIR="${SCRIPT_DIR}/dist/apple"
 XCFRAMEWORK_DIR="${OUTPUT_DIR}/EcliptixOPAQUE.xcframework"
 HEADERS_DIR="${SCRIPT_DIR}/include/opaque"
 
-# Clean previous builds
-echo "Cleaning previous builds..."
-rm -rf "${IOS_DEVICE_BUILD}" "${IOS_SIM_BUILD}" "${MACOS_BUILD}"
-rm -rf "${SCRIPT_DIR}/build-macos-arm64" "${SCRIPT_DIR}/build-macos-x86_64"
+# ============================================
+# Step 1: Build iOS Dependencies
+# ============================================
+echo ""
+echo "Step 1: Building iOS Dependencies..."
+echo "========================================"
+
+if [[ ! -f "${DEPS_DIR}/iphoneos-arm64/lib/liboqs.a" ]] || \
+   [[ ! -f "${DEPS_DIR}/iphonesimulator-fat/lib/liboqs.a" ]]; then
+    echo "iOS dependencies not found. Building..."
+    chmod +x "${SCRIPT_DIR}/scripts/build-ios-deps.sh"
+    "${SCRIPT_DIR}/scripts/build-ios-deps.sh" "${BUILD_TYPE}"
+else
+    echo "iOS dependencies found. Skipping build."
+fi
+
+# Verify dependencies exist
+if [[ ! -f "${DEPS_DIR}/iphoneos-arm64/lib/libsodium.a" ]] || \
+   [[ ! -f "${DEPS_DIR}/iphoneos-arm64/lib/liboqs.a" ]]; then
+    echo "Error: iOS device dependencies not found!"
+    exit 1
+fi
+
+if [[ ! -f "${DEPS_DIR}/iphonesimulator-fat/lib/libsodium.a" ]] || \
+   [[ ! -f "${DEPS_DIR}/iphonesimulator-fat/lib/liboqs.a" ]]; then
+    echo "Error: iOS simulator dependencies not found!"
+    exit 1
+fi
+
+echo "iOS dependencies verified."
+
+# ============================================
+# Step 2: Clean Previous Builds
+# ============================================
+echo ""
+echo "Step 2: Cleaning previous builds..."
+echo "========================================"
+
+rm -rf "${IOS_DEVICE_BUILD}" "${IOS_SIM_BUILD}"
+rm -rf "${MACOS_ARM64_BUILD}" "${MACOS_X64_BUILD}"
 rm -rf "${OUTPUT_DIR}"
 mkdir -p "${OUTPUT_DIR}"
 
-# Clear vcpkg
 unset VCPKG_ROOT
 
 # ============================================
-# iOS Device Build (arm64)
+# Step 3: Build OPAQUE for iOS Device (arm64)
 # ============================================
 echo ""
-echo "Building iOS Device (arm64)..."
-echo "=============================================="
+echo "Step 3: Building OPAQUE for iOS Device (arm64)..."
+echo "========================================"
+
+DEVICE_DEPS="${DEPS_DIR}/iphoneos-arm64"
 
 cmake -B "${IOS_DEVICE_BUILD}" \
     -DCMAKE_TOOLCHAIN_FILE="${SCRIPT_DIR}/cmake/ios-toolchain.cmake" \
@@ -82,18 +112,27 @@ cmake -B "${IOS_DEVICE_BUILD}" \
     -DENABLE_HARDENING=ON \
     -DBUILD_STATIC_SODIUM=ON \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 \
-    -DCMAKE_OSX_ARCHITECTURES=arm64
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DSODIUM_INCLUDE_DIRS="${DEVICE_DEPS}/include" \
+    -DSODIUM_LIBRARY_DIRS="${DEVICE_DEPS}/lib" \
+    -DSODIUM_LIBRARIES="${DEVICE_DEPS}/lib/libsodium.a" \
+    -DOQS_INCLUDE_DIRS="${DEVICE_DEPS}/include" \
+    -DOQS_LIBRARY_DIRS="${DEVICE_DEPS}/lib" \
+    -DOQS_LIBRARIES="${DEVICE_DEPS}/lib/liboqs.a" \
+    -DIOS_DEPS_DIR="${DEVICE_DEPS}"
 
 cmake --build "${IOS_DEVICE_BUILD}" --config "${BUILD_TYPE}" --parallel
 
 echo "iOS Device build completed!"
 
 # ============================================
-# iOS Simulator Build (arm64 + x86_64)
+# Step 4: Build OPAQUE for iOS Simulator
 # ============================================
 echo ""
-echo "Building iOS Simulator (arm64 + x86_64)..."
-echo "=============================================="
+echo "Step 4: Building OPAQUE for iOS Simulator (arm64+x86_64)..."
+echo "========================================"
+
+SIM_DEPS="${DEPS_DIR}/iphonesimulator-fat"
 
 cmake -B "${IOS_SIM_BUILD}" \
     -DCMAKE_TOOLCHAIN_FILE="${SCRIPT_DIR}/cmake/ios-toolchain.cmake" \
@@ -107,21 +146,25 @@ cmake -B "${IOS_SIM_BUILD}" \
     -DENABLE_HARDENING=ON \
     -DBUILD_STATIC_SODIUM=ON \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 \
-    -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+    -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+    -DSODIUM_INCLUDE_DIRS="${SIM_DEPS}/include" \
+    -DSODIUM_LIBRARY_DIRS="${SIM_DEPS}/lib" \
+    -DSODIUM_LIBRARIES="${SIM_DEPS}/lib/libsodium.a" \
+    -DOQS_INCLUDE_DIRS="${SIM_DEPS}/include" \
+    -DOQS_LIBRARY_DIRS="${SIM_DEPS}/lib" \
+    -DOQS_LIBRARIES="${SIM_DEPS}/lib/liboqs.a" \
+    -DIOS_DEPS_DIR="${SIM_DEPS}"
 
 cmake --build "${IOS_SIM_BUILD}" --config "${BUILD_TYPE}" --parallel
 
 echo "iOS Simulator build completed!"
 
 # ============================================
-# macOS Build (arm64 and x86_64 separately, then lipo)
+# Step 5: Build OPAQUE for macOS
 # ============================================
-MACOS_ARM64_BUILD="${SCRIPT_DIR}/build-macos-arm64"
-MACOS_X64_BUILD="${SCRIPT_DIR}/build-macos-x86_64"
-
 echo ""
-echo "Building macOS arm64..."
-echo "=============================================="
+echo "Step 5: Building OPAQUE for macOS (arm64)..."
+echo "========================================"
 
 cmake -B "${MACOS_ARM64_BUILD}" \
     -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
@@ -137,11 +180,9 @@ cmake -B "${MACOS_ARM64_BUILD}" \
 
 cmake --build "${MACOS_ARM64_BUILD}" --config "${BUILD_TYPE}" --parallel
 
-echo "macOS arm64 build completed!"
-
 echo ""
-echo "Building macOS x86_64..."
-echo "=============================================="
+echo "Building OPAQUE for macOS (x86_64)..."
+echo "========================================"
 
 cmake -B "${MACOS_X64_BUILD}" \
     -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
@@ -157,114 +198,147 @@ cmake -B "${MACOS_X64_BUILD}" \
 
 cmake --build "${MACOS_X64_BUILD}" --config "${BUILD_TYPE}" --parallel
 
-echo "macOS x86_64 build completed!"
-
-# Create universal binary with lipo
-echo ""
-echo "Creating macOS universal binary with lipo..."
-echo "=============================================="
-
-MACOS_ARM64_LIB=$(find "${MACOS_ARM64_BUILD}" -name "libeop.agent.a" | head -1)
-MACOS_X64_LIB=$(find "${MACOS_X64_BUILD}" -name "libeop.agent.a" | head -1)
-
-mkdir -p "${MACOS_BUILD}"
-lipo -create "${MACOS_ARM64_LIB}" "${MACOS_X64_LIB}" -output "${MACOS_BUILD}/libeop.agent.a"
-
-echo "macOS Universal build completed!"
-lipo -info "${MACOS_BUILD}/libeop.agent.a"
+echo "macOS builds completed!"
 
 # ============================================
-# Locate Built Libraries
+# Step 6: Locate Built Libraries
 # ============================================
 echo ""
-echo "Locating built libraries..."
+echo "Step 6: Locating built libraries..."
+echo "========================================"
 
 IOS_DEVICE_LIB=$(find "${IOS_DEVICE_BUILD}" -name "libeop.agent.a" | head -1)
 IOS_SIM_LIB=$(find "${IOS_SIM_BUILD}" -name "libeop.agent.a" | head -1)
-MACOS_LIB="${MACOS_BUILD}/libeop.agent.a"
+MACOS_ARM64_LIB=$(find "${MACOS_ARM64_BUILD}" -name "libeop.agent.a" | head -1)
+MACOS_X64_LIB=$(find "${MACOS_X64_BUILD}" -name "libeop.agent.a" | head -1)
 
-if [[ -z "${IOS_DEVICE_LIB}" ]] || [[ ! -f "${IOS_DEVICE_LIB}" ]]; then
-    echo "Error: iOS Device library not found!"
+# Verify all libraries exist
+for lib in "${IOS_DEVICE_LIB}" "${IOS_SIM_LIB}" "${MACOS_ARM64_LIB}" "${MACOS_X64_LIB}"; do
+    if [[ -z "${lib}" ]] || [[ ! -f "${lib}" ]]; then
+        echo "Error: Library not found: ${lib}"
+        exit 1
+    fi
+done
+
+echo "iOS Device:     ${IOS_DEVICE_LIB}"
+echo "iOS Simulator:  ${IOS_SIM_LIB}"
+echo "macOS arm64:    ${MACOS_ARM64_LIB}"
+echo "macOS x86_64:   ${MACOS_X64_LIB}"
+
+# ============================================
+# Step 7: Merge Static Libraries
+# ============================================
+echo ""
+echo "Step 7: Merging static libraries (bundling dependencies)..."
+echo "========================================"
+
+MERGED_DIR="${OUTPUT_DIR}/merged"
+mkdir -p "${MERGED_DIR}"
+
+# iOS Device - merge opaque + sodium + oqs
+echo "Merging iOS Device libraries..."
+libtool -static -o "${MERGED_DIR}/libeop-ios-device.a" \
+    "${IOS_DEVICE_LIB}" \
+    "${DEPS_DIR}/iphoneos-arm64/lib/libsodium.a" \
+    "${DEPS_DIR}/iphoneos-arm64/lib/liboqs.a"
+
+# iOS Simulator - merge opaque + sodium + oqs
+echo "Merging iOS Simulator libraries..."
+libtool -static -o "${MERGED_DIR}/libeop-ios-simulator.a" \
+    "${IOS_SIM_LIB}" \
+    "${DEPS_DIR}/iphonesimulator-fat/lib/libsodium.a" \
+    "${DEPS_DIR}/iphonesimulator-fat/lib/liboqs.a"
+
+# macOS - get sodium and oqs from Homebrew, create universal binary
+echo "Merging macOS libraries..."
+HOMEBREW_PREFIX=$(brew --prefix)
+SODIUM_MACOS="${HOMEBREW_PREFIX}/opt/libsodium/lib/libsodium.a"
+OQS_MACOS="${HOMEBREW_PREFIX}/opt/liboqs/lib/liboqs.a"
+
+if [[ ! -f "${SODIUM_MACOS}" ]]; then
+    echo "Error: macOS libsodium not found at ${SODIUM_MACOS}"
+    echo "Install with: brew install libsodium"
     exit 1
 fi
 
-if [[ -z "${IOS_SIM_LIB}" ]] || [[ ! -f "${IOS_SIM_LIB}" ]]; then
-    echo "Error: iOS Simulator library not found!"
+if [[ ! -f "${OQS_MACOS}" ]]; then
+    echo "Error: macOS liboqs not found at ${OQS_MACOS}"
+    echo "Install with: brew install liboqs"
     exit 1
 fi
 
-if [[ -z "${MACOS_LIB}" ]] || [[ ! -f "${MACOS_LIB}" ]]; then
-    echo "Error: macOS library not found!"
-    exit 1
-fi
+# Create macOS universal binary first
+lipo -create "${MACOS_ARM64_LIB}" "${MACOS_X64_LIB}" -output "${MERGED_DIR}/libeop-macos-universal.a"
 
-echo "iOS Device: ${IOS_DEVICE_LIB}"
-echo "iOS Simulator: ${IOS_SIM_LIB}"
-echo "macOS: ${MACOS_LIB}"
+# Merge with dependencies
+libtool -static -o "${MERGED_DIR}/libeop-macos.a" \
+    "${MERGED_DIR}/libeop-macos-universal.a" \
+    "${SODIUM_MACOS}" \
+    "${OQS_MACOS}"
 
-# Verify headers
+echo "Library merging completed!"
+
+# Show sizes
+echo ""
+echo "Merged library sizes:"
+ls -lh "${MERGED_DIR}"/*.a
+
+# ============================================
+# Step 8: Create XCFramework
+# ============================================
+echo ""
+echo "Step 8: Creating XCFramework..."
+echo "========================================"
+
 if [[ ! -d "${HEADERS_DIR}" ]]; then
     echo "Error: Headers directory not found: ${HEADERS_DIR}"
     exit 1
 fi
 
-# ============================================
-# Create XCFramework
-# ============================================
-echo ""
-echo "Creating XCFramework..."
-echo "=============================================="
-
 xcodebuild -create-xcframework \
-    -library "${IOS_DEVICE_LIB}" \
+    -library "${MERGED_DIR}/libeop-ios-device.a" \
     -headers "${HEADERS_DIR}" \
-    -library "${IOS_SIM_LIB}" \
+    -library "${MERGED_DIR}/libeop-ios-simulator.a" \
     -headers "${HEADERS_DIR}" \
-    -library "${MACOS_LIB}" \
+    -library "${MERGED_DIR}/libeop-macos.a" \
     -headers "${HEADERS_DIR}" \
     -output "${XCFRAMEWORK_DIR}"
 
 echo "XCFramework created!"
 
 # ============================================
-# Verify XCFramework
+# Step 9: Verify XCFramework
 # ============================================
 echo ""
-echo "Verifying XCFramework..."
-echo "=============================================="
+echo "Step 9: Verifying XCFramework..."
+echo "========================================"
 
 if [[ -d "${XCFRAMEWORK_DIR}" ]]; then
     echo "XCFramework structure:"
     ls -la "${XCFRAMEWORK_DIR}"
     echo ""
 
-    echo "iOS Device architectures:"
-    lipo -info "${XCFRAMEWORK_DIR}/"*-arm64_arm64*/libeop.agent.a 2>/dev/null || \
-    lipo -info "${XCFRAMEWORK_DIR}/"*-arm64*/libeop.agent.a 2>/dev/null || \
-    echo "  (iOS Device slice)"
-
-    echo ""
-    echo "iOS Simulator architectures:"
-    lipo -info "${XCFRAMEWORK_DIR}/"*-arm64_x86_64-simulator*/libeop.agent.a 2>/dev/null || \
-    lipo -info "${XCFRAMEWORK_DIR}/"*-simulator*/libeop.agent.a 2>/dev/null || \
-    echo "  (iOS Simulator slice)"
-
-    echo ""
-    echo "macOS architectures:"
-    lipo -info "${XCFRAMEWORK_DIR}/"*-macos*/libeop.agent.a 2>/dev/null || \
-    lipo -info "${XCFRAMEWORK_DIR}/"*-x86_64*/libeop.agent.a 2>/dev/null || \
-    echo "  (macOS slice)"
+    for slice in "${XCFRAMEWORK_DIR}"/*/; do
+        slice_name=$(basename "${slice}")
+        lib_file=$(find "${slice}" -name "*.a" | head -1)
+        if [[ -n "${lib_file}" ]]; then
+            echo "${slice_name}:"
+            lipo -info "${lib_file}" 2>/dev/null || echo "  (single arch)"
+            # Verify no undefined symbols for sodium/oqs
+            nm -u "${lib_file}" 2>/dev/null | grep -E "sodium_|OQS_" | head -5 || echo "  All dependencies bundled!"
+        fi
+    done
 else
     echo "Error: XCFramework creation failed!"
     exit 1
 fi
 
 # ============================================
-# Create Archive and Checksum
+# Step 10: Create Archive and Checksum
 # ============================================
 echo ""
-echo "Creating archive..."
-echo "=============================================="
+echo "Step 10: Creating archive..."
+echo "========================================"
 
 cd "${OUTPUT_DIR}"
 zip -r EcliptixOPAQUE.xcframework.zip EcliptixOPAQUE.xcframework
@@ -275,25 +349,29 @@ CHECKSUM=$(swift package compute-checksum EcliptixOPAQUE.xcframework.zip)
 # Save checksum to file
 echo "${CHECKSUM}" > EcliptixOPAQUE.xcframework.zip.sha256
 
+# Cleanup merged dir
+rm -rf "${MERGED_DIR}"
+
 echo ""
+echo "========================================"
 echo "XCFramework Build Complete!"
-echo "=============================================="
+echo "========================================"
 echo ""
-echo "Output Directory: ${OUTPUT_DIR}"
-echo "XCFramework: ${XCFRAMEWORK_DIR}"
-echo "Archive: ${OUTPUT_DIR}/EcliptixOPAQUE.xcframework.zip"
-echo "Checksum: ${CHECKSUM}"
+echo "Output:"
+echo "  XCFramework: ${XCFRAMEWORK_DIR}"
+echo "  Archive:     ${OUTPUT_DIR}/EcliptixOPAQUE.xcframework.zip"
+echo "  Checksum:    ${CHECKSUM}"
 echo ""
-echo "For Swift Package Manager (remote binary):"
+echo "Swift Package Manager (remote):"
 echo "  .binaryTarget("
-echo "      name: \"EcliptixOPAQUE\","
+echo "      name: \"EcliptixOPAQUEBinary\","
 echo "      url: \"https://github.com/.../EcliptixOPAQUE.xcframework.zip\","
 echo "      checksum: \"${CHECKSUM}\""
 echo "  )"
 echo ""
-echo "For local development:"
+echo "Swift Package Manager (local):"
 echo "  .binaryTarget("
-echo "      name: \"EcliptixOPAQUE\","
+echo "      name: \"EcliptixOPAQUEBinary\","
 echo "      path: \"EcliptixOPAQUE.xcframework\""
 echo "  )"
 echo ""
