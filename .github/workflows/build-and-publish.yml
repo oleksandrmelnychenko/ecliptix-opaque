@@ -295,6 +295,17 @@ jobs:
           echo "=== Android native libraries ==="
           find dist/android -name "*.so" -exec ls -la {} \;
 
+      - name: Copy native libs to jniLibs for AAR
+        run: |
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            if [ -d "dist/android/${abi}/lib" ]; then
+              mkdir -p "android/lib/src/main/jniLibs/${abi}"
+              cp dist/android/${abi}/lib/*.so android/lib/src/main/jniLibs/${abi}/ || true
+              echo "Copied native libs for ${abi}:"
+              ls -la android/lib/src/main/jniLibs/${abi}/
+            fi
+          done
+
       - name: Determine version
         id: version
         run: |
