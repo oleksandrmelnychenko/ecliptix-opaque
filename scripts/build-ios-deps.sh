@@ -47,6 +47,22 @@ build_libsodium() {
     if [[ ! -d "${SODIUM_SRC}" ]]; then
         echo "Downloading libsodium ${LIBSODIUM_VERSION}..."
         curl -sL "https://github.com/jedisct1/libsodium/releases/download/${LIBSODIUM_VERSION}-RELEASE/libsodium-${LIBSODIUM_VERSION}.tar.gz" | tar xz -C "${DEPS_DIR}"
+
+        # Generate autotools files if missing
+        if [[ ! -f "${SODIUM_SRC}/configure" ]] || [[ ! -f "${SODIUM_SRC}/ltmain.sh" ]]; then
+            echo "Generating autotools files..."
+            cd "${SODIUM_SRC}"
+            autoreconf -vfi
+            cd "${PROJECT_DIR}"
+        fi
+    fi
+
+    # Ensure autotools files exist
+    if [[ ! -f "${SODIUM_SRC}/ltmain.sh" ]]; then
+        echo "Regenerating autotools files..."
+        cd "${SODIUM_SRC}"
+        autoreconf -vfi
+        cd "${PROJECT_DIR}"
     fi
 
     mkdir -p "${SODIUM_BUILD}"

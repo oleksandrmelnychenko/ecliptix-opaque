@@ -37,7 +37,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install libsodium liboqs cmake
+          brew install libsodium liboqs cmake autoconf automake libtool
           echo "=== Validating ML-KEM-768 in Homebrew liboqs ==="
           # macOS nm adds underscore prefix to symbols, check .a (static lib)
           if nm /opt/homebrew/lib/liboqs.a 2>/dev/null | grep -q "_OQS_KEM_ml_kem_768_new"; then
@@ -192,7 +192,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install libsodium liboqs cmake
+          brew install libsodium liboqs cmake autoconf automake libtool
           echo "=== Validating ML-KEM-768 in Homebrew liboqs ==="
           if nm /opt/homebrew/lib/liboqs.a 2>/dev/null | grep -q "_OQS_KEM_ml_kem_768_new"; then
             echo "ML-KEM-768 symbols found"
