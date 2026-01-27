@@ -43,26 +43,12 @@ build_libsodium() {
     local SODIUM_SRC="${DEPS_DIR}/libsodium-${LIBSODIUM_VERSION}"
     local SODIUM_BUILD="${DEPS_DIR}/build-sodium-${PLATFORM}-${ARCH}"
 
-    # Download if not exists
+    # Download if not exists (use -stable tarball which has pre-generated configure)
     if [[ ! -d "${SODIUM_SRC}" ]]; then
-        echo "Downloading libsodium ${LIBSODIUM_VERSION}..."
-        curl -sL "https://github.com/jedisct1/libsodium/releases/download/${LIBSODIUM_VERSION}-RELEASE/libsodium-${LIBSODIUM_VERSION}.tar.gz" | tar xz -C "${DEPS_DIR}"
-
-        # Generate autotools files if missing
-        if [[ ! -f "${SODIUM_SRC}/configure" ]] || [[ ! -f "${SODIUM_SRC}/ltmain.sh" ]]; then
-            echo "Generating autotools files..."
-            cd "${SODIUM_SRC}"
-            autoreconf -vfi
-            cd "${PROJECT_DIR}"
-        fi
-    fi
-
-    # Ensure autotools files exist
-    if [[ ! -f "${SODIUM_SRC}/ltmain.sh" ]]; then
-        echo "Regenerating autotools files..."
-        cd "${SODIUM_SRC}"
-        autoreconf -vfi
-        cd "${PROJECT_DIR}"
+        echo "Downloading libsodium ${LIBSODIUM_VERSION}-stable..."
+        curl -sL "https://download.libsodium.org/libsodium/releases/libsodium-${LIBSODIUM_VERSION}-stable.tar.gz" | tar xz -C "${DEPS_DIR}"
+        # Rename to expected directory name
+        mv "${DEPS_DIR}/libsodium-stable" "${SODIUM_SRC}"
     fi
 
     mkdir -p "${SODIUM_BUILD}"
