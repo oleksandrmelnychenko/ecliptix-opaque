@@ -10,7 +10,7 @@
 
     <!-- Package metadata -->
     <PackageId>Ecliptix.OPAQUE.Relay</PackageId>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <Authors>Ecliptix</Authors>
     <Company>Ecliptix</Company>
     <Product>Ecliptix OPAQUE Relay</Product>

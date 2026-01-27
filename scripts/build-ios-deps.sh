@@ -43,13 +43,19 @@ build_libsodium() {
     local SODIUM_SRC="${DEPS_DIR}/libsodium-${LIBSODIUM_VERSION}"
     local SODIUM_BUILD="${DEPS_DIR}/build-sodium-${PLATFORM}-${ARCH}"
 
-    # Download if not exists (use -stable tarball which has pre-generated configure)
-    if [[ ! -d "${SODIUM_SRC}" ]]; then
-        echo "Downloading libsodium ${LIBSODIUM_VERSION}-stable..."
-        curl -sL "https://download.libsodium.org/libsodium/releases/libsodium-${LIBSODIUM_VERSION}-stable.tar.gz" | tar xz -C "${DEPS_DIR}"
-        # Rename to expected directory name
-        mv "${DEPS_DIR}/libsodium-stable" "${SODIUM_SRC}"
+    # Always use fresh download (clean any cached version)
+    if [[ -d "${SODIUM_SRC}" ]]; then
+        echo "Removing cached libsodium..."
+        rm -rf "${SODIUM_SRC}"
     fi
+
+    echo "Downloading libsodium ${LIBSODIUM_VERSION}-stable..."
+    curl -sL "https://download.libsodium.org/libsodium/releases/libsodium-${LIBSODIUM_VERSION}-stable.tar.gz" | tar xz -C "${DEPS_DIR}"
+    # Rename to expected directory name
+    mv "${DEPS_DIR}/libsodium-stable" "${SODIUM_SRC}"
+
+    echo "Verifying libsodium configure exists..."
+    ls -la "${SODIUM_SRC}/configure" || { echo "ERROR: configure not found!"; exit 1; }
 
     mkdir -p "${SODIUM_BUILD}"
     cd "${SODIUM_BUILD}"
