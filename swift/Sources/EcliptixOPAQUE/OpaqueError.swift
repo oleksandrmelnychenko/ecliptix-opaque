@@ -36,7 +36,7 @@ public enum OpaqueError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .notInitialized:
-            return "OPAQUE library not initialized. Call OpaqueClient.initialize() first."
+            return "OPAQUE library not initialized. Call OpaqueAgent.initialize() first."
         case .invalidInput(let details):
             return "Invalid input: \(details)"
         case .cryptoError(let details):

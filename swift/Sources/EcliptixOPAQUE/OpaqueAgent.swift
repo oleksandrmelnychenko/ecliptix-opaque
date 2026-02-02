@@ -8,10 +8,10 @@
 
  ```swift
  // Initialize once at app startup
- try OpaqueClient.initialize()
+ try OpaqueAgent.initialize()
 
  // Create a client with server's public key
- let client = try OpaqueClient(serverPublicKey: serverKey)
+ let client = try OpaqueAgent(serverPublicKey: serverKey)
 
  // Registration flow
  let state = try client.createState()
@@ -34,7 +34,7 @@
 import Foundation
 
 /// OPAQUE protocol client for password-authenticated key exchange
-public final class OpaqueClient {
+public final class OpaqueAgent {
 
     private var handle: OpaquePointer?
     private let lock = NSLock()
@@ -259,7 +259,7 @@ public final class OpaqueClient {
 
     /// Initialize the OPAQUE library
     ///
-    /// Must be called once before creating any `OpaqueClient` instances.
+    /// Must be called once before creating any `OpaqueAgent` instances.
     /// Safe to call multiple times.
     public static func initialize() throws {
         initLock.lock()
@@ -286,7 +286,7 @@ public final class OpaqueClient {
 
 // MARK: - Session State
 
-extension OpaqueClient {
+extension OpaqueAgent {
     /// Session state for registration or authentication
     ///
     /// Each operation requires a fresh state. Create with `client.createState()`.
@@ -330,7 +330,7 @@ public struct AuthenticationKeys {
 
 // MARK: - Constants
 
-extension OpaqueClient {
+extension OpaqueAgent {
     /// Protocol constants
     public enum Constants {
         public static let publicKeyLength = 32

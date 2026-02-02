@@ -155,8 +155,8 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
     opaque_agent_state_destroy(client_state);
 
     SECTION("Ecliptix authentication with correct secure key") {
-        void* auth_client_state = nullptr;
-        REQUIRE(opaque_agent_state_create(&auth_client_state) == static_cast<int>(Result::Success));
+        void* auth_agent_state = nullptr;
+        REQUIRE(opaque_agent_state_create(&auth_agent_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
         REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
@@ -164,7 +164,7 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         uint8_t ke1[KE1_SIZE];
         REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
-            auth_client_state, ke1, KE1_SIZE) == static_cast<int>(Result::Success));
+            auth_agent_state, ke1, KE1_SIZE) == static_cast<int>(Result::Success));
 
         uint8_t ke2[KE2_SIZE];
         REQUIRE(opaque_relay_generate_ke2(
@@ -176,7 +176,7 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         uint8_t ke3[KE3_LENGTH];
         REQUIRE(opaque_agent_generate_ke3(
             client, ke2, KE2_SIZE,
-            auth_client_state, ke3, KE3_LENGTH) == static_cast<int>(Result::Success));
+            auth_agent_state, ke3, KE3_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t server_session_key[HASH_LENGTH];
         uint8_t server_master_key[MASTER_KEY_LENGTH];
@@ -188,20 +188,20 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         uint8_t client_session_key[HASH_LENGTH];
         uint8_t recovered_master_key[MASTER_KEY_LENGTH];
         REQUIRE(opaque_agent_finish(
-            client, auth_client_state,
+            client, auth_agent_state,
             client_session_key, HASH_LENGTH,
             recovered_master_key, MASTER_KEY_LENGTH) == static_cast<int>(Result::Success));
 
         REQUIRE(std::memcmp(client_session_key, server_session_key, HASH_LENGTH) == 0);
         REQUIRE(std::memcmp(recovered_master_key, server_master_key, MASTER_KEY_LENGTH) == 0);
 
-        opaque_agent_state_destroy(auth_client_state);
+        opaque_agent_state_destroy(auth_agent_state);
         opaque_relay_state_destroy(server_state);
     }
 
     SECTION("Ecliptix authentication with invalid secure key fails") {
-        void* auth_client_state = nullptr;
-        REQUIRE(opaque_agent_state_create(&auth_client_state) == static_cast<int>(Result::Success));
+        void* auth_agent_state = nullptr;
+        REQUIRE(opaque_agent_state_create(&auth_agent_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
         REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
@@ -210,7 +210,7 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         uint8_t ke1[KE1_SIZE];
         REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(invalid_secure_key), strlen(invalid_secure_key),
-            auth_client_state, ke1, KE1_SIZE) == static_cast<int>(Result::Success));
+            auth_agent_state, ke1, KE1_SIZE) == static_cast<int>(Result::Success));
 
         uint8_t ke2[KE2_SIZE];
         REQUIRE(opaque_relay_generate_ke2(
@@ -222,7 +222,7 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         uint8_t ke3[KE3_LENGTH];
         int result = opaque_agent_generate_ke3(
             client, ke2, KE2_SIZE,
-            auth_client_state, ke3, KE3_LENGTH);
+            auth_agent_state, ke3, KE3_LENGTH);
 
         if (result == static_cast<int>(Result::Success)) {
             uint8_t server_session_key[HASH_LENGTH];
@@ -236,13 +236,13 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
             ExpectAuthError(result, "wrong password: client generate ke3");
         }
 
-        opaque_agent_state_destroy(auth_client_state);
+        opaque_agent_state_destroy(auth_agent_state);
         opaque_relay_state_destroy(server_state);
     }
 
     SECTION("Ecliptix authentication fails with tampered responder MAC") {
-        void* auth_client_state = nullptr;
-        REQUIRE(opaque_agent_state_create(&auth_client_state) == static_cast<int>(Result::Success));
+        void* auth_agent_state = nullptr;
+        REQUIRE(opaque_agent_state_create(&auth_agent_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
         REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
@@ -250,7 +250,7 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         uint8_t ke1[KE1_SIZE];
         REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
-            auth_client_state, ke1, KE1_SIZE) == static_cast<int>(Result::Success));
+            auth_agent_state, ke1, KE1_SIZE) == static_cast<int>(Result::Success));
 
         uint8_t ke2[KE2_SIZE];
         REQUIRE(opaque_relay_generate_ke2(
@@ -264,10 +264,10 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         uint8_t ke3[KE3_LENGTH];
         int result = opaque_agent_generate_ke3(
             client, ke2, KE2_SIZE,
-            auth_client_state, ke3, KE3_LENGTH);
+            auth_agent_state, ke3, KE3_LENGTH);
         REQUIRE(result == static_cast<int>(Result::AuthenticationError));
 
-        opaque_agent_state_destroy(auth_client_state);
+        opaque_agent_state_destroy(auth_agent_state);
         opaque_relay_state_destroy(server_state);
     }
 
@@ -1120,8 +1120,8 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
     opaque_agent_state_destroy(client_state);
 
     SECTION("PQ authentication with correct secure key") {
-        void* auth_client_state = nullptr;
-        REQUIRE(opaque_agent_state_create(&auth_client_state) == static_cast<int>(Result::Success));
+        void* auth_agent_state = nullptr;
+        REQUIRE(opaque_agent_state_create(&auth_agent_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
         REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
@@ -1129,7 +1129,7 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
         std::vector<uint8_t> pq_ke1(KE1_SIZE);
         REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
-            auth_client_state, pq_ke1.data(),
+            auth_agent_state, pq_ke1.data(),
             KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_ke2(KE2_SIZE);
@@ -1143,7 +1143,7 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
         uint8_t ke3[KE3_LENGTH];
         REQUIRE(opaque_agent_generate_ke3(
             client, pq_ke2.data(), KE2_SIZE,
-            auth_client_state, ke3, KE3_LENGTH) == static_cast<int>(Result::Success));
+            auth_agent_state, ke3, KE3_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t server_session_key[HASH_LENGTH];
         uint8_t server_master_key[MASTER_KEY_LENGTH];
@@ -1155,20 +1155,20 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
         uint8_t client_session_key[HASH_LENGTH];
         uint8_t client_master_key[MASTER_KEY_LENGTH];
         REQUIRE(opaque_agent_finish(
-            client, auth_client_state,
+            client, auth_agent_state,
             client_session_key, HASH_LENGTH,
             client_master_key, MASTER_KEY_LENGTH) == static_cast<int>(Result::Success));
 
         REQUIRE(std::memcmp(client_session_key, server_session_key, HASH_LENGTH) == 0);
         REQUIRE(std::memcmp(client_master_key, server_master_key, MASTER_KEY_LENGTH) == 0);
 
-        opaque_agent_state_destroy(auth_client_state);
+        opaque_agent_state_destroy(auth_agent_state);
         opaque_relay_state_destroy(server_state);
     }
 
     SECTION("PQ authentication with wrong secure key fails") {
-        void* auth_client_state = nullptr;
-        REQUIRE(opaque_agent_state_create(&auth_client_state) == static_cast<int>(Result::Success));
+        void* auth_agent_state = nullptr;
+        REQUIRE(opaque_agent_state_create(&auth_agent_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
         REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
@@ -1177,7 +1177,7 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
         std::vector<uint8_t> pq_ke1(KE1_SIZE);
         REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(invalid_secure_key), strlen(invalid_secure_key),
-            auth_client_state, pq_ke1.data(),
+            auth_agent_state, pq_ke1.data(),
             KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_ke2(KE2_SIZE);
@@ -1191,7 +1191,7 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
         uint8_t ke3[KE3_LENGTH];
         int result = opaque_agent_generate_ke3(
             client, pq_ke2.data(), KE2_SIZE,
-            auth_client_state, ke3, KE3_LENGTH);
+            auth_agent_state, ke3, KE3_LENGTH);
 
         if (result == static_cast<int>(Result::Success)) {
             uint8_t server_session_key[HASH_LENGTH];
@@ -1205,13 +1205,13 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
             ExpectAuthError(result, "pq wrong password: client generate ke3");
         }
 
-        opaque_agent_state_destroy(auth_client_state);
+        opaque_agent_state_destroy(auth_agent_state);
         opaque_relay_state_destroy(server_state);
     }
 
     SECTION("PQ authentication fails with tampered KE2 KEM ciphertext") {
-        void* auth_client_state = nullptr;
-        REQUIRE(opaque_agent_state_create(&auth_client_state) == static_cast<int>(Result::Success));
+        void* auth_agent_state = nullptr;
+        REQUIRE(opaque_agent_state_create(&auth_agent_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
         REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
@@ -1219,7 +1219,7 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
         std::vector<uint8_t> pq_ke1(KE1_SIZE);
         REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
-            auth_client_state, pq_ke1.data(),
+            auth_agent_state, pq_ke1.data(),
             KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_ke2(KE2_SIZE);
@@ -1236,11 +1236,11 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
         uint8_t ke3[KE3_LENGTH];
         int result = opaque_agent_generate_ke3(
             client, pq_ke2.data(), KE2_SIZE,
-            auth_client_state, ke3, KE3_LENGTH);
+            auth_agent_state, ke3, KE3_LENGTH);
 
         REQUIRE(result == static_cast<int>(Result::AuthenticationError));
 
-        opaque_agent_state_destroy(auth_client_state);
+        opaque_agent_state_destroy(auth_agent_state);
         opaque_relay_state_destroy(server_state);
     }
 

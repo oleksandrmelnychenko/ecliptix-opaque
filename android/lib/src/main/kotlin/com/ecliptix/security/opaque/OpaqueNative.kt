@@ -2,7 +2,7 @@
  * Native JNI interface for Ecliptix OPAQUE Protocol
  *
  * This internal object provides low-level JNI bindings to the native library.
- * Use [OpaqueClient] for a higher-level Kotlin API.
+ * Use [OpaqueAgent] for a higher-level Kotlin API.
  */
 package com.ecliptix.security.opaque
 

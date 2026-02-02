@@ -7,10 +7,10 @@
  * Example usage:
  * ```kotlin
  * // Initialize once at application startup
- * OpaqueClient.initialize()
+ * OpaqueAgent.initialize()
  *
  * // Create a client with server's public key
- * val client = OpaqueClient(serverPublicKey)
+ * val client = OpaqueAgent(serverPublicKey)
  *
  * // Registration flow
  * client.startSession { state ->
@@ -47,7 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * @property serverPublicKey The server's public key (32 bytes)
  */
-class OpaqueClient(
+class OpaqueAgent(
     serverPublicKey: ByteArray
 ) : Closeable {
 
@@ -56,7 +56,7 @@ class OpaqueClient(
 
     init {
         require(isInitialized) {
-            "OpaqueClient must be initialized first. Call OpaqueClient.initialize()"
+            "OpaqueAgent must be initialized first. Call OpaqueAgent.initialize()"
         }
         require(serverPublicKey.size == Constants.PUBLIC_KEY_LENGTH) {
             "Server public key must be ${Constants.PUBLIC_KEY_LENGTH} bytes, got ${serverPublicKey.size}"
@@ -196,7 +196,7 @@ class OpaqueClient(
     }
 
     private fun checkNotClosed() {
-        check(!closed.get()) { "OpaqueClient has been closed" }
+        check(!closed.get()) { "OpaqueAgent has been closed" }
     }
 
     /**
@@ -250,7 +250,7 @@ class OpaqueClient(
         /**
          * Initialize the OPAQUE library
          *
-         * Must be called once before creating any [OpaqueClient] instances.
+         * Must be called once before creating any [OpaqueAgent] instances.
          * Safe to call multiple times.
          *
          * @return true if initialization succeeded
