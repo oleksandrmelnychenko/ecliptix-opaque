@@ -12,11 +12,11 @@ using System.Reflection;
 
 [assembly: System.Reflection.AssemblyCompanyAttribute("Ecliptix")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
-[assembly: System.Reflection.AssemblyCopyrightAttribute("Copyright (c) 2024-2025 Ecliptix. All rights reserved.")]
+[assembly: System.Reflection.AssemblyCopyrightAttribute("Copyright (c) 2024-2026 Ecliptix. All rights reserved.")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute(("High-performance native OPAQUE PAKE protocol client implementation for secure pas" +
     "sword authentication. Passwords never leave the client device."))]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+45b70314e9a8e964e70f297fd4053ef382622299")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0e4c626866d663c35729a63fee4407ff9ff7019e")]
 [assembly: System.Reflection.AssemblyProductAttribute("Ecliptix OPAQUE Agent")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Ecliptix.OPAQUE.Agent")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

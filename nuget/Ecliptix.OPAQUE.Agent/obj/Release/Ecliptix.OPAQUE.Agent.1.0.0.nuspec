@@ -9,22 +9,19 @@
     <readme>README.md</readme>
     <projectUrl>https://github.com/oleksandrmelnychenko/Ecliptix.OPAQUE</projectUrl>
     <description>High-performance native OPAQUE PAKE protocol client implementation for secure password authentication. Passwords never leave the client device.</description>
-    <copyright>Copyright (c) 2024-2025 Ecliptix. All rights reserved.</copyright>
+    <copyright>Copyright (c) 2024-2026 Ecliptix. All rights reserved.</copyright>
     <tags>opaque pake password authentication security cryptography native agent</tags>
-    <repository type="git" url="https://github.com/oleksandrmelnychenko/Ecliptix.OPAQUE.git" commit="56613b14670847320fe4c404ade49102e69d0d35" />
+    <repository type="git" url="https://github.com/oleksandrmelnychenko/Ecliptix.OPAQUE.git" commit="0e4c626866d663c35729a63fee4407ff9ff7019e" />
     <dependencies>
-      <group targetFramework="net8.0" />
-      <group targetFramework="net9.0" />
       <group targetFramework="net10.0" />
     </dependencies>
   </metadata>
   <files>
     <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/bin/Release/net10.0/Ecliptix.OPAQUE.Agent.dll" target="lib/net10.0/Ecliptix.OPAQUE.Agent.dll" />
     <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/bin/Release/net10.0/Ecliptix.OPAQUE.Agent.xml" target="lib/net10.0/Ecliptix.OPAQUE.Agent.xml" />
-    <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/bin/Release/net8.0/Ecliptix.OPAQUE.Agent.dll" target="lib/net8.0/Ecliptix.OPAQUE.Agent.dll" />
-    <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/bin/Release/net8.0/Ecliptix.OPAQUE.Agent.xml" target="lib/net8.0/Ecliptix.OPAQUE.Agent.xml" />
-    <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/bin/Release/net9.0/Ecliptix.OPAQUE.Agent.dll" target="lib/net9.0/Ecliptix.OPAQUE.Agent.dll" />
-    <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/bin/Release/net9.0/Ecliptix.OPAQUE.Agent.xml" target="lib/net9.0/Ecliptix.OPAQUE.Agent.xml" />
+    <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/runtimes/linux-x64/native/libeop.agent.so" target="runtimes/linux-x64/native/libeop.agent.so" />
+    <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/runtimes/osx-arm64/native/libeop.agent.dylib" target="runtimes/osx-arm64/native/libeop.agent.dylib" />
+    <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/runtimes/win-x64/native/eop.agent.dll" target="runtimes/win-x64/native/eop.agent.dll" />
     <file src="/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/README.md" target="README.md" />
   </files>
 </package>

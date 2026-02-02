@@ -5,7 +5,7 @@
   },
   "projects": {
     "/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/Ecliptix.OPAQUE.Agent.csproj": {
-      "version": "1.0.3",
+      "version": "1.0.0",
       "restore": {
         "projectUniqueName": "/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/Ecliptix.OPAQUE.Agent.csproj",
         "projectName": "Ecliptix.OPAQUE.Agent",
