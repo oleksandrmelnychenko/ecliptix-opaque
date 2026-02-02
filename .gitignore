@@ -3,6 +3,13 @@ build*/
 cmake-build-*/
 dist/
 
+# .NET
+bin/
+obj/
+*.nupkg
+*.snupkg
+nuget/output/
+
 # IDE files
 .idea/
 .vscode/
