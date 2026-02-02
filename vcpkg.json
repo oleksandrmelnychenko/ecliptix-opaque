@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "ecliptix-security-opaque",
+  "version": "1.0.0",
+  "description": "OPAQUE Protocol Implementation - A modern C++23 implementation of the OPAQUE password-authenticated key exchange protocol with ML-KEM-768 post-quantum security",
+  "homepage": "https://github.com/oleksandrmelnychenko/ecliptix-opaque",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "libsodium",
+      "version>=": "1.0.20",
+      "version<": "1.1.0"
+    },
+    {
+      "name": "liboqs",
+      "version>=": "0.12.0",
+      "version<": "0.13.0"
+    }
+  ],
+  "builtin-baseline": "e6e4bc74aaf5c63dfc358810594f662f7e9bc4d4",
+  "overrides": [
+    {
+      "name": "libsodium",
+      "version": "1.0.20"
+    },
+    {
+      "name": "liboqs",
+      "version": "0.12.0"
+    }
+  ]
+}

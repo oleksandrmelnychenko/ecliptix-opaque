@@ -1,0 +1,179 @@
+# Dockerfile for Android cross-compilation
+# Builds client library (eop.agent) for Android architectures
+#
+# Usage:
+#   docker build -f Dockerfile.android \
+#     --build-arg ABI=arm64-v8a \
+#     --build-arg BUILD_TYPE=Release \
+#     -t eop-android-arm64 .
+
+FROM ubuntu:24.04
+
+ARG ABI=arm64-v8a
+ARG BUILD_TYPE=Release
+ARG NDK_VERSION=r26d
+ARG API_LEVEL=24
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ANDROID_NDK_HOME=/opt/android-ndk
+ENV PATH="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    pkg-config \
+    ninja-build \
+    git \
+    wget \
+    unzip \
+    python3 \
+    python3-pip \
+    autoconf \
+    automake \
+    libtool \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download and install Android NDK
+RUN mkdir -p /opt && \
+    cd /opt && \
+    wget -q https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip && \
+    unzip -q android-ndk-${NDK_VERSION}-linux.zip && \
+    mv android-ndk-${NDK_VERSION} android-ndk && \
+    rm android-ndk-${NDK_VERSION}-linux.zip
+
+# Set up architecture-specific variables
+# arm64-v8a -> aarch64-linux-android
+# armeabi-v7a -> armv7a-linux-androideabi
+# x86_64 -> x86_64-linux-android
+RUN echo "Setting up for ABI: ${ABI}"
+
+WORKDIR /workspace
+
+# Copy source
+COPY . /workspace/
+
+# Build libsodium for Android
+RUN mkdir -p /workspace/deps/libsodium && \
+    cd /workspace/deps && \
+    git clone --depth 1 --branch 1.0.20 https://github.com/jedisct1/libsodium.git libsodium-src && \
+    cd libsodium-src && \
+    ./autogen.sh && \
+    \
+    # Determine the correct target triple based on ABI
+    if [ "${ABI}" = "arm64-v8a" ]; then \
+        export TARGET=aarch64-linux-android; \
+        export ARCH=arm64; \
+    elif [ "${ABI}" = "armeabi-v7a" ]; then \
+        export TARGET=armv7a-linux-androideabi; \
+        export ARCH=arm; \
+    elif [ "${ABI}" = "x86_64" ]; then \
+        export TARGET=x86_64-linux-android; \
+        export ARCH=x86_64; \
+    elif [ "${ABI}" = "x86" ]; then \
+        export TARGET=i686-linux-android; \
+        export ARCH=x86; \
+    fi && \
+    \
+    export TOOLCHAIN=${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64 && \
+    export CC=${TOOLCHAIN}/bin/${TARGET}${API_LEVEL}-clang && \
+    export CXX=${TOOLCHAIN}/bin/${TARGET}${API_LEVEL}-clang++ && \
+    export AR=${TOOLCHAIN}/bin/llvm-ar && \
+    export AS=${TOOLCHAIN}/bin/llvm-as && \
+    export LD=${TOOLCHAIN}/bin/ld && \
+    export RANLIB=${TOOLCHAIN}/bin/llvm-ranlib && \
+    export STRIP=${TOOLCHAIN}/bin/llvm-strip && \
+    \
+    ./configure \
+        --host=${TARGET} \
+        --prefix=/workspace/deps/libsodium \
+        --enable-static \
+        --disable-shared \
+        --disable-debug \
+        --disable-dependency-tracking \
+        CFLAGS="-O2 -fPIC" && \
+    make -j$(nproc) && \
+    make install && \
+    \
+    # Verify libsodium built correctly
+    ls -la /workspace/deps/libsodium/lib/ && \
+    echo "libsodium built successfully for ${ABI}"
+
+# Build liboqs for Android with ML-KEM-768
+RUN mkdir -p /workspace/deps/liboqs && \
+    cd /workspace/deps && \
+    git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git liboqs-src && \
+    cd liboqs-src && \
+    \
+    # Determine architecture settings
+    if [ "${ABI}" = "arm64-v8a" ]; then \
+        export ANDROID_ABI=arm64-v8a; \
+        export ARCH_FLAGS="-march=armv8-a"; \
+    elif [ "${ABI}" = "armeabi-v7a" ]; then \
+        export ANDROID_ABI=armeabi-v7a; \
+        export ARCH_FLAGS="-march=armv7-a -mfloat-abi=softfp -mfpu=neon"; \
+    elif [ "${ABI}" = "x86_64" ]; then \
+        export ANDROID_ABI=x86_64; \
+        export ARCH_FLAGS=""; \
+    elif [ "${ABI}" = "x86" ]; then \
+        export ANDROID_ABI=x86; \
+        export ARCH_FLAGS=""; \
+    fi && \
+    \
+    cmake -B build -S . -G Ninja \
+        -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
+        -DANDROID_ABI=${ANDROID_ABI} \
+        -DANDROID_PLATFORM=android-${API_LEVEL} \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/workspace/deps/liboqs \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DOQS_BUILD_ONLY_LIB=ON \
+        -DOQS_USE_OPENSSL=OFF \
+        -DOQS_DIST_BUILD=OFF \
+        -DOQS_PERMIT_UNSUPPORTED_ARCHITECTURE=ON \
+        -DOQS_ENABLE_KEM_ml_kem_768=ON \
+        -DOQS_ENABLE_KEM_ml_kem_512=ON \
+        -DOQS_ENABLE_KEM_ml_kem_1024=ON && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build && \
+    \
+    # Verify ML-KEM-768 symbols
+    nm /workspace/deps/liboqs/lib/liboqs.a | grep -i ml_kem_768 | head -5 && \
+    echo "liboqs built successfully for ${ABI} with ML-KEM-768"
+
+# Build the OPAQUE client library
+RUN mkdir -p /workspace/build && \
+    cd /workspace && \
+    \
+    cmake -B build -S . -G Ninja \
+        -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
+        -DCMAKE_PREFIX_PATH="/workspace/deps/libsodium;/workspace/deps/liboqs" \
+        -DANDROID_ABI=${ABI} \
+        -DANDROID_PLATFORM=android-${API_LEVEL} \
+        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+        -DCMAKE_INSTALL_PREFIX=/workspace/dist/android/${ABI} \
+        -DBUILD_CLIENT=ON \
+        -DBUILD_SERVER=OFF \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_DOTNET_INTEROP=ON \
+        -DBUILD_ANDROID_JNI=ON \
+        -DBUILD_TESTS=OFF \
+        -DENABLE_HARDENING=ON \
+        -DBUILD_STATIC_SODIUM=ON && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build && \
+    \
+    # Verify the library
+    ls -la /workspace/dist/android/${ABI}/lib/ && \
+    file /workspace/dist/android/${ABI}/lib/*.so && \
+    \
+    # Strip symbols for release
+    if [ "${BUILD_TYPE}" = "Release" ]; then \
+        ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip \
+            --strip-unneeded /workspace/dist/android/${ABI}/lib/*.so; \
+    fi && \
+    \
+    echo "OPAQUE client library built successfully for Android ${ABI}"
+
+# Keep artifacts in the build stage - use docker cp to extract

@@ -1,0 +1,27 @@
+# CODEOWNERS - Define code ownership for review requirements
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @oleksandrmelnychenko
+
+# Cryptographic core - requires security review
+/src/core/ @oleksandrmelnychenko
+/include/opaque/ @oleksandrmelnychenko
+
+# Security documentation - requires security lead review
+/SECURITY.md @oleksandrmelnychenko
+/docs/isms/ @oleksandrmelnychenko
+/docs/security-review/ @oleksandrmelnychenko
+
+# Build and release configuration
+/.github/workflows/ @oleksandrmelnychenko
+/CMakeLists.txt @oleksandrmelnychenko
+/cmake/ @oleksandrmelnychenko
+
+# Platform-specific builds
+/nuget/ @oleksandrmelnychenko
+/android/ @oleksandrmelnychenko
+/swift/ @oleksandrmelnychenko
+
+# Tests
+/tests/ @oleksandrmelnychenko

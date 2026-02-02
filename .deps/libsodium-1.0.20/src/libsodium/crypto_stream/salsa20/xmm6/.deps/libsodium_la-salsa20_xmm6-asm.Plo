@@ -1,0 +1,6 @@
+crypto_stream/salsa20/xmm6/libsodium_la-salsa20_xmm6-asm.lo: \
+  crypto_stream/salsa20/xmm6/salsa20_xmm6-asm.S \
+  include/sodium/private/asm_cet.h \
+  /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include/cet.h
+include/sodium/private/asm_cet.h:
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include/cet.h:

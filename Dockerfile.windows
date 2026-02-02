@@ -1,0 +1,87 @@
+FROM ubuntu:24.04
+
+ARG BUILD_TARGET=client
+ARG BUILD_TYPE=Release
+ARG SODIUM_VERSION=1.0.20
+
+ENV BUILD_TARGET=${BUILD_TARGET}
+ENV BUILD_TYPE=${BUILD_TYPE}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    pkg-config \
+    mingw-w64 \
+    curl \
+    ca-certificates \
+    make \
+    autoconf \
+    automake \
+    libtool \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp
+RUN curl -L -o libsodium.tar.gz https://download.libsodium.org/libsodium/releases/libsodium-${SODIUM_VERSION}.tar.gz \
+    && tar -xzf libsodium.tar.gz \
+    && cd libsodium-${SODIUM_VERSION} \
+    && ./configure --host=x86_64-w64-mingw32 --prefix=/usr/x86_64-w64-mingw32 --enable-static --disable-shared \
+    && make -j$(nproc) \
+    && make install \
+    && cd / \
+    && rm -rf /tmp/libsodium*
+
+# Build liboqs for Windows cross-compilation with ML-KEM-768 support
+ARG OQS_VERSION=0.12.0
+RUN curl -L -o liboqs.tar.gz https://github.com/open-quantum-safe/liboqs/archive/refs/tags/${OQS_VERSION}.tar.gz \
+    && tar -xzf liboqs.tar.gz \
+    && cd liboqs-${OQS_VERSION} \
+    && mkdir build && cd build \
+    && cmake .. \
+        -DCMAKE_SYSTEM_NAME=Windows \
+        -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
+        -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+        -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+        -DCMAKE_INSTALL_PREFIX=/usr/x86_64-w64-mingw32 \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DOQS_BUILD_ONLY_LIB=ON \
+        -DOQS_USE_OPENSSL=OFF \
+        -DOQS_PERMIT_UNSUPPORTED_ARCHITECTURE=ON \
+        -DOQS_ENABLE_KEM_ml_kem_768=ON \
+        -DOQS_ENABLE_KEM_ml_kem_512=ON \
+        -DOQS_ENABLE_KEM_ml_kem_1024=ON \
+    && make -j$(nproc) \
+    && make install \
+    && echo "=== Validating ML-KEM-768 symbols in liboqs ===" \
+    && x86_64-w64-mingw32-nm /usr/x86_64-w64-mingw32/lib/liboqs.a 2>/dev/null | grep -q "OQS_KEM_ml_kem_768" \
+    && echo "✓ ML-KEM-768 symbols found in liboqs.a" \
+    || (echo "✗ ERROR: ML-KEM-768 symbols NOT found in liboqs.a" && exit 1) \
+    && cd / \
+    && rm -rf /tmp/liboqs*
+
+ENV PKG_CONFIG_LIBDIR=/usr/x86_64-w64-mingw32/lib/pkgconfig
+ENV PKG_CONFIG_PATH=/usr/x86_64-w64-mingw32/lib/pkgconfig
+
+WORKDIR /workspace
+COPY . /workspace
+
+CMD ["/bin/bash", "-lc", "set -euo pipefail; \
+    if [ \"${BUILD_TARGET}\" = \"client\" ]; then BUILD_CLIENT=ON; BUILD_SERVER=OFF; else BUILD_CLIENT=OFF; BUILD_SERVER=ON; fi; \
+    BUILD_DIR=build-windows-${BUILD_TARGET}; \
+    INSTALL_DIR=/workspace/dist/${BUILD_TARGET}/windows; \
+    cmake -B ${BUILD_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=/workspace/cmake/mingw-toolchain.cmake \
+        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+        -DCMAKE_SHARED_LIBRARY_PREFIX=lib \
+        -DBUILD_CLIENT=${BUILD_CLIENT} \
+        -DBUILD_SERVER=${BUILD_SERVER} \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_DOTNET_INTEROP=ON \
+        -DBUILD_TESTS=OFF \
+        -DENABLE_HARDENING=ON \
+        -DBUILD_STATIC_SODIUM=ON \
+        -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}; \
+    cmake --build ${BUILD_DIR} --parallel; \
+    cmake --install ${BUILD_DIR}; \
+    "]
