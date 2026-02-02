@@ -18,12 +18,12 @@ internal object OpaqueNative {
     @JvmStatic
     external fun nativeGetVersion(): String
 
-    // Client lifecycle
+    // Agent lifecycle
     @JvmStatic
-    external fun nativeClientCreate(serverPublicKey: ByteArray): Long
+    external fun nativeAgentCreate(relayPublicKey: ByteArray): Long
 
     @JvmStatic
-    external fun nativeClientDestroy(handle: Long)
+    external fun nativeAgentDestroy(handle: Long)
 
     // State lifecycle
     @JvmStatic
@@ -35,14 +35,14 @@ internal object OpaqueNative {
     // Registration
     @JvmStatic
     external fun nativeCreateRegistrationRequest(
-        clientHandle: Long,
+        agentHandle: Long,
         secureKey: ByteArray,
         stateHandle: Long
     ): ByteArray
 
     @JvmStatic
     external fun nativeFinalizeRegistration(
-        clientHandle: Long,
+        agentHandle: Long,
         response: ByteArray,
         stateHandle: Long
     ): ByteArray
@@ -50,21 +50,21 @@ internal object OpaqueNative {
     // Authentication
     @JvmStatic
     external fun nativeGenerateKe1(
-        clientHandle: Long,
+        agentHandle: Long,
         secureKey: ByteArray,
         stateHandle: Long
     ): ByteArray
 
     @JvmStatic
     external fun nativeGenerateKe3(
-        clientHandle: Long,
+        agentHandle: Long,
         ke2: ByteArray,
         stateHandle: Long
     ): ByteArray
 
     @JvmStatic
     external fun nativeFinish(
-        clientHandle: Long,
+        agentHandle: Long,
         stateHandle: Long
     ): FinishResult
 

@@ -5,29 +5,29 @@ namespace Ecliptix.OPAQUE.Agent;
 
 public sealed class OpaqueAgent : IDisposable
 {
-    private readonly IntPtr _clientHandle;
+    private readonly IntPtr _agentHandle;
     private bool _disposed;
 
-    public OpaqueAgent(byte[] serverPublicKey)
+    public OpaqueAgent(byte[] relayPublicKey)
     {
-        if (serverPublicKey == null)
+        if (relayPublicKey == null)
         {
-            throw new ArgumentNullException(nameof(serverPublicKey));
+            throw new ArgumentNullException(nameof(relayPublicKey));
         }
 
-        if (serverPublicKey.Length != OpaqueConstants.PUBLIC_KEY_LENGTH)
+        if (relayPublicKey.Length != OpaqueConstants.PUBLIC_KEY_LENGTH)
         {
-            throw new ArgumentException(string.Format(OpaqueErrorMessages.SERVER_PUBLIC_KEY_INVALID_SIZE,
+            throw new ArgumentException(string.Format(OpaqueErrorMessages.RELAY_PUBLIC_KEY_INVALID_SIZE,
                 OpaqueConstants.PUBLIC_KEY_LENGTH));
         }
 
         int result = OpaqueAgentNative.opaque_agent_create(
-            serverPublicKey, (UIntPtr)serverPublicKey.Length, out _clientHandle);
+            relayPublicKey, (UIntPtr)relayPublicKey.Length, out _agentHandle);
 
-        if (result != (int)OpaqueResult.Success || _clientHandle == IntPtr.Zero)
+        if (result != (int)OpaqueResult.Success || _agentHandle == IntPtr.Zero)
         {
             throw new OpaqueException((OpaqueResult)result,
-                OpaqueErrorMessages.FAILED_TO_CREATE_OPAQUE_CLIENT);
+                OpaqueErrorMessages.FAILED_TO_CREATE_OPAQUE_AGENT);
         }
     }
 
@@ -51,7 +51,7 @@ public sealed class OpaqueAgent : IDisposable
             }
 
             int result = OpaqueAgentNative.opaque_agent_create_registration_request(
-                _clientHandle, secureKey, (UIntPtr)secureKey.Length, state, request, (UIntPtr)request.Length);
+                _agentHandle, secureKey, (UIntPtr)secureKey.Length, state, request, (UIntPtr)request.Length);
 
             if (result == (int)OpaqueResult.Success)
             {
@@ -68,7 +68,7 @@ public sealed class OpaqueAgent : IDisposable
         }
     }
 
-    public byte[] FinalizeRegistration(byte[]? serverResponse, RegistrationResult registrationState)
+    public byte[] FinalizeRegistration(byte[]? relayResponse, RegistrationResult registrationState)
     {
         if (registrationState == null)
         {
@@ -78,17 +78,17 @@ public sealed class OpaqueAgent : IDisposable
         try
         {
             ThrowIfDisposed();
-            if (serverResponse?.Length != OpaqueConstants.REGISTRATION_RESPONSE_LENGTH)
+            if (relayResponse?.Length != OpaqueConstants.REGISTRATION_RESPONSE_LENGTH)
             {
                 throw new ArgumentException(
-                    string.Format(OpaqueErrorMessages.SERVER_RESPONSE_INVALID_SIZE,
+                    string.Format(OpaqueErrorMessages.RELAY_RESPONSE_INVALID_SIZE,
                         OpaqueConstants.REGISTRATION_RESPONSE_LENGTH));
             }
 
             byte[] record = new byte[OpaqueConstants.REGISTRATION_RECORD_LENGTH];
 
             int result = OpaqueAgentNative.opaque_agent_finalize_registration(
-                _clientHandle, serverResponse, (UIntPtr)serverResponse.Length,
+                _agentHandle, relayResponse, (UIntPtr)relayResponse.Length,
                 registrationState.StateHandle, record, (UIntPtr)record.Length);
 
             return result != (int)OpaqueResult.Success
@@ -122,7 +122,7 @@ public sealed class OpaqueAgent : IDisposable
             }
 
             int result = OpaqueAgentNative.opaque_agent_generate_ke1(
-                _clientHandle, secureKey, (UIntPtr)secureKey.Length, state, ke1, (UIntPtr)ke1.Length);
+                _agentHandle, secureKey, (UIntPtr)secureKey.Length, state, ke1, (UIntPtr)ke1.Length);
 
             if (result == (int)OpaqueResult.Success)
             {
@@ -157,7 +157,7 @@ public sealed class OpaqueAgent : IDisposable
         byte[] ke3 = new byte[OpaqueConstants.KE3_LENGTH];
 
         int result = OpaqueAgentNative.opaque_agent_generate_ke3(
-            _clientHandle, ke2, (UIntPtr)ke2.Length, keyExchangeState.StateHandle, ke3, (UIntPtr)ke3.Length);
+            _agentHandle, ke2, (UIntPtr)ke2.Length, keyExchangeState.StateHandle, ke3, (UIntPtr)ke3.Length);
 
         if (result != (int)OpaqueResult.Success)
         {
@@ -180,7 +180,7 @@ public sealed class OpaqueAgent : IDisposable
         byte[] masterKey = new byte[OpaqueConstants.MASTER_KEY_LENGTH];
 
         int result = OpaqueAgentNative.opaque_agent_finish(
-            _clientHandle, keyExchangeState.StateHandle,
+            _agentHandle, keyExchangeState.StateHandle,
             sessionKey, (UIntPtr)sessionKey.Length,
             masterKey, (UIntPtr)masterKey.Length);
 
@@ -211,12 +211,12 @@ public sealed class OpaqueAgent : IDisposable
 
     private void Dispose(bool disposing)
     {
-        if (_disposed || _clientHandle == IntPtr.Zero)
+        if (_disposed || _agentHandle == IntPtr.Zero)
         {
             return;
         }
 
-        OpaqueAgentNative.opaque_agent_destroy(_clientHandle);
+        OpaqueAgentNative.opaque_agent_destroy(_agentHandle);
         _disposed = true;
     }
 

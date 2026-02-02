@@ -125,7 +125,7 @@ public static class OpaqueRelayNative
         UIntPtr privateKeyLen,
         [In] byte[] publicKey,
         UIntPtr publicKeyLen,
-        out IntPtr serverHandle);
+        out IntPtr relayHandle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int opaque_relay_create_default(out IntPtr handle);
@@ -143,7 +143,7 @@ public static class OpaqueRelayNative
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int opaque_relay_create_registration_response(
-        IntPtr serverHandle,
+        IntPtr relayHandle,
         [In] byte[] requestData,
         UIntPtr requestLength,
         [In] byte[] accountId,
@@ -154,7 +154,7 @@ public static class OpaqueRelayNative
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int opaque_relay_generate_ke2(
-        IntPtr serverHandle,
+        IntPtr relayHandle,
         [In] byte[] ke1Data,
         UIntPtr ke1Length,
         [In] byte[] accountId,
@@ -167,7 +167,7 @@ public static class OpaqueRelayNative
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int opaque_relay_finish(
-        IntPtr serverHandle,
+        IntPtr relayHandle,
         [In] byte[] ke3Data,
         UIntPtr ke3Length,
         IntPtr stateHandle,

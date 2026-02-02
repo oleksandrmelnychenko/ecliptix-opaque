@@ -27,7 +27,7 @@ public enum OpaqueError: Error, LocalizedError {
     /// Invalid public key format
     case invalidPublicKey
 
-    /// The client or state has been invalidated
+    /// The agent or state has been invalidated
     case invalidState
 
     /// Unknown error with code
@@ -50,7 +50,7 @@ public enum OpaqueError: Error, LocalizedError {
         case .invalidPublicKey:
             return "Invalid public key format"
         case .invalidState:
-            return "Invalid client or state - may have been destroyed"
+            return "Invalid agent or state - may have been destroyed"
         case .unknown(let code):
             return "Unknown error (code: \(code))"
         }

@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 
 namespace Ecliptix.OPAQUE.Relay;
 
-public sealed class ServerKeyPair : IDisposable
+public sealed class RelayKeyPair : IDisposable
 {
     private byte[] _privateKey;
     private byte[] _publicKey;
@@ -43,19 +43,19 @@ public sealed class ServerKeyPair : IDisposable
         }
     }
 
-    internal ServerKeyPair(byte[] privateKey, byte[] publicKey, IntPtr nativeHandle)
+    internal RelayKeyPair(byte[] privateKey, byte[] publicKey, IntPtr nativeHandle)
     {
         _privateKey = privateKey;
         _publicKey = publicKey;
         _nativeHandle = nativeHandle;
     }
 
-    public static ServerKeyPair Generate()
+    public static RelayKeyPair Generate()
     {
         int result = OpaqueRelayNative.opaque_relay_keypair_generate(out IntPtr handle);
         if (result != (int)OpaqueResult.Success)
         {
-            throw new OpaqueException((OpaqueResult)result, "Failed to generate server keypair");
+            throw new OpaqueException((OpaqueResult)result, "Failed to generate relay keypair");
         }
 
         byte[] publicKey = new byte[OpaqueConstants.PUBLIC_KEY_LENGTH];
@@ -70,10 +70,10 @@ public sealed class ServerKeyPair : IDisposable
             throw new OpaqueException((OpaqueResult)result, "Failed to get public key from keypair");
         }
 
-        return new ServerKeyPair(Array.Empty<byte>(), publicKey, handle);
+        return new RelayKeyPair(Array.Empty<byte>(), publicKey, handle);
     }
 
-    public static ServerKeyPair DeriveFromSeed(byte[] seed)
+    public static RelayKeyPair DeriveFromSeed(byte[] seed)
     {
         if (seed == null || seed.Length != OpaqueConstants.OPRF_SEED_LENGTH)
         {
@@ -99,10 +99,10 @@ public sealed class ServerKeyPair : IDisposable
             throw new OpaqueException((OpaqueResult)result, "Failed to derive keypair from seed");
         }
 
-        return new ServerKeyPair(privateKey, publicKey, IntPtr.Zero);
+        return new RelayKeyPair(privateKey, publicKey, IntPtr.Zero);
     }
 
-    public static ServerKeyPair FromKeys(byte[] privateKey, byte[] publicKey)
+    public static RelayKeyPair FromKeys(byte[] privateKey, byte[] publicKey)
     {
         if (privateKey == null || privateKey.Length != OpaqueConstants.PRIVATE_KEY_LENGTH)
         {
@@ -118,7 +118,7 @@ public sealed class ServerKeyPair : IDisposable
                 nameof(publicKey));
         }
 
-        return new ServerKeyPair((byte[])privateKey.Clone(), (byte[])publicKey.Clone(), IntPtr.Zero);
+        return new RelayKeyPair((byte[])privateKey.Clone(), (byte[])publicKey.Clone(), IntPtr.Zero);
     }
 
     public void Dispose()
@@ -140,13 +140,13 @@ public sealed class ServerKeyPair : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    ~ServerKeyPair() => Dispose();
+    ~RelayKeyPair() => Dispose();
 
     private void ThrowIfDisposed()
     {
         if (_disposed)
         {
-            throw new ObjectDisposedException(nameof(ServerKeyPair));
+            throw new ObjectDisposedException(nameof(RelayKeyPair));
         }
     }
 }

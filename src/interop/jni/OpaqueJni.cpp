@@ -16,22 +16,22 @@ namespace {
 }
 
 extern "C" {
-    int opaque_agent_create(const uint8_t *server_public_key, size_t key_length, void **handle);
+    int opaque_agent_create(const uint8_t *relay_public_key, size_t key_length, void **handle);
     void opaque_agent_destroy(void *handle);
     int opaque_agent_state_create(void **handle);
     void opaque_agent_state_destroy(void *handle);
-    int opaque_agent_create_registration_request(void *client_handle, const uint8_t *secure_key,
+    int opaque_agent_create_registration_request(void *agent_handle, const uint8_t *secure_key,
                                                    size_t secure_key_length, void *state_handle,
                                                    uint8_t *request_out, size_t request_length);
-    int opaque_agent_finalize_registration(void *client_handle, const uint8_t *response,
+    int opaque_agent_finalize_registration(void *agent_handle, const uint8_t *response,
                                             size_t response_length, void *state_handle,
                                             uint8_t *record_out, size_t record_length);
-    int opaque_agent_generate_ke1(void *client_handle, const uint8_t *secure_key,
+    int opaque_agent_generate_ke1(void *agent_handle, const uint8_t *secure_key,
                                     size_t secure_key_length, void *state_handle,
                                     uint8_t *ke1_out, size_t ke1_length);
-    int opaque_agent_generate_ke3(void *client_handle, const uint8_t *ke2, size_t ke2_length,
+    int opaque_agent_generate_ke3(void *agent_handle, const uint8_t *ke2, size_t ke2_length,
                                     void *state_handle, uint8_t *ke3_out, size_t ke3_length);
-    int opaque_agent_finish(void *client_handle, void *state_handle, uint8_t *session_key_out,
+    int opaque_agent_finish(void *agent_handle, void *state_handle, uint8_t *session_key_out,
                               size_t session_key_length, uint8_t *master_key_out, size_t master_key_length);
     const char *opaque_agent_get_version();
     size_t opaque_get_ke1_length();
@@ -100,17 +100,17 @@ JNI_FUNC(nativeGetVersion)(JNIEnv *env, jclass) {
 }
 
 JNIEXPORT jlong JNICALL
-JNI_FUNC(nativeClientCreate)(JNIEnv *env, jclass, jbyteArray serverPublicKey) {
-    if (serverPublicKey == nullptr) {
-        throwOpaqueException(env, "Server public key cannot be null", -1);
+JNI_FUNC(nativeAgentCreate)(JNIEnv *env, jclass, jbyteArray relayPublicKey) {
+    if (relayPublicKey == nullptr) {
+        throwOpaqueException(env, "Relay public key cannot be null", -1);
         return 0;
     }
 
     jsize keyLength = 0;
-    auto keyData = byteArrayToNative(env, serverPublicKey, keyLength);
+    auto keyData = byteArrayToNative(env, relayPublicKey, keyLength);
 
     if (static_cast<size_t>(keyLength) != PUBLIC_KEY_LENGTH) {
-        throwOpaqueException(env, "Invalid server public key length", -1);
+        throwOpaqueException(env, "Invalid relay public key length", -1);
         return 0;
     }
 
@@ -118,7 +118,7 @@ JNI_FUNC(nativeClientCreate)(JNIEnv *env, jclass, jbyteArray serverPublicKey) {
     int result = opaque_agent_create(keyData.get(), static_cast<size_t>(keyLength), &handle);
 
     if (result != 0) {
-        throwOpaqueException(env, "Failed to create OPAQUE client", result);
+        throwOpaqueException(env, "Failed to create OPAQUE agent", result);
         return 0;
     }
 
@@ -126,7 +126,7 @@ JNI_FUNC(nativeClientCreate)(JNIEnv *env, jclass, jbyteArray serverPublicKey) {
 }
 
 JNIEXPORT void JNICALL
-JNI_FUNC(nativeClientDestroy)(JNIEnv *, jclass, jlong handle) {
+JNI_FUNC(nativeAgentDestroy)(JNIEnv *, jclass, jlong handle) {
     if (handle != 0) {
         opaque_agent_destroy(reinterpret_cast<void*>(handle));
     }
@@ -138,7 +138,7 @@ JNI_FUNC(nativeStateCreate)(JNIEnv *env, jclass) {
     int result = opaque_agent_state_create(&handle);
 
     if (result != 0) {
-        throwOpaqueException(env, "Failed to create client state", result);
+        throwOpaqueException(env, "Failed to create agent state", result);
         return 0;
     }
 
@@ -154,8 +154,8 @@ JNI_FUNC(nativeStateDestroy)(JNIEnv *, jclass, jlong handle) {
 
 JNIEXPORT jbyteArray JNICALL
 JNI_FUNC(nativeCreateRegistrationRequest)(JNIEnv *env, jclass,
-                                           jlong clientHandle, jbyteArray secureKey, jlong stateHandle) {
-    if (clientHandle == 0 || stateHandle == 0) {
+                                           jlong agentHandle, jbyteArray secureKey, jlong stateHandle) {
+    if (agentHandle == 0 || stateHandle == 0) {
         throwOpaqueException(env, "Invalid handle", -1);
         return nullptr;
     }
@@ -171,7 +171,7 @@ JNI_FUNC(nativeCreateRegistrationRequest)(JNIEnv *env, jclass,
     auto requestBuffer = std::make_unique<uint8_t[]>(REGISTRATION_REQUEST_LENGTH);
 
     int result = opaque_agent_create_registration_request(
-        reinterpret_cast<void*>(clientHandle),
+        reinterpret_cast<void*>(agentHandle),
         keyData.get(),
         static_cast<size_t>(keyLength),
         reinterpret_cast<void*>(stateHandle),
@@ -189,8 +189,8 @@ JNI_FUNC(nativeCreateRegistrationRequest)(JNIEnv *env, jclass,
 
 JNIEXPORT jbyteArray JNICALL
 JNI_FUNC(nativeFinalizeRegistration)(JNIEnv *env, jclass,
-                                      jlong clientHandle, jbyteArray response, jlong stateHandle) {
-    if (clientHandle == 0 || stateHandle == 0) {
+                                      jlong agentHandle, jbyteArray response, jlong stateHandle) {
+    if (agentHandle == 0 || stateHandle == 0) {
         throwOpaqueException(env, "Invalid handle", -1);
         return nullptr;
     }
@@ -211,7 +211,7 @@ JNI_FUNC(nativeFinalizeRegistration)(JNIEnv *env, jclass,
     auto recordBuffer = std::make_unique<uint8_t[]>(REGISTRATION_RECORD_LENGTH);
 
     int result = opaque_agent_finalize_registration(
-        reinterpret_cast<void*>(clientHandle),
+        reinterpret_cast<void*>(agentHandle),
         responseData.get(),
         static_cast<size_t>(responseLength),
         reinterpret_cast<void*>(stateHandle),
@@ -229,8 +229,8 @@ JNI_FUNC(nativeFinalizeRegistration)(JNIEnv *env, jclass,
 
 JNIEXPORT jbyteArray JNICALL
 JNI_FUNC(nativeGenerateKe1)(JNIEnv *env, jclass,
-                            jlong clientHandle, jbyteArray secureKey, jlong stateHandle) {
-    if (clientHandle == 0 || stateHandle == 0) {
+                            jlong agentHandle, jbyteArray secureKey, jlong stateHandle) {
+    if (agentHandle == 0 || stateHandle == 0) {
         throwOpaqueException(env, "Invalid handle", -1);
         return nullptr;
     }
@@ -246,7 +246,7 @@ JNI_FUNC(nativeGenerateKe1)(JNIEnv *env, jclass,
     auto ke1Buffer = std::make_unique<uint8_t[]>(KE1_LENGTH);
 
     int result = opaque_agent_generate_ke1(
-        reinterpret_cast<void*>(clientHandle),
+        reinterpret_cast<void*>(agentHandle),
         keyData.get(),
         static_cast<size_t>(keyLength),
         reinterpret_cast<void*>(stateHandle),
@@ -264,8 +264,8 @@ JNI_FUNC(nativeGenerateKe1)(JNIEnv *env, jclass,
 
 JNIEXPORT jbyteArray JNICALL
 JNI_FUNC(nativeGenerateKe3)(JNIEnv *env, jclass,
-                            jlong clientHandle, jbyteArray ke2, jlong stateHandle) {
-    if (clientHandle == 0 || stateHandle == 0) {
+                            jlong agentHandle, jbyteArray ke2, jlong stateHandle) {
+    if (agentHandle == 0 || stateHandle == 0) {
         throwOpaqueException(env, "Invalid handle", -1);
         return nullptr;
     }
@@ -286,7 +286,7 @@ JNI_FUNC(nativeGenerateKe3)(JNIEnv *env, jclass,
     auto ke3Buffer = std::make_unique<uint8_t[]>(KE3_LENGTH);
 
     int result = opaque_agent_generate_ke3(
-        reinterpret_cast<void*>(clientHandle),
+        reinterpret_cast<void*>(agentHandle),
         ke2Data.get(),
         static_cast<size_t>(ke2Length),
         reinterpret_cast<void*>(stateHandle),
@@ -303,8 +303,8 @@ JNI_FUNC(nativeGenerateKe3)(JNIEnv *env, jclass,
 }
 
 JNIEXPORT jobject JNICALL
-JNI_FUNC(nativeFinish)(JNIEnv *env, jclass, jlong clientHandle, jlong stateHandle) {
-    if (clientHandle == 0 || stateHandle == 0) {
+JNI_FUNC(nativeFinish)(JNIEnv *env, jclass, jlong agentHandle, jlong stateHandle) {
+    if (agentHandle == 0 || stateHandle == 0) {
         throwOpaqueException(env, "Invalid handle", -1);
         return nullptr;
     }
@@ -313,7 +313,7 @@ JNI_FUNC(nativeFinish)(JNIEnv *env, jclass, jlong clientHandle, jlong stateHandl
     auto masterKeyBuffer = std::make_unique<uint8_t[]>(MASTER_KEY_LENGTH);
 
     int result = opaque_agent_finish(
-        reinterpret_cast<void*>(clientHandle),
+        reinterpret_cast<void*>(agentHandle),
         reinterpret_cast<void*>(stateHandle),
         sessionKeyBuffer.get(),
         HASH_LENGTH,

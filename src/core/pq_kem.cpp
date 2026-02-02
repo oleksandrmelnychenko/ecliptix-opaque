@@ -87,7 +87,7 @@ Result encapsulate(
     uint8_t* ciphertext,
     uint8_t* shared_secret
 ) {
-    log::section("PQ-KEM: Encapsulate (Server side)");
+    log::section("PQ-KEM: Encapsulate (Relay side)");
 
     if (!public_key || !ciphertext || !shared_secret) [[unlikely]] {
         return Result::InvalidInput;
@@ -113,7 +113,7 @@ Result encapsulate(
     }
 
     log::hex("kem_ciphertext", ciphertext, KEM_CIPHERTEXT_LENGTH);
-    log::hex("kem_shared_secret (server)", shared_secret, KEM_SHARED_SECRET_LENGTH);
+    log::hex("kem_shared_secret (relay)", shared_secret, KEM_SHARED_SECRET_LENGTH);
 
     return Result::Success;
 }
@@ -123,7 +123,7 @@ Result decapsulate(
     const uint8_t* ciphertext,
     uint8_t* shared_secret
 ) {
-    log::section("PQ-KEM: Decapsulate (Client side)");
+    log::section("PQ-KEM: Decapsulate (Agent side)");
 
     if (!secret_key || !ciphertext || !shared_secret) [[unlikely]] {
         return Result::InvalidInput;
@@ -147,7 +147,7 @@ Result decapsulate(
         return Result::CryptoError;
     }
 
-    log::hex("kem_shared_secret (client)", shared_secret, KEM_SHARED_SECRET_LENGTH);
+    log::hex("kem_shared_secret (agent)", shared_secret, KEM_SHARED_SECRET_LENGTH);
 
     return Result::Success;
 }

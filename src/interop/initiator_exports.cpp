@@ -37,15 +37,15 @@ using namespace ecliptix::security::opaque;
 
 struct OpaqueAgentHandle {
     std::unique_ptr<initiator::OpaqueInitiator> opaque_agent;
-    ResponderPublicKey server_public_key;
+    ResponderPublicKey relay_public_key;
     bool is_initialized;
 
-    OpaqueAgentHandle(const uint8_t *server_key, size_t key_len)
-        : server_public_key(server_key, key_len), is_initialized(false) {
-        if (!server_public_key.verify()) {
-            throw std::runtime_error("Invalid server public key");
+    OpaqueAgentHandle(const uint8_t *relay_key, size_t key_len)
+        : relay_public_key(relay_key, key_len), is_initialized(false) {
+        if (!relay_public_key.verify()) {
+            throw std::runtime_error("Invalid relay public key");
         }
-        opaque_agent = std::make_unique<initiator::OpaqueInitiator>(server_public_key);
+        opaque_agent = std::make_unique<initiator::OpaqueInitiator>(relay_public_key);
         is_initialized = true;
     }
 
@@ -70,30 +70,30 @@ struct AgentStateHandle {
 
 extern "C" {
 ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_create(
-    const uint8_t *server_public_key,
+    const uint8_t *relay_public_key,
     size_t key_length,
     void **handle) {
     OPAQUE_AGENT_LOG("=== opaque_agent_create ===");
     OPAQUE_AGENT_LOG("key_length=%zu, handle=%p", key_length, (void*)handle);
-    if (!server_public_key || key_length != PUBLIC_KEY_LENGTH || !handle) {
-        OPAQUE_AGENT_LOG("ERROR: InvalidInput - server_public_key=%p, key_length=%zu", (void*)server_public_key,
+    if (!relay_public_key || key_length != PUBLIC_KEY_LENGTH || !handle) {
+        OPAQUE_AGENT_LOG("ERROR: InvalidInput - relay_public_key=%p, key_length=%zu", (void*)relay_public_key,
                           key_length);
         return static_cast<int>(Result::InvalidInput);
     }
-    OPAQUE_AGENT_LOG_HEX("server_public_key", server_public_key, key_length);
+    OPAQUE_AGENT_LOG_HEX("relay_public_key", relay_public_key, key_length);
     if (!crypto::init()) {
         OPAQUE_AGENT_LOG("ERROR: crypto::init() failed");
         return static_cast<int>(Result::CryptoError);
     }
-    if (Result key_result = crypto::validate_public_key(server_public_key, PUBLIC_KEY_LENGTH);
+    if (Result key_result = crypto::validate_public_key(relay_public_key, PUBLIC_KEY_LENGTH);
         key_result != Result::Success) {
-        OPAQUE_AGENT_LOG("ERROR: Invalid server public key (%d)", static_cast<int>(key_result));
+        OPAQUE_AGENT_LOG("ERROR: Invalid relay public key (%d)", static_cast<int>(key_result));
         return static_cast<int>(key_result);
     }
     try {
-        auto client = std::make_unique<OpaqueAgentHandle>(server_public_key, key_length);
-        *handle = client.release();
-        OPAQUE_AGENT_LOG("SUCCESS: client handle created at %p", *handle);
+        auto agent = std::make_unique<OpaqueAgentHandle>(relay_public_key, key_length);
+        *handle = agent.release();
+        OPAQUE_AGENT_LOG("SUCCESS: agent handle created at %p", *handle);
         return static_cast<int>(Result::Success);
     } catch (const std::exception &e) {
         OPAQUE_AGENT_LOG("ERROR: Exception - %s", e.what());
@@ -104,7 +104,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_create(
 ECLIPTIX_OPAQUE_C_EXPORT void opaque_agent_destroy(void *handle) {
     OPAQUE_AGENT_LOG("=== opaque_agent_destroy === handle=%p", handle);
     if (handle) {
-        std::unique_ptr<OpaqueAgentHandle> client(
+        std::unique_ptr<OpaqueAgentHandle> agent(
             static_cast<OpaqueAgentHandle *>(handle));
     }
 }
@@ -136,32 +136,32 @@ ECLIPTIX_OPAQUE_C_EXPORT void opaque_agent_state_destroy(void *handle) {
 }
 
 ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_create_registration_request(
-    void *client_handle,
+    void *agent_handle,
     const uint8_t *secure_key,
     size_t secure_key_length,
     void *state_handle,
     uint8_t *request_out,
     size_t request_length) {
     OPAQUE_AGENT_LOG("=== opaque_agent_create_registration_request ===");
-    OPAQUE_AGENT_LOG("client_handle=%p, state_handle=%p, secure_key_length=%zu, request_length=%zu",
-                      client_handle, state_handle, secure_key_length, request_length);
-    if (!client_handle || !secure_key || secure_key_length == 0 ||
+    OPAQUE_AGENT_LOG("agent_handle=%p, state_handle=%p, secure_key_length=%zu, request_length=%zu",
+                      agent_handle, state_handle, secure_key_length, request_length);
+    if (!agent_handle || !secure_key || secure_key_length == 0 ||
         !state_handle || !request_out || request_length < REGISTRATION_REQUEST_LENGTH) {
         OPAQUE_AGENT_LOG("ERROR: InvalidInput");
         return static_cast<int>(Result::InvalidInput);
     }
-    auto *client = static_cast<OpaqueAgentHandle *>(client_handle);
+    auto *agent = static_cast<OpaqueAgentHandle *>(agent_handle);
     auto *state = static_cast<AgentStateHandle *>(state_handle);
-    OPAQUE_AGENT_LOG("client->is_initialized=%d, state->has_active_session=%d",
-                      client->is_initialized, state->has_active_session);
-    if (!client->is_initialized || !state->has_active_session) {
-        OPAQUE_AGENT_LOG("ERROR: ValidationError - client or state not ready");
+    OPAQUE_AGENT_LOG("agent->is_initialized=%d, state->has_active_session=%d",
+                      agent->is_initialized, state->has_active_session);
+    if (!agent->is_initialized || !state->has_active_session) {
+        OPAQUE_AGENT_LOG("ERROR: ValidationError - agent or state not ready");
         return static_cast<int>(Result::ValidationError);
     }
     try {
         initiator::RegistrationRequest request;
         OPAQUE_AGENT_LOG("Calling create_registration_request...");
-        Result result = client->opaque_agent->create_registration_request(
+        Result result = agent->opaque_agent->create_registration_request(
             secure_key, secure_key_length, request, *state->agent_state);
         OPAQUE_AGENT_LOG("create_registration_request returned: %d", static_cast<int>(result));
         if (result != Result::Success) {
@@ -184,34 +184,34 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_create_registration_request(
 }
 
 ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_finalize_registration(
-    void *client_handle,
+    void *agent_handle,
     const uint8_t *response,
     const size_t response_length,
     void *state_handle,
     uint8_t *record_out,
     const size_t record_length) {
     OPAQUE_AGENT_LOG("=== opaque_agent_finalize_registration ===");
-    OPAQUE_AGENT_LOG("client_handle=%p, state_handle=%p", client_handle, state_handle);
+    OPAQUE_AGENT_LOG("agent_handle=%p, state_handle=%p", agent_handle, state_handle);
     OPAQUE_AGENT_LOG("response_length=%zu (expected=%zu), record_length=%zu (expected=%zu)",
                       response_length, REGISTRATION_RESPONSE_LENGTH,
                       record_length, REGISTRATION_RECORD_LENGTH);
-    if (!client_handle || !response || response_length != REGISTRATION_RESPONSE_LENGTH ||
+    if (!agent_handle || !response || response_length != REGISTRATION_RESPONSE_LENGTH ||
         !state_handle || !record_out || record_length < REGISTRATION_RECORD_LENGTH) {
         OPAQUE_AGENT_LOG("ERROR: InvalidInput - response=%p, record_out=%p",
                           (void*)response, (void*)record_out);
         return static_cast<int>(Result::InvalidInput);
     }
     OPAQUE_AGENT_LOG_HEX("response", response, response_length);
-    auto *client = static_cast<OpaqueAgentHandle *>(client_handle);
+    auto *agent = static_cast<OpaqueAgentHandle *>(agent_handle);
     auto *state = static_cast<AgentStateHandle *>(state_handle);
-    if (!client->is_initialized || !state->has_active_session) {
+    if (!agent->is_initialized || !state->has_active_session) {
         OPAQUE_AGENT_LOG("ERROR: ValidationError");
         return static_cast<int>(Result::ValidationError);
     }
     try {
         initiator::RegistrationRecord record;
         OPAQUE_AGENT_LOG("Calling finalize_registration...");
-        Result result = client->opaque_agent->finalize_registration(
+        Result result = agent->opaque_agent->finalize_registration(
             response, response_length, *state->agent_state, record);
         OPAQUE_AGENT_LOG("finalize_registration returned: %d", static_cast<int>(result));
         if (result != Result::Success) {
@@ -239,23 +239,23 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_finalize_registration(
 }
 
 ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_generate_ke1(
-    void *client_handle,
+    void *agent_handle,
     const uint8_t *secure_key,
     size_t secure_key_length,
     void *state_handle,
     uint8_t *ke1_out,
     size_t ke1_length) {
     OPAQUE_AGENT_LOG("=== opaque_agent_generate_ke1 ===");
-    OPAQUE_AGENT_LOG("client_handle=%p, state_handle=%p, secure_key_length=%zu, ke1_length=%zu (expected=%zu)",
-                      client_handle, state_handle, secure_key_length, ke1_length, KE1_LENGTH);
-    if (!client_handle || !secure_key || secure_key_length == 0 ||
+    OPAQUE_AGENT_LOG("agent_handle=%p, state_handle=%p, secure_key_length=%zu, ke1_length=%zu (expected=%zu)",
+                      agent_handle, state_handle, secure_key_length, ke1_length, KE1_LENGTH);
+    if (!agent_handle || !secure_key || secure_key_length == 0 ||
         !state_handle || !ke1_out || ke1_length < KE1_LENGTH) {
         OPAQUE_AGENT_LOG("ERROR: InvalidInput");
         return static_cast<int>(Result::InvalidInput);
     }
-    const auto *client = static_cast<OpaqueAgentHandle *>(client_handle);
+    const auto *agent = static_cast<OpaqueAgentHandle *>(agent_handle);
     const auto *state = static_cast<AgentStateHandle *>(state_handle);
-    if (!client->is_initialized || !state->has_active_session) {
+    if (!agent->is_initialized || !state->has_active_session) {
         OPAQUE_AGENT_LOG("ERROR: ValidationError");
         return static_cast<int>(Result::ValidationError);
     }
@@ -290,31 +290,31 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_generate_ke1(
 }
 
 ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_generate_ke3(
-    void *client_handle,
+    void *agent_handle,
     const uint8_t *ke2,
     const size_t ke2_length,
     void *state_handle,
     uint8_t *ke3_out,
     const size_t ke3_length) {
     OPAQUE_AGENT_LOG("=== opaque_agent_generate_ke3 ===");
-    OPAQUE_AGENT_LOG("client_handle=%p, state_handle=%p, ke2_length=%zu (expected=%zu), ke3_length=%zu",
-                      client_handle, state_handle, ke2_length, KE2_LENGTH, ke3_length);
-    if (!client_handle || !ke2 || ke2_length != KE2_LENGTH ||
+    OPAQUE_AGENT_LOG("agent_handle=%p, state_handle=%p, ke2_length=%zu (expected=%zu), ke3_length=%zu",
+                      agent_handle, state_handle, ke2_length, KE2_LENGTH, ke3_length);
+    if (!agent_handle || !ke2 || ke2_length != KE2_LENGTH ||
         !state_handle || !ke3_out || ke3_length < KE3_LENGTH) {
         OPAQUE_AGENT_LOG("ERROR: InvalidInput");
         return static_cast<int>(Result::InvalidInput);
     }
     OPAQUE_AGENT_LOG_HEX("ke2", ke2, ke2_length);
-    const auto *client = static_cast<OpaqueAgentHandle *>(client_handle);
+    const auto *agent = static_cast<OpaqueAgentHandle *>(agent_handle);
     const auto *state = static_cast<AgentStateHandle *>(state_handle);
-    if (!client->is_initialized || !state->has_active_session) {
+    if (!agent->is_initialized || !state->has_active_session) {
         OPAQUE_AGENT_LOG("ERROR: ValidationError");
         return static_cast<int>(Result::ValidationError);
     }
     try {
         initiator::KE3 ke3;
         OPAQUE_AGENT_LOG("Calling generate_ke3...");
-        Result result = client->opaque_agent->generate_ke3(
+        Result result = agent->opaque_agent->generate_ke3(
             ke2, ke2_length, *state->agent_state, ke3);
         OPAQUE_AGENT_LOG("generate_ke3 returned: %d", static_cast<int>(result));
         if (result != Result::Success) {
@@ -338,24 +338,24 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_generate_ke3(
 }
 
 ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_finish(
-    void *client_handle,
+    void *agent_handle,
     void *state_handle,
     uint8_t *session_key_out,
     size_t session_key_length,
     uint8_t *master_key_out,
     size_t master_key_length) {
     OPAQUE_AGENT_LOG("=== opaque_agent_finish ===");
-    OPAQUE_AGENT_LOG("client_handle=%p, state_handle=%p, session_key_length=%zu, master_key_length=%zu",
-                      client_handle, state_handle, session_key_length, master_key_length);
-    if (!client_handle || !state_handle ||
+    OPAQUE_AGENT_LOG("agent_handle=%p, state_handle=%p, session_key_length=%zu, master_key_length=%zu",
+                      agent_handle, state_handle, session_key_length, master_key_length);
+    if (!agent_handle || !state_handle ||
         !session_key_out || session_key_length < HASH_LENGTH ||
         !master_key_out || master_key_length < MASTER_KEY_LENGTH) {
         OPAQUE_AGENT_LOG("ERROR: InvalidInput");
         return static_cast<int>(Result::InvalidInput);
     }
-    const auto *client = static_cast<OpaqueAgentHandle *>(client_handle);
+    const auto *agent = static_cast<OpaqueAgentHandle *>(agent_handle);
     const auto *state = static_cast<AgentStateHandle *>(state_handle);
-    if (!client->is_initialized || !state->has_active_session) {
+    if (!agent->is_initialized || !state->has_active_session) {
         OPAQUE_AGENT_LOG("ERROR: ValidationError");
         return static_cast<int>(Result::ValidationError);
     }
@@ -376,7 +376,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_finish(
             return static_cast<int>(Result::CryptoError);
         }
         std::copy_n(master_key.begin(), MASTER_KEY_LENGTH, master_key_out);
-        OPAQUE_AGENT_LOG("SUCCESS: client finished (keys derived, not logged)");
+        OPAQUE_AGENT_LOG("SUCCESS: agent finished (keys derived, not logged)");
         return static_cast<int>(Result::Success);
     } catch (const std::exception &e) {
         OPAQUE_AGENT_LOG("ERROR: Exception - %s", e.what());

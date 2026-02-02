@@ -1,13 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "OI7ycedvckg=",
+  "dgSpecHash": "KoJ9Tvx6VG4=",
   "success": true,
   "projectFilePath": "/Users/oleksandrmelnychenko/CLionProjects/Ecliptix.Security.OPAQUE/nuget/Ecliptix.OPAQUE.Agent/Ecliptix.OPAQUE.Agent.csproj",
-  "expectedPackageFiles": [
-    "/Users/oleksandrmelnychenko/.nuget/packages/microsoft.netcore.app.ref/8.0.22/microsoft.netcore.app.ref.8.0.22.nupkg.sha512",
-    "/Users/oleksandrmelnychenko/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.22/microsoft.aspnetcore.app.ref.8.0.22.nupkg.sha512",
-    "/Users/oleksandrmelnychenko/.nuget/packages/microsoft.netcore.app.ref/9.0.11/microsoft.netcore.app.ref.9.0.11.nupkg.sha512",
-    "/Users/oleksandrmelnychenko/.nuget/packages/microsoft.aspnetcore.app.ref/9.0.11/microsoft.aspnetcore.app.ref.9.0.11.nupkg.sha512"
-  ],
+  "expectedPackageFiles": [],
   "logs": []
 }

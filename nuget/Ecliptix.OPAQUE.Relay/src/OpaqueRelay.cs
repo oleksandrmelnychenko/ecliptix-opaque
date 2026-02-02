@@ -5,25 +5,25 @@ namespace Ecliptix.OPAQUE.Relay;
 
 public sealed class OpaqueRelay : IDisposable
 {
-    private IntPtr _serverHandle;
+    private IntPtr _relayHandle;
     private bool _disposed;
 
-    private OpaqueRelay(IntPtr serverHandle)
+    private OpaqueRelay(IntPtr relayHandle)
     {
-        _serverHandle = serverHandle;
+        _relayHandle = relayHandle;
     }
 
-    public static OpaqueRelay Create(ServerKeyPair keyPair)
+    public static OpaqueRelay Create(RelayKeyPair keyPair)
     {
         if (keyPair == null)
             throw new ArgumentNullException(nameof(keyPair));
 
         int result;
-        IntPtr serverHandle;
+        IntPtr relayHandle;
 
         if (keyPair.NativeHandle != IntPtr.Zero)
         {
-            result = OpaqueRelayNative.opaque_relay_create(keyPair.NativeHandle, out serverHandle);
+            result = OpaqueRelayNative.opaque_relay_create(keyPair.NativeHandle, out relayHandle);
         }
         else
         {
@@ -32,15 +32,15 @@ public sealed class OpaqueRelay : IDisposable
                 (UIntPtr)keyPair.PrivateKey.Length,
                 keyPair.GetPublicKeyCopy(),
                 (UIntPtr)OpaqueConstants.PUBLIC_KEY_LENGTH,
-                out serverHandle);
+                out relayHandle);
         }
 
-        if (result != (int)OpaqueResult.Success || serverHandle == IntPtr.Zero)
+        if (result != (int)OpaqueResult.Success || relayHandle == IntPtr.Zero)
         {
-            throw new OpaqueException((OpaqueResult)result, "Failed to create OPAQUE server");
+            throw new OpaqueException((OpaqueResult)result, "Failed to create OPAQUE relay");
         }
 
-        return new OpaqueRelay(serverHandle);
+        return new OpaqueRelay(relayHandle);
     }
 
     public static OpaqueRelay Create(byte[] privateKey, byte[] publicKey)
@@ -64,14 +64,14 @@ public sealed class OpaqueRelay : IDisposable
             (UIntPtr)privateKey.Length,
             publicKey,
             (UIntPtr)publicKey.Length,
-            out IntPtr serverHandle);
+            out IntPtr relayHandle);
 
-        if (result != (int)OpaqueResult.Success || serverHandle == IntPtr.Zero)
+        if (result != (int)OpaqueResult.Success || relayHandle == IntPtr.Zero)
         {
-            throw new OpaqueException((OpaqueResult)result, "Failed to create OPAQUE server");
+            throw new OpaqueException((OpaqueResult)result, "Failed to create OPAQUE relay");
         }
 
-        return new OpaqueRelay(serverHandle);
+        return new OpaqueRelay(relayHandle);
     }
 
     public byte[] CreateRegistrationResponse(byte[] registrationRequest, byte[] accountId)
@@ -91,7 +91,7 @@ public sealed class OpaqueRelay : IDisposable
         byte[] response = new byte[OpaqueConstants.REGISTRATION_RESPONSE_LENGTH];
 
         int result = OpaqueRelayNative.opaque_relay_create_registration_response(
-            _serverHandle,
+            _relayHandle,
             registrationRequest,
             (UIntPtr)registrationRequest.Length,
             accountId,
@@ -121,10 +121,10 @@ public sealed class OpaqueRelay : IDisposable
         if (accountId == null || accountId.Length == 0)
             throw new ArgumentException("Account ID cannot be null or empty", nameof(accountId));
 
-        if (storedCredentials == null || storedCredentials.Length != OpaqueConstants.SERVER_CREDENTIALS_LENGTH)
+        if (storedCredentials == null || storedCredentials.Length != OpaqueConstants.RELAY_CREDENTIALS_LENGTH)
         {
             throw new ArgumentException(
-                $"Stored credentials must be exactly {OpaqueConstants.SERVER_CREDENTIALS_LENGTH} bytes",
+                $"Stored credentials must be exactly {OpaqueConstants.RELAY_CREDENTIALS_LENGTH} bytes",
                 nameof(storedCredentials));
         }
 
@@ -134,7 +134,7 @@ public sealed class OpaqueRelay : IDisposable
         byte[] ke2 = new byte[OpaqueConstants.KE2_LENGTH];
 
         int result = OpaqueRelayNative.opaque_relay_generate_ke2(
-            _serverHandle,
+            _relayHandle,
             ke1,
             (UIntPtr)ke1.Length,
             accountId,
@@ -176,7 +176,7 @@ public sealed class OpaqueRelay : IDisposable
         byte[] masterKey = new byte[OpaqueConstants.MASTER_KEY_LENGTH];
 
         int result = OpaqueRelayNative.opaque_relay_finish(
-            _serverHandle,
+            _relayHandle,
             ke3,
             (UIntPtr)ke3.Length,
             authState.StateHandle,
@@ -213,10 +213,10 @@ public sealed class OpaqueRelay : IDisposable
     {
         if (_disposed) return;
 
-        if (_serverHandle != IntPtr.Zero)
+        if (_relayHandle != IntPtr.Zero)
         {
-            OpaqueRelayNative.opaque_relay_destroy(_serverHandle);
-            _serverHandle = IntPtr.Zero;
+            OpaqueRelayNative.opaque_relay_destroy(_relayHandle);
+            _relayHandle = IntPtr.Zero;
         }
 
         _disposed = true;

@@ -102,17 +102,17 @@ namespace ecliptix::security::opaque::oblivious_prf {
         return Result::Success;
     }
 
-    class OPRFServer {
+    class OPRFRelay {
         secure_bytes private_key_;
 
     public:
-        OPRFServer() : private_key_(crypto_core_ristretto255_SCALARBYTES) {
+        OPRFRelay() : private_key_(crypto_core_ristretto255_SCALARBYTES) {
             do {
                 crypto_core_ristretto255_scalar_random(private_key_.data());
             } while (sodium_is_zero(private_key_.data(), private_key_.size()) == 1);
         }
 
-        explicit OPRFServer(const uint8_t *private_key)
+        explicit OPRFRelay(const uint8_t *private_key)
             : private_key_(crypto_core_ristretto255_SCALARBYTES) {
             std::copy_n(private_key, crypto_core_ristretto255_SCALARBYTES,
                         private_key_.begin());
@@ -127,7 +127,7 @@ namespace ecliptix::security::opaque::oblivious_prf {
         }
     };
 
-    class OPRFClient {
+    class OPRFAgent {
         secure_bytes blind_scalar_;
         secure_bytes input_;
 

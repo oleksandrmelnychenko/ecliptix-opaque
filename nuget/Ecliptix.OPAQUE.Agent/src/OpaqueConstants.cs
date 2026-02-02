@@ -26,12 +26,12 @@ public enum OpaqueResult
 
 public static class OpaqueErrorMessages
 {
-    public const string SERVER_PUBLIC_KEY_INVALID_SIZE = "Server public key must be exactly {0} bytes";
-    public const string FAILED_TO_CREATE_OPAQUE_CLIENT = "Failed to create OPAQUE client";
+    public const string RELAY_PUBLIC_KEY_INVALID_SIZE = "Relay public key must be exactly {0} bytes";
+    public const string FAILED_TO_CREATE_OPAQUE_AGENT = "Failed to create OPAQUE agent";
     public const string SECURE_KEY_NULL_OR_EMPTY = "SecureKey cannot be null or empty";
     public const string FAILED_TO_CREATE_STATE = "Failed to create state";
     public const string FAILED_TO_CREATE_REGISTRATION_REQUEST = "Failed to create registration request";
-    public const string SERVER_RESPONSE_INVALID_SIZE = "Server response must be exactly {0} bytes";
+    public const string RELAY_RESPONSE_INVALID_SIZE = "Relay response must be exactly {0} bytes";
     public const string KE2_INVALID_SIZE = "KE2 must be exactly {0} bytes";
     public const string FAILED_TO_FINALIZE_REGISTRATION = "Failed to finalize registration";
     public const string FAILED_TO_GENERATE_KE1 = "Failed to generate KE1";

@@ -239,7 +239,7 @@ namespace ecliptix::security::opaque {
         [[nodiscard]] Result hmac(const uint8_t *key, size_t key_length, const uint8_t *data, size_t data_length,
                                   uint8_t *mac);
 
-        [[nodiscard]] Result derive_oprf_key(const uint8_t *server_secret, size_t server_secret_length,
+        [[nodiscard]] Result derive_oprf_key(const uint8_t *relay_secret, size_t relay_secret_length,
                                              const uint8_t *account_id, size_t account_id_length,
                                              uint8_t *oprf_key);
 

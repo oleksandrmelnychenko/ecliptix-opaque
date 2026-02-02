@@ -36,7 +36,7 @@ using namespace ecliptix::security::opaque;
 using namespace ecliptix::security::opaque::responder;
 
 typedef struct {
-    OpaqueResponder *server;
+    OpaqueResponder *relay;
 } opaque_relay_handle_t;
 
 typedef struct {
@@ -115,9 +115,9 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_create(relay_keypair_handle_t *keypair
     }
     sodium_memzero(derived_public_key, sizeof(derived_public_key));
     try {
-        const auto server = new OpaqueResponder(*keypair_handle->keypair);
+        const auto relay = new OpaqueResponder(*keypair_handle->keypair);
         const auto relay_handle = new opaque_relay_handle_t;
-        relay_handle->server = server;
+        relay_handle->relay = relay;
         *handle = relay_handle;
         return static_cast<int>(Result::Success);
     } catch (...) {
@@ -127,7 +127,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_create(relay_keypair_handle_t *keypair
 
 ECLIPTIX_OPAQUE_C_EXPORT void opaque_relay_destroy(const opaque_relay_handle_t *handle) {
     if (handle) {
-        delete handle->server;
+        delete handle->relay;
         delete handle;
     }
 }
@@ -163,7 +163,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_create_registration_response(const opa
                       (void*)relay_handle, request_length, REGISTRATION_REQUEST_LENGTH);
     OPAQUE_RELAY_LOG("response_buffer_size=%zu, account_id_length=%zu",
                       response_buffer_size, account_id_length);
-    if (!relay_handle || !relay_handle->server || !request_data ||
+    if (!relay_handle || !relay_handle->relay || !request_data ||
         request_length != REGISTRATION_REQUEST_LENGTH ||
         !account_id || account_id_length == 0 ||
         !response_data || response_buffer_size < REGISTRATION_RESPONSE_LENGTH) {
@@ -173,7 +173,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_create_registration_response(const opa
     OPAQUE_RELAY_LOG_HEX("request_data", request_data, request_length);
     RegistrationResponse response;
     OPAQUE_RELAY_LOG("Calling create_registration_response...");
-    Result result = relay_handle->server->create_registration_response(
+    Result result = relay_handle->relay->create_registration_response(
         request_data, request_length, account_id, account_id_length, response);
     OPAQUE_RELAY_LOG("create_registration_response returned: %d", static_cast<int>(result));
     if (result == Result::Success) {
@@ -229,7 +229,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_generate_ke2(const opaque_relay_handle
                       ke1_length, KE1_LENGTH,
                       credentials_length, RESPONDER_CREDENTIALS_LENGTH,
                       ke2_buffer_size, KE2_LENGTH);
-    if (!relay_handle || !relay_handle->server || !ke1_data || ke1_length != KE1_LENGTH ||
+    if (!relay_handle || !relay_handle->relay || !ke1_data || ke1_length != KE1_LENGTH ||
         !account_id || account_id_length == 0 ||
         !credentials_data || credentials_length < RESPONDER_CREDENTIALS_LENGTH ||
         !ke2_data || ke2_buffer_size < KE2_LENGTH ||
@@ -251,7 +251,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_generate_ke2(const opaque_relay_handle
                                             record_view.initiator_public_key + PUBLIC_KEY_LENGTH);
     KE2 ke2;
     OPAQUE_RELAY_LOG("Calling generate_ke2...");
-    Result result = relay_handle->server->generate_ke2(
+    Result result = relay_handle->relay->generate_ke2(
         ke1_data, ke1_length, account_id, account_id_length, credentials, ke2, *state_handle->state);
     OPAQUE_RELAY_LOG("generate_ke2 returned: %d", static_cast<int>(result));
     if (result == Result::Success) {
@@ -281,7 +281,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_finish(const opaque_relay_handle_t *re
     OPAQUE_RELAY_LOG("relay_handle=%p, state_handle=%p", (void*)relay_handle, (void*)state_handle);
     OPAQUE_RELAY_LOG("ke3_length=%zu (expected=%zu), session_key_buffer_size=%zu, master_key_buffer_size=%zu",
                       ke3_length, KE3_LENGTH, session_key_buffer_size, master_key_buffer_size);
-    if (!relay_handle || !relay_handle->server || !ke3_data || ke3_length != KE3_LENGTH ||
+    if (!relay_handle || !relay_handle->relay || !ke3_data || ke3_length != KE3_LENGTH ||
         !state_handle || !state_handle->state ||
         !session_key || session_key_buffer_size < HASH_LENGTH ||
         !master_key_out || master_key_buffer_size < MASTER_KEY_LENGTH) {
@@ -292,13 +292,13 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_finish(const opaque_relay_handle_t *re
     secure_bytes key;
     secure_bytes master_key;
     OPAQUE_RELAY_LOG("Calling responder_finish...");
-    Result result = relay_handle->server->responder_finish(
+    Result result = relay_handle->relay->responder_finish(
         ke3_data, ke3_length, *state_handle->state, key, master_key);
     OPAQUE_RELAY_LOG("responder_finish returned: %d", static_cast<int>(result));
     if (result == Result::Success) {
         std::memcpy(session_key, key.data(), std::min(key.size(), session_key_buffer_size));
         std::memcpy(master_key_out, master_key.data(), MASTER_KEY_LENGTH);
-        OPAQUE_RELAY_LOG("SUCCESS: server finished (keys derived, not logged)");
+        OPAQUE_RELAY_LOG("SUCCESS: relay finished (keys derived, not logged)");
     }
     return static_cast<int>(result);
 }
@@ -313,9 +313,9 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_create_default(opaque_relay_handle_t *
         keypair->private_key.assign(keys::RELAY_PRIVATE_KEY, keys::RELAY_PRIVATE_KEY + PRIVATE_KEY_LENGTH);
         keypair->public_key.assign(keys::RELAY_PUBLIC_KEY, keys::RELAY_PUBLIC_KEY + PUBLIC_KEY_LENGTH);
 
-        const auto server = new OpaqueResponder(*keypair);
+        const auto relay = new OpaqueResponder(*keypair);
         const auto relay_handle = new opaque_relay_handle_t;
-        relay_handle->server = server;
+        relay_handle->relay = relay;
         *handle = relay_handle;
 
         delete keypair;
@@ -407,13 +407,13 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_create_with_keys(
         keypair->private_key.assign(private_key, private_key + PRIVATE_KEY_LENGTH);
         keypair->public_key.assign(public_key, public_key + PUBLIC_KEY_LENGTH);
 
-        const auto server = new OpaqueResponder(*keypair);
+        const auto relay = new OpaqueResponder(*keypair);
         const auto relay_handle = new opaque_relay_handle_t;
-        relay_handle->server = server;
+        relay_handle->relay = relay;
         *handle = relay_handle;
 
         delete keypair;
-        OPAQUE_RELAY_LOG("SUCCESS: server created at %p", (void*)*handle);
+        OPAQUE_RELAY_LOG("SUCCESS: relay created at %p", (void*)*handle);
         return static_cast<int>(Result::Success);
     } catch (...) {
         OPAQUE_RELAY_LOG("ERROR: Exception");

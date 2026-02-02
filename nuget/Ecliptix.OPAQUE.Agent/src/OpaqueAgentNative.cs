@@ -91,7 +91,7 @@ internal static class OpaqueAgentNative
     }
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_agent_create(byte[] serverPublicKey, UIntPtr keyLength, out IntPtr handle);
+    internal static extern int opaque_agent_create(byte[] relayPublicKey, UIntPtr keyLength, out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void opaque_agent_destroy(IntPtr handle);
@@ -104,7 +104,7 @@ internal static class OpaqueAgentNative
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int opaque_agent_create_registration_request(
-        IntPtr clientHandle,
+        IntPtr agentHandle,
         byte[] password,
         UIntPtr passwordLength,
         IntPtr stateHandle,
@@ -113,7 +113,7 @@ internal static class OpaqueAgentNative
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int opaque_agent_finalize_registration(
-        IntPtr clientHandle,
+        IntPtr agentHandle,
         byte[] responseData,
         UIntPtr responseLength,
         IntPtr stateHandle,
@@ -122,7 +122,7 @@ internal static class OpaqueAgentNative
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int opaque_agent_generate_ke1(
-        IntPtr clientHandle,
+        IntPtr agentHandle,
         byte[] password,
         UIntPtr passwordLength,
         IntPtr stateHandle,
@@ -131,7 +131,7 @@ internal static class OpaqueAgentNative
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int opaque_agent_generate_ke3(
-        IntPtr clientHandle,
+        IntPtr agentHandle,
         byte[] ke2Data,
         UIntPtr ke2Length,
         IntPtr stateHandle,
@@ -140,7 +140,7 @@ internal static class OpaqueAgentNative
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int opaque_agent_finish(
-        IntPtr clientHandle,
+        IntPtr agentHandle,
         IntPtr stateHandle,
         byte[] sessionKey,
         UIntPtr sessionKeyBufferSize,

@@ -156,10 +156,10 @@ namespace ecliptix::security::opaque::crypto {
         return Result::Success;
     }
 
-    Result derive_oprf_key(const uint8_t *server_secret, const size_t server_secret_length,
+    Result derive_oprf_key(const uint8_t *relay_secret, const size_t relay_secret_length,
                            const uint8_t *account_id, const size_t account_id_length,
                            uint8_t *oprf_key) {
-        if (!server_secret || server_secret_length == 0 ||
+        if (!relay_secret || relay_secret_length == 0 ||
             !account_id || account_id_length == 0 || !oprf_key) [[unlikely]] {
             return Result::InvalidInput;
         }
@@ -167,7 +167,7 @@ namespace ecliptix::security::opaque::crypto {
             return Result::CryptoError;
         }
         uint8_t oprf_seed_full[crypto_auth_hmacsha512_BYTES];
-        if (const Result seed_result = hmac(server_secret, server_secret_length,
+        if (const Result seed_result = hmac(relay_secret, relay_secret_length,
                                             reinterpret_cast<const uint8_t *>(labels::kOprfSeedInfo),
                                             labels::kOprfSeedInfoLength,
                                             oprf_seed_full);

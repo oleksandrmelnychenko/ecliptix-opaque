@@ -13,7 +13,7 @@ public static class OpaqueConstants
     public const int REGISTRATION_REQUEST_LENGTH = 32;
     public const int REGISTRATION_RESPONSE_LENGTH = 64;
     public const int REGISTRATION_RECORD_LENGTH = 168;
-    public const int SERVER_CREDENTIALS_LENGTH = 168;
+    public const int RELAY_CREDENTIALS_LENGTH = 168;
     public const int CREDENTIAL_RESPONSE_LENGTH = 168;
     public const int KE1_LENGTH = 1272;
     public const int KE2_LENGTH = 1376;

@@ -1,5 +1,5 @@
 /**
- OPAQUE Protocol Client for iOS/macOS
+ OPAQUE Protocol Agent for iOS/macOS
 
  Provides password-authenticated key exchange (PAKE) with post-quantum security.
  This is the main entry point for using the Ecliptix OPAQUE implementation.
@@ -10,54 +10,54 @@
  // Initialize once at app startup
  try OpaqueAgent.initialize()
 
- // Create a client with server's public key
- let client = try OpaqueAgent(serverPublicKey: serverKey)
+ // Create an agent with relay's public key
+ let agent = try OpaqueAgent(relayPublicKey: relayKey)
 
  // Registration flow
- let state = try client.createState()
- let request = try client.createRegistrationRequest(password: password, state: state)
- // Send request to server, receive response
- let record = try client.finalizeRegistration(response: response, state: state)
- // Send record to server for storage
+ let state = try agent.createState()
+ let request = try agent.createRegistrationRequest(password: password, state: state)
+ // Send to relay, receive response
+ let record = try agent.finalizeRegistration(response: response, state: state)
+ // Send to relay for storage
 
  // Authentication flow
- let authState = try client.createState()
- let ke1 = try client.generateKE1(password: password, state: authState)
- // Send ke1 to server, receive ke2
- let ke3 = try client.generateKE3(ke2: ke2, state: authState)
- // Send ke3 to server for verification
- let keys = try client.finish(state: authState)
+ let authState = try agent.createState()
+ let ke1 = try agent.generateKE1(password: password, state: authState)
+ // Send to relay, receive ke2
+ let ke3 = try agent.generateKE3(ke2: ke2, state: authState)
+ // Send to relay for verification
+ let keys = try agent.finish(state: authState)
  // Use keys.sessionKey and keys.masterKey
  ```
  */
 
 import Foundation
 
-/// OPAQUE protocol client for password-authenticated key exchange
+/// OPAQUE protocol agent for password-authenticated key exchange
 public final class OpaqueAgent {
 
     private var handle: OpaquePointer?
     private let lock = NSLock()
 
-    /// Create an OPAQUE client with the server's public key
-    /// - Parameter serverPublicKey: The server's public key (32 bytes)
+    /// Create an OPAQUE agent with the relay's public key
+    /// - Parameter relayPublicKey: The relay's public key (32 bytes)
     /// - Throws: `OpaqueError` if the key is invalid or initialization fails
-    public init(serverPublicKey: Data) throws {
+    public init(relayPublicKey: Data) throws {
         guard Self.isInitialized else {
             throw OpaqueError.notInitialized
         }
 
-        guard serverPublicKey.count == Constants.publicKeyLength else {
+        guard relayPublicKey.count == Constants.publicKeyLength else {
             throw OpaqueError.invalidInput(
-                "Server public key must be \(Constants.publicKeyLength) bytes"
+                "Relay public key must be \(Constants.publicKeyLength) bytes"
             )
         }
 
         var rawHandle: UnsafeMutableRawPointer?
-        let result = serverPublicKey.withUnsafeBytes { keyPtr in
+        let result = relayPublicKey.withUnsafeBytes { keyPtr in
             opaque_agent_create(
                 keyPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
-                serverPublicKey.count,
+                relayPublicKey.count,
                 &rawHandle
             )
         }
@@ -77,16 +77,16 @@ public final class OpaqueAgent {
 
     /// Create a new session state
     /// - Returns: A new session state for registration or authentication
-    public func createState() throws -> ClientState {
-        try ClientState()
+    public func createState() throws -> AgentState {
+        try AgentState()
     }
 
     /// Create a registration request
     /// - Parameters:
     ///   - password: The user's password
     ///   - state: Session state from `createState()`
-    /// - Returns: Registration request to send to server
-    public func createRegistrationRequest(password: Data, state: ClientState) throws -> Data {
+    /// - Returns: Registration request to send to relay
+    public func createRegistrationRequest(password: Data, state: AgentState) throws -> Data {
         guard let handle = handle else {
             throw OpaqueError.invalidState
         }
@@ -113,12 +113,12 @@ public final class OpaqueAgent {
         return request
     }
 
-    /// Finalize registration with server's response
+    /// Finalize registration with relay's response
     /// - Parameters:
-    ///   - response: Server's registration response
+    ///   - response: Relay's registration response
     ///   - state: Session state from `createState()`
-    /// - Returns: Registration record to send to server for storage
-    public func finalizeRegistration(response: Data, state: ClientState) throws -> Data {
+    /// - Returns: Registration record to send to relay for storage
+    public func finalizeRegistration(response: Data, state: AgentState) throws -> Data {
         guard let handle = handle else {
             throw OpaqueError.invalidState
         }
@@ -155,8 +155,8 @@ public final class OpaqueAgent {
     /// - Parameters:
     ///   - password: The user's password
     ///   - state: Session state from `createState()`
-    /// - Returns: KE1 message to send to server
-    public func generateKE1(password: Data, state: ClientState) throws -> Data {
+    /// - Returns: KE1 message to send to relay
+    public func generateKE1(password: Data, state: AgentState) throws -> Data {
         guard let handle = handle else {
             throw OpaqueError.invalidState
         }
@@ -183,12 +183,12 @@ public final class OpaqueAgent {
         return ke1
     }
 
-    /// Generate KE3 message from server's KE2
+    /// Generate KE3 message from relay's KE2
     /// - Parameters:
-    ///   - ke2: Server's KE2 message
+    ///   - ke2: Relay's KE2 message
     ///   - state: Session state from `createState()`
-    /// - Returns: KE3 message to send to server for verification
-    public func generateKE3(ke2: Data, state: ClientState) throws -> Data {
+    /// - Returns: KE3 message to send to relay for verification
+    public func generateKE3(ke2: Data, state: AgentState) throws -> Data {
         guard let handle = handle else {
             throw OpaqueError.invalidState
         }
@@ -224,7 +224,7 @@ public final class OpaqueAgent {
     /// Complete authentication and derive session keys
     /// - Parameter state: Session state from `createState()`
     /// - Returns: Derived session and master keys
-    public func finish(state: ClientState) throws -> AuthenticationKeys {
+    public func finish(state: AgentState) throws -> AuthenticationKeys {
         guard let handle = handle else {
             throw OpaqueError.invalidState
         }
@@ -289,8 +289,8 @@ public final class OpaqueAgent {
 extension OpaqueAgent {
     /// Session state for registration or authentication
     ///
-    /// Each operation requires a fresh state. Create with `client.createState()`.
-    public final class ClientState {
+    /// Each operation requires a fresh state. Create with `agent.createState()`.
+    public final class AgentState {
         internal let handle: OpaquePointer
 
         internal init() throws {
