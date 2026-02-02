@@ -5,13 +5,13 @@ using System.Runtime.InteropServices;
 
 namespace Ecliptix.OPAQUE.Agent;
 
-internal static class OpaqueClientNative
+internal static class OpaqueAgentNative
 {
     private const string LibraryName = "eop.agent";
 
-    static OpaqueClientNative()
+    static OpaqueAgentNative()
     {
-        NativeLibrary.SetDllImportResolver(typeof(OpaqueClientNative).Assembly, DllImportResolver);
+        NativeLibrary.SetDllImportResolver(typeof(OpaqueAgentNative).Assembly, DllImportResolver);
     }
 
     private static IntPtr DllImportResolver(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)

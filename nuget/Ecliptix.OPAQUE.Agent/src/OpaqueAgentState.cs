@@ -41,7 +41,7 @@ public sealed class RegistrationResult : IDisposable
 
         if (_stateHandle != IntPtr.Zero)
         {
-            OpaqueClientNative.opaque_client_state_destroy(_stateHandle);
+            OpaqueAgentNative.opaque_client_state_destroy(_stateHandle);
             _stateHandle = IntPtr.Zero;
         }
 
@@ -98,7 +98,7 @@ public sealed class KeyExchangeResult : IDisposable
 
         if (_stateHandle != IntPtr.Zero)
         {
-            OpaqueClientNative.opaque_client_state_destroy(_stateHandle);
+            OpaqueAgentNative.opaque_client_state_destroy(_stateHandle);
             _stateHandle = IntPtr.Zero;
         }
 

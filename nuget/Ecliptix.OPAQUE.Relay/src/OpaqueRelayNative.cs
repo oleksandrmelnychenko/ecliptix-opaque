@@ -8,13 +8,13 @@ namespace Ecliptix.OPAQUE.Relay;
 
 
 
-public static class OpaqueServerNative
+public static class OpaqueRelayNative
 {
     private const string LibraryName = "eop.relay";
 
-    static OpaqueServerNative()
+    static OpaqueRelayNative()
     {
-        NativeLibrary.SetDllImportResolver(typeof(OpaqueServerNative).Assembly, DllImportResolver);
+        NativeLibrary.SetDllImportResolver(typeof(OpaqueRelayNative).Assembly, DllImportResolver);
     }
 
     private static IntPtr DllImportResolver(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)

@@ -21,7 +21,7 @@ public sealed class OpaqueAgent : IDisposable
                 OpaqueConstants.PUBLIC_KEY_LENGTH));
         }
 
-        int result = OpaqueClientNative.opaque_client_create(
+        int result = OpaqueAgentNative.opaque_client_create(
             serverPublicKey, (UIntPtr)serverPublicKey.Length, out _clientHandle);
 
         if (result != (int)OpaqueResult.Success || _clientHandle == IntPtr.Zero)
@@ -43,14 +43,14 @@ public sealed class OpaqueAgent : IDisposable
         {
             byte[] request = new byte[OpaqueConstants.REGISTRATION_REQUEST_LENGTH];
 
-            int stateResult = OpaqueClientNative.opaque_client_state_create(out IntPtr state);
+            int stateResult = OpaqueAgentNative.opaque_client_state_create(out IntPtr state);
             if (stateResult != (int)OpaqueResult.Success)
             {
                 throw new OpaqueException((OpaqueResult)stateResult,
                     OpaqueErrorMessages.FAILED_TO_CREATE_STATE);
             }
 
-            int result = OpaqueClientNative.opaque_client_create_registration_request(
+            int result = OpaqueAgentNative.opaque_client_create_registration_request(
                 _clientHandle, secureKey, (UIntPtr)secureKey.Length, state, request, (UIntPtr)request.Length);
 
             if (result == (int)OpaqueResult.Success)
@@ -58,7 +58,7 @@ public sealed class OpaqueAgent : IDisposable
                 return new RegistrationResult(request, state);
             }
 
-            OpaqueClientNative.opaque_client_state_destroy(state);
+            OpaqueAgentNative.opaque_client_state_destroy(state);
             throw new OpaqueException((OpaqueResult)result,
                 OpaqueErrorMessages.FAILED_TO_CREATE_REGISTRATION_REQUEST);
         }
@@ -87,7 +87,7 @@ public sealed class OpaqueAgent : IDisposable
 
             byte[] record = new byte[OpaqueConstants.REGISTRATION_RECORD_LENGTH];
 
-            int result = OpaqueClientNative.opaque_client_finalize_registration(
+            int result = OpaqueAgentNative.opaque_client_finalize_registration(
                 _clientHandle, serverResponse, (UIntPtr)serverResponse.Length,
                 registrationState.StateHandle, record, (UIntPtr)record.Length);
 
@@ -114,14 +114,14 @@ public sealed class OpaqueAgent : IDisposable
         {
             byte[] ke1 = new byte[OpaqueConstants.KE1_LENGTH];
 
-            int stateResult = OpaqueClientNative.opaque_client_state_create(out IntPtr state);
+            int stateResult = OpaqueAgentNative.opaque_client_state_create(out IntPtr state);
             if (stateResult != (int)OpaqueResult.Success)
             {
                 throw new OpaqueException((OpaqueResult)stateResult,
                     OpaqueErrorMessages.FAILED_TO_CREATE_STATE);
             }
 
-            int result = OpaqueClientNative.opaque_client_generate_ke1(
+            int result = OpaqueAgentNative.opaque_client_generate_ke1(
                 _clientHandle, secureKey, (UIntPtr)secureKey.Length, state, ke1, (UIntPtr)ke1.Length);
 
             if (result == (int)OpaqueResult.Success)
@@ -129,7 +129,7 @@ public sealed class OpaqueAgent : IDisposable
                 return new KeyExchangeResult(ke1, state);
             }
 
-            OpaqueClientNative.opaque_client_state_destroy(state);
+            OpaqueAgentNative.opaque_client_state_destroy(state);
             throw new OpaqueException((OpaqueResult)result,
                 OpaqueErrorMessages.FAILED_TO_GENERATE_KE1);
         }
@@ -156,7 +156,7 @@ public sealed class OpaqueAgent : IDisposable
 
         byte[] ke3 = new byte[OpaqueConstants.KE3_LENGTH];
 
-        int result = OpaqueClientNative.opaque_client_generate_ke3(
+        int result = OpaqueAgentNative.opaque_client_generate_ke3(
             _clientHandle, ke2, (UIntPtr)ke2.Length, keyExchangeState.StateHandle, ke3, (UIntPtr)ke3.Length);
 
         if (result != (int)OpaqueResult.Success)
@@ -179,7 +179,7 @@ public sealed class OpaqueAgent : IDisposable
         byte[] sessionKey = new byte[OpaqueConstants.HASH_LENGTH];
         byte[] masterKey = new byte[OpaqueConstants.MASTER_KEY_LENGTH];
 
-        int result = OpaqueClientNative.opaque_client_finish(
+        int result = OpaqueAgentNative.opaque_client_finish(
             _clientHandle, keyExchangeState.StateHandle,
             sessionKey, (UIntPtr)sessionKey.Length,
             masterKey, (UIntPtr)masterKey.Length);
@@ -216,7 +216,7 @@ public sealed class OpaqueAgent : IDisposable
             return;
         }
 
-        OpaqueClientNative.opaque_client_destroy(_clientHandle);
+        OpaqueAgentNative.opaque_client_destroy(_clientHandle);
         _disposed = true;
     }
 
