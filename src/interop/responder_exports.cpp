@@ -310,8 +310,8 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_create_default(opaque_relay_handle_t *
     }
     try {
         const auto keypair = new ResponderKeyPair();
-        keypair->private_key.assign(keys::SERVER_PRIVATE_KEY, keys::SERVER_PRIVATE_KEY + PRIVATE_KEY_LENGTH);
-        keypair->public_key.assign(keys::SERVER_PUBLIC_KEY, keys::SERVER_PUBLIC_KEY + PUBLIC_KEY_LENGTH);
+        keypair->private_key.assign(keys::RELAY_PRIVATE_KEY, keys::RELAY_PRIVATE_KEY + PRIVATE_KEY_LENGTH);
+        keypair->public_key.assign(keys::RELAY_PUBLIC_KEY, keys::RELAY_PUBLIC_KEY + PUBLIC_KEY_LENGTH);
 
         const auto server = new OpaqueResponder(*keypair);
         const auto relay_handle = new opaque_relay_handle_t;

@@ -386,7 +386,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_finish(
 
 ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_create_default(void **handle) {
 #if defined(ECLIPTIX_OPAQUE_ENABLE_INSECURE_TEST_KEYS)
-    return opaque_agent_create(keys::SERVER_PUBLIC_KEY, PUBLIC_KEY_LENGTH, handle);
+    return opaque_agent_create(keys::RELAY_PUBLIC_KEY, PUBLIC_KEY_LENGTH, handle);
 #else
     if (!handle) {
         return static_cast<int>(Result::InvalidInput);

@@ -20,7 +20,7 @@ namespace ecliptix::security::opaque::responder {
                                              const uint8_t *account_id,
                                              const size_t account_id_length,
                                              RegistrationResponse &response) {
-        log::section("SERVER: Create Registration Response");
+        log::section("RELAY: Create Registration Response");
         if (!registration_request || request_length != REGISTRATION_REQUEST_LENGTH ||
             !account_id || account_id_length == 0) [[unlikely]] {
             return Result::InvalidInput;
@@ -66,7 +66,7 @@ namespace ecliptix::security::opaque::responder {
 
     Result build_credentials(const uint8_t *registration_record, size_t record_length,
                              ResponderCredentials &credentials) {
-        log::section("SERVER: Build Credentials from Registration Record");
+        log::section("RELAY: Build Credentials from Registration Record");
         const size_t record_expected = REGISTRATION_RECORD_LENGTH;
         if (!registration_record || record_length < record_expected) {
             return Result::InvalidInput;

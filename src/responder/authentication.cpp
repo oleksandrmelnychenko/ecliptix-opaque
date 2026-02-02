@@ -65,7 +65,7 @@ namespace ecliptix::security::opaque::responder {
     Result responder_finish_impl(const uint8_t *ke3_data, size_t ke3_length,
                                  ResponderState &state, secure_bytes &session_key,
                                  secure_bytes &master_key) {
-        log::section("SERVER: Finish (Verify KE3)");
+        log::section("RELAY: Finish (Verify KE3)");
         if (!ke3_data || ke3_length != KE3_LENGTH) {
             return Result::InvalidInput;
         }
@@ -107,7 +107,7 @@ namespace ecliptix::security::opaque::responder {
                              const uint8_t *account_id,
                              size_t account_id_length,
                              KE2 &ke2, ResponderState &state) {
-        log::section("SERVER: Generate KE2 (PQ)");
+        log::section("RELAY: Generate KE2 (PQ)");
 
         if (!ke1_data || ke1_length != KE1_LENGTH) {
             return Result::InvalidInput;

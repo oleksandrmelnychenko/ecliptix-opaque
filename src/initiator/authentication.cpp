@@ -35,7 +35,7 @@ namespace ecliptix::security::opaque::initiator {
     }
 
     Result initiator_finish_impl(InitiatorState &state, secure_bytes &session_key, secure_bytes &master_key) {
-        log::section("CLIENT: Finish (Export Keys)");
+        log::section("AGENT: Finish (Export Keys)");
         if (state.session_key.empty() || state.master_key.size() != MASTER_KEY_LENGTH) {
             return Result::InvalidInput;
         }
@@ -54,7 +54,7 @@ namespace ecliptix::security::opaque::initiator {
 
     Result generate_ke1_impl(const uint8_t *secure_key, size_t secure_key_length,
                              KE1 &ke1, InitiatorState &state) {
-        log::section("CLIENT: Generate KE1 (PQ Authentication Start)");
+        log::section("AGENT: Generate KE1 (PQ Authentication Start)");
         if (!secure_key || secure_key_length == 0 ||
             secure_key_length > MAX_SECURE_KEY_LENGTH) {
             return Result::InvalidInput;
@@ -114,7 +114,7 @@ namespace ecliptix::security::opaque::initiator {
 
     Result generate_ke3_impl(const uint8_t *ke2_data, size_t ke2_length,
                              const uint8_t *responder_public_key, InitiatorState &state, KE3 &ke3) {
-        log::section("CLIENT: Generate KE3 (Process KE2)");
+        log::section("AGENT: Generate KE3 (Process KE2)");
 
         if (!ke2_data || ke2_length != KE2_LENGTH) {
             return Result::InvalidInput;

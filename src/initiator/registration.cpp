@@ -16,7 +16,7 @@ namespace ecliptix::security::opaque::initiator {
 
     Result create_registration_request_impl(const uint8_t *secure_key, size_t secure_key_length,
                                             RegistrationRequest &request, InitiatorState &state) {
-        log::section("CLIENT: Create Registration Request (PQ)");
+        log::section("AGENT: Create Registration Request (PQ)");
         if (!secure_key || secure_key_length == 0 ||
             secure_key_length > MAX_SECURE_KEY_LENGTH) [[unlikely]] {
             return Result::InvalidInput;
@@ -48,7 +48,7 @@ namespace ecliptix::security::opaque::initiator {
     Result finalize_registration_impl(const uint8_t *registration_response, size_t response_length,
                                       const uint8_t *expected_responder_public_key, size_t expected_key_length,
                                       InitiatorState &state, RegistrationRecord &record) {
-        log::section("CLIENT: Finalize Registration (PQ)");
+        log::section("AGENT: Finalize Registration (PQ)");
         if (!registration_response || response_length != REGISTRATION_RESPONSE_LENGTH ||
             !expected_responder_public_key || expected_key_length != PUBLIC_KEY_LENGTH) {
             return Result::InvalidInput;
