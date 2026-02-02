@@ -95,6 +95,6 @@ coverage/
 *.dmp
 core.*
 
-# Legacy directories
-client/
-server/
+# Legacy directories (root level only)
+/client/
+/server/
