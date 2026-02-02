@@ -16,24 +16,24 @@ namespace {
 }
 
 extern "C" {
-    int opaque_client_create(const uint8_t *server_public_key, size_t key_length, void **handle);
-    void opaque_client_destroy(void *handle);
-    int opaque_client_state_create(void **handle);
-    void opaque_client_state_destroy(void *handle);
-    int opaque_client_create_registration_request(void *client_handle, const uint8_t *secure_key,
+    int opaque_agent_create(const uint8_t *server_public_key, size_t key_length, void **handle);
+    void opaque_agent_destroy(void *handle);
+    int opaque_agent_state_create(void **handle);
+    void opaque_agent_state_destroy(void *handle);
+    int opaque_agent_create_registration_request(void *client_handle, const uint8_t *secure_key,
                                                    size_t secure_key_length, void *state_handle,
                                                    uint8_t *request_out, size_t request_length);
-    int opaque_client_finalize_registration(void *client_handle, const uint8_t *response,
+    int opaque_agent_finalize_registration(void *client_handle, const uint8_t *response,
                                             size_t response_length, void *state_handle,
                                             uint8_t *record_out, size_t record_length);
-    int opaque_client_generate_ke1(void *client_handle, const uint8_t *secure_key,
+    int opaque_agent_generate_ke1(void *client_handle, const uint8_t *secure_key,
                                     size_t secure_key_length, void *state_handle,
                                     uint8_t *ke1_out, size_t ke1_length);
-    int opaque_client_generate_ke3(void *client_handle, const uint8_t *ke2, size_t ke2_length,
+    int opaque_agent_generate_ke3(void *client_handle, const uint8_t *ke2, size_t ke2_length,
                                     void *state_handle, uint8_t *ke3_out, size_t ke3_length);
-    int opaque_client_finish(void *client_handle, void *state_handle, uint8_t *session_key_out,
+    int opaque_agent_finish(void *client_handle, void *state_handle, uint8_t *session_key_out,
                               size_t session_key_length, uint8_t *master_key_out, size_t master_key_length);
-    const char *opaque_client_get_version();
+    const char *opaque_agent_get_version();
     size_t opaque_get_ke1_length();
     size_t opaque_get_ke2_length();
     size_t opaque_get_ke3_length();
@@ -95,7 +95,7 @@ JNI_FUNC(nativeInit)(JNIEnv *, jclass) {
 
 JNIEXPORT jstring JNICALL
 JNI_FUNC(nativeGetVersion)(JNIEnv *env, jclass) {
-    const char *version = opaque_client_get_version();
+    const char *version = opaque_agent_get_version();
     return env->NewStringUTF(version);
 }
 
@@ -115,7 +115,7 @@ JNI_FUNC(nativeClientCreate)(JNIEnv *env, jclass, jbyteArray serverPublicKey) {
     }
 
     void *handle = nullptr;
-    int result = opaque_client_create(keyData.get(), static_cast<size_t>(keyLength), &handle);
+    int result = opaque_agent_create(keyData.get(), static_cast<size_t>(keyLength), &handle);
 
     if (result != 0) {
         throwOpaqueException(env, "Failed to create OPAQUE client", result);
@@ -128,14 +128,14 @@ JNI_FUNC(nativeClientCreate)(JNIEnv *env, jclass, jbyteArray serverPublicKey) {
 JNIEXPORT void JNICALL
 JNI_FUNC(nativeClientDestroy)(JNIEnv *, jclass, jlong handle) {
     if (handle != 0) {
-        opaque_client_destroy(reinterpret_cast<void*>(handle));
+        opaque_agent_destroy(reinterpret_cast<void*>(handle));
     }
 }
 
 JNIEXPORT jlong JNICALL
 JNI_FUNC(nativeStateCreate)(JNIEnv *env, jclass) {
     void *handle = nullptr;
-    int result = opaque_client_state_create(&handle);
+    int result = opaque_agent_state_create(&handle);
 
     if (result != 0) {
         throwOpaqueException(env, "Failed to create client state", result);
@@ -148,7 +148,7 @@ JNI_FUNC(nativeStateCreate)(JNIEnv *env, jclass) {
 JNIEXPORT void JNICALL
 JNI_FUNC(nativeStateDestroy)(JNIEnv *, jclass, jlong handle) {
     if (handle != 0) {
-        opaque_client_state_destroy(reinterpret_cast<void*>(handle));
+        opaque_agent_state_destroy(reinterpret_cast<void*>(handle));
     }
 }
 
@@ -170,7 +170,7 @@ JNI_FUNC(nativeCreateRegistrationRequest)(JNIEnv *env, jclass,
 
     auto requestBuffer = std::make_unique<uint8_t[]>(REGISTRATION_REQUEST_LENGTH);
 
-    int result = opaque_client_create_registration_request(
+    int result = opaque_agent_create_registration_request(
         reinterpret_cast<void*>(clientHandle),
         keyData.get(),
         static_cast<size_t>(keyLength),
@@ -210,7 +210,7 @@ JNI_FUNC(nativeFinalizeRegistration)(JNIEnv *env, jclass,
 
     auto recordBuffer = std::make_unique<uint8_t[]>(REGISTRATION_RECORD_LENGTH);
 
-    int result = opaque_client_finalize_registration(
+    int result = opaque_agent_finalize_registration(
         reinterpret_cast<void*>(clientHandle),
         responseData.get(),
         static_cast<size_t>(responseLength),
@@ -245,7 +245,7 @@ JNI_FUNC(nativeGenerateKe1)(JNIEnv *env, jclass,
 
     auto ke1Buffer = std::make_unique<uint8_t[]>(KE1_LENGTH);
 
-    int result = opaque_client_generate_ke1(
+    int result = opaque_agent_generate_ke1(
         reinterpret_cast<void*>(clientHandle),
         keyData.get(),
         static_cast<size_t>(keyLength),
@@ -285,7 +285,7 @@ JNI_FUNC(nativeGenerateKe3)(JNIEnv *env, jclass,
 
     auto ke3Buffer = std::make_unique<uint8_t[]>(KE3_LENGTH);
 
-    int result = opaque_client_generate_ke3(
+    int result = opaque_agent_generate_ke3(
         reinterpret_cast<void*>(clientHandle),
         ke2Data.get(),
         static_cast<size_t>(ke2Length),
@@ -312,7 +312,7 @@ JNI_FUNC(nativeFinish)(JNIEnv *env, jclass, jlong clientHandle, jlong stateHandl
     auto sessionKeyBuffer = std::make_unique<uint8_t[]>(HASH_LENGTH);
     auto masterKeyBuffer = std::make_unique<uint8_t[]>(MASTER_KEY_LENGTH);
 
-    int result = opaque_client_finish(
+    int result = opaque_agent_finish(
         reinterpret_cast<void*>(clientHandle),
         reinterpret_cast<void*>(stateHandle),
         sessionKeyBuffer.get(),

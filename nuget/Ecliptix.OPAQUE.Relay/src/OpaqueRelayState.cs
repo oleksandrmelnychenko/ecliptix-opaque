@@ -52,21 +52,21 @@ public sealed class ServerKeyPair : IDisposable
 
     public static ServerKeyPair Generate()
     {
-        int result = OpaqueRelayNative.opaque_server_keypair_generate(out IntPtr handle);
+        int result = OpaqueRelayNative.opaque_relay_keypair_generate(out IntPtr handle);
         if (result != (int)OpaqueResult.Success)
         {
             throw new OpaqueException((OpaqueResult)result, "Failed to generate server keypair");
         }
 
         byte[] publicKey = new byte[OpaqueConstants.PUBLIC_KEY_LENGTH];
-        result = OpaqueRelayNative.opaque_server_keypair_get_public_key(
+        result = OpaqueRelayNative.opaque_relay_keypair_get_public_key(
             handle,
             publicKey,
             (UIntPtr)publicKey.Length);
 
         if (result != (int)OpaqueResult.Success)
         {
-            OpaqueRelayNative.opaque_server_keypair_destroy(handle);
+            OpaqueRelayNative.opaque_relay_keypair_destroy(handle);
             throw new OpaqueException((OpaqueResult)result, "Failed to get public key from keypair");
         }
 
@@ -85,7 +85,7 @@ public sealed class ServerKeyPair : IDisposable
         byte[] privateKey = new byte[OpaqueConstants.PRIVATE_KEY_LENGTH];
         byte[] publicKey = new byte[OpaqueConstants.PUBLIC_KEY_LENGTH];
 
-        int result = OpaqueRelayNative.opaque_server_derive_keypair_from_seed(
+        int result = OpaqueRelayNative.opaque_relay_derive_keypair_from_seed(
             seed,
             (UIntPtr)seed.Length,
             privateKey,
@@ -127,7 +127,7 @@ public sealed class ServerKeyPair : IDisposable
 
         if (_nativeHandle != IntPtr.Zero)
         {
-            OpaqueRelayNative.opaque_server_keypair_destroy(_nativeHandle);
+            OpaqueRelayNative.opaque_relay_keypair_destroy(_nativeHandle);
             _nativeHandle = IntPtr.Zero;
         }
 
@@ -172,7 +172,7 @@ public sealed class AuthenticationState : IDisposable
 
     public static AuthenticationState Create()
     {
-        int result = OpaqueRelayNative.opaque_server_state_create(out IntPtr handle);
+        int result = OpaqueRelayNative.opaque_relay_state_create(out IntPtr handle);
         if (result != (int)OpaqueResult.Success)
         {
             throw new OpaqueException((OpaqueResult)result, "Failed to create authentication state");
@@ -187,7 +187,7 @@ public sealed class AuthenticationState : IDisposable
 
         if (_stateHandle != IntPtr.Zero)
         {
-            OpaqueRelayNative.opaque_server_state_destroy(_stateHandle);
+            OpaqueRelayNative.opaque_relay_state_destroy(_stateHandle);
             _stateHandle = IntPtr.Zero;
         }
 

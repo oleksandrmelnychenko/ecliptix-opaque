@@ -69,11 +69,11 @@ struct ClientStateHandle {
 };
 
 extern "C" {
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_create(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_create(
     const uint8_t *server_public_key,
     size_t key_length,
     void **handle) {
-    OPAQUE_CLIENT_LOG("=== opaque_client_create ===");
+    OPAQUE_CLIENT_LOG("=== opaque_agent_create ===");
     OPAQUE_CLIENT_LOG("key_length=%zu, handle=%p", key_length, (void*)handle);
     if (!server_public_key || key_length != PUBLIC_KEY_LENGTH || !handle) {
         OPAQUE_CLIENT_LOG("ERROR: InvalidInput - server_public_key=%p, key_length=%zu", (void*)server_public_key,
@@ -101,16 +101,16 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_create(
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT void opaque_client_destroy(void *handle) {
-    OPAQUE_CLIENT_LOG("=== opaque_client_destroy === handle=%p", handle);
+ECLIPTIX_OPAQUE_C_EXPORT void opaque_agent_destroy(void *handle) {
+    OPAQUE_CLIENT_LOG("=== opaque_agent_destroy === handle=%p", handle);
     if (handle) {
         std::unique_ptr<OpaqueClientHandle> client(
             static_cast<OpaqueClientHandle *>(handle));
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_state_create(void **handle) {
-    OPAQUE_CLIENT_LOG("=== opaque_client_state_create ===");
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_state_create(void **handle) {
+    OPAQUE_CLIENT_LOG("=== opaque_agent_state_create ===");
     if (!handle) {
         OPAQUE_CLIENT_LOG("ERROR: InvalidInput - handle is null");
         return static_cast<int>(Result::InvalidInput);
@@ -127,22 +127,22 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_state_create(void **handle) {
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT void opaque_client_state_destroy(void *handle) {
-    OPAQUE_CLIENT_LOG("=== opaque_client_state_destroy === handle=%p", handle);
+ECLIPTIX_OPAQUE_C_EXPORT void opaque_agent_state_destroy(void *handle) {
+    OPAQUE_CLIENT_LOG("=== opaque_agent_state_destroy === handle=%p", handle);
     if (handle) {
         std::unique_ptr<ClientStateHandle> state(
             static_cast<ClientStateHandle *>(handle));
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_create_registration_request(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_create_registration_request(
     void *client_handle,
     const uint8_t *secure_key,
     size_t secure_key_length,
     void *state_handle,
     uint8_t *request_out,
     size_t request_length) {
-    OPAQUE_CLIENT_LOG("=== opaque_client_create_registration_request ===");
+    OPAQUE_CLIENT_LOG("=== opaque_agent_create_registration_request ===");
     OPAQUE_CLIENT_LOG("client_handle=%p, state_handle=%p, secure_key_length=%zu, request_length=%zu",
                       client_handle, state_handle, secure_key_length, request_length);
     if (!client_handle || !secure_key || secure_key_length == 0 ||
@@ -183,14 +183,14 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_create_registration_request(
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_finalize_registration(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_finalize_registration(
     void *client_handle,
     const uint8_t *response,
     const size_t response_length,
     void *state_handle,
     uint8_t *record_out,
     const size_t record_length) {
-    OPAQUE_CLIENT_LOG("=== opaque_client_finalize_registration ===");
+    OPAQUE_CLIENT_LOG("=== opaque_agent_finalize_registration ===");
     OPAQUE_CLIENT_LOG("client_handle=%p, state_handle=%p", client_handle, state_handle);
     OPAQUE_CLIENT_LOG("response_length=%zu (expected=%zu), record_length=%zu (expected=%zu)",
                       response_length, REGISTRATION_RESPONSE_LENGTH,
@@ -238,14 +238,14 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_finalize_registration(
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_generate_ke1(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_generate_ke1(
     void *client_handle,
     const uint8_t *secure_key,
     size_t secure_key_length,
     void *state_handle,
     uint8_t *ke1_out,
     size_t ke1_length) {
-    OPAQUE_CLIENT_LOG("=== opaque_client_generate_ke1 ===");
+    OPAQUE_CLIENT_LOG("=== opaque_agent_generate_ke1 ===");
     OPAQUE_CLIENT_LOG("client_handle=%p, state_handle=%p, secure_key_length=%zu, ke1_length=%zu (expected=%zu)",
                       client_handle, state_handle, secure_key_length, ke1_length, KE1_LENGTH);
     if (!client_handle || !secure_key || secure_key_length == 0 ||
@@ -289,14 +289,14 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_generate_ke1(
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_generate_ke3(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_generate_ke3(
     void *client_handle,
     const uint8_t *ke2,
     const size_t ke2_length,
     void *state_handle,
     uint8_t *ke3_out,
     const size_t ke3_length) {
-    OPAQUE_CLIENT_LOG("=== opaque_client_generate_ke3 ===");
+    OPAQUE_CLIENT_LOG("=== opaque_agent_generate_ke3 ===");
     OPAQUE_CLIENT_LOG("client_handle=%p, state_handle=%p, ke2_length=%zu (expected=%zu), ke3_length=%zu",
                       client_handle, state_handle, ke2_length, KE2_LENGTH, ke3_length);
     if (!client_handle || !ke2 || ke2_length != KE2_LENGTH ||
@@ -337,14 +337,14 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_generate_ke3(
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_finish(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_finish(
     void *client_handle,
     void *state_handle,
     uint8_t *session_key_out,
     size_t session_key_length,
     uint8_t *master_key_out,
     size_t master_key_length) {
-    OPAQUE_CLIENT_LOG("=== opaque_client_finish ===");
+    OPAQUE_CLIENT_LOG("=== opaque_agent_finish ===");
     OPAQUE_CLIENT_LOG("client_handle=%p, state_handle=%p, session_key_length=%zu, master_key_length=%zu",
                       client_handle, state_handle, session_key_length, master_key_length);
     if (!client_handle || !state_handle ||
@@ -384,9 +384,9 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_finish(
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_create_default(void **handle) {
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_agent_create_default(void **handle) {
 #if defined(ECLIPTIX_OPAQUE_ENABLE_INSECURE_TEST_KEYS)
-    return opaque_client_create(keys::SERVER_PUBLIC_KEY, PUBLIC_KEY_LENGTH, handle);
+    return opaque_agent_create(keys::SERVER_PUBLIC_KEY, PUBLIC_KEY_LENGTH, handle);
 #else
     if (!handle) {
         return static_cast<int>(Result::InvalidInput);
@@ -396,7 +396,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_client_create_default(void **handle) {
 #endif
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT const char *opaque_client_get_version() {
+ECLIPTIX_OPAQUE_C_EXPORT const char *opaque_agent_get_version() {
     return OPAQUE_CLIENT_VERSION;
 }
 

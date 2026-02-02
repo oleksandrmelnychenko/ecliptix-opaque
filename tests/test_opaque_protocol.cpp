@@ -8,43 +8,43 @@
 #include <cstring>
 
 extern "C" {
-    int opaque_client_create(const uint8_t* server_public_key, size_t key_length, void** handle);
-    void opaque_client_destroy(void* handle);
-    int opaque_client_state_create(void** handle);
-    void opaque_client_state_destroy(void* handle);
-    int opaque_client_create_registration_request(void* client_handle, const uint8_t* secure_key, size_t secure_key_length, void* state_handle, uint8_t* request_out, size_t request_length);
-    int opaque_client_finalize_registration(void* client_handle, const uint8_t* response, size_t response_length, void* state_handle, uint8_t* record_out, size_t record_length);
-    int opaque_client_generate_ke1(void* client_handle, const uint8_t* secure_key, size_t secure_key_length, void* state_handle, uint8_t* ke1_out, size_t ke1_length);
-    int opaque_client_generate_ke3(void* client_handle, const uint8_t* ke2, size_t ke2_length, void* state_handle, uint8_t* ke3_out, size_t ke3_length);
-    int opaque_client_finish(void* client_handle, void* state_handle, uint8_t* session_key_out, size_t session_key_length, uint8_t* master_key_out, size_t master_key_length);
-    int opaque_client_create_default(void** handle);
+    int opaque_agent_create(const uint8_t* server_public_key, size_t key_length, void** handle);
+    void opaque_agent_destroy(void* handle);
+    int opaque_agent_state_create(void** handle);
+    void opaque_agent_state_destroy(void* handle);
+    int opaque_agent_create_registration_request(void* client_handle, const uint8_t* secure_key, size_t secure_key_length, void* state_handle, uint8_t* request_out, size_t request_length);
+    int opaque_agent_finalize_registration(void* client_handle, const uint8_t* response, size_t response_length, void* state_handle, uint8_t* record_out, size_t record_length);
+    int opaque_agent_generate_ke1(void* client_handle, const uint8_t* secure_key, size_t secure_key_length, void* state_handle, uint8_t* ke1_out, size_t ke1_length);
+    int opaque_agent_generate_ke3(void* client_handle, const uint8_t* ke2, size_t ke2_length, void* state_handle, uint8_t* ke3_out, size_t ke3_length);
+    int opaque_agent_finish(void* client_handle, void* state_handle, uint8_t* session_key_out, size_t session_key_length, uint8_t* master_key_out, size_t master_key_length);
+    int opaque_agent_create_default(void** handle);
 
-    struct opaque_server_handle_t;
+    struct opaque_relay_handle_t;
     struct server_state_handle_t;
     struct server_keypair_handle_t;
-    int opaque_server_keypair_generate(server_keypair_handle_t** handle);
-    void opaque_server_keypair_destroy(server_keypair_handle_t* handle);
-    int opaque_server_keypair_get_public_key(server_keypair_handle_t* handle, uint8_t* public_key, size_t key_buffer_size);
-    int opaque_server_create(server_keypair_handle_t* keypair_handle, opaque_server_handle_t** handle);
-    void opaque_server_destroy(opaque_server_handle_t* handle);
-    int opaque_server_state_create(server_state_handle_t** handle);
-    void opaque_server_state_destroy(server_state_handle_t* handle);
-    int opaque_server_create_registration_response(opaque_server_handle_t* server_handle, const uint8_t* request_data, size_t request_length, const uint8_t* account_id, size_t account_id_length, uint8_t* response_data, size_t response_buffer_size);
-    int opaque_server_build_credentials(const uint8_t* registration_record, size_t record_length, uint8_t* credentials_out, size_t credentials_out_length);
-    int opaque_server_generate_ke2(opaque_server_handle_t* server_handle, const uint8_t* ke1_data, size_t ke1_length, const uint8_t* account_id, size_t account_id_length, const uint8_t* credentials_data, size_t credentials_length, uint8_t* ke2_data, size_t ke2_buffer_size, server_state_handle_t* state_handle);
-    int opaque_server_finish(opaque_server_handle_t* server_handle, const uint8_t* ke3_data, size_t ke3_length, server_state_handle_t* state_handle, uint8_t* session_key, size_t session_key_buffer_size, uint8_t* master_key, size_t master_key_buffer_size);
-    int opaque_server_create_default(opaque_server_handle_t** handle);
-    int opaque_server_derive_keypair_from_seed(const uint8_t* seed, size_t seed_len, uint8_t* private_key, size_t private_key_buffer_len, uint8_t* public_key, size_t public_key_buffer_len);
-    int opaque_server_create_with_keys(const uint8_t* private_key, size_t private_key_len, const uint8_t* public_key, size_t public_key_len, opaque_server_handle_t** handle);
+    int opaque_relay_keypair_generate(server_keypair_handle_t** handle);
+    void opaque_relay_keypair_destroy(server_keypair_handle_t* handle);
+    int opaque_relay_keypair_get_public_key(server_keypair_handle_t* handle, uint8_t* public_key, size_t key_buffer_size);
+    int opaque_relay_create(server_keypair_handle_t* keypair_handle, opaque_relay_handle_t** handle);
+    void opaque_relay_destroy(opaque_relay_handle_t* handle);
+    int opaque_relay_state_create(server_state_handle_t** handle);
+    void opaque_relay_state_destroy(server_state_handle_t* handle);
+    int opaque_relay_create_registration_response(opaque_relay_handle_t* server_handle, const uint8_t* request_data, size_t request_length, const uint8_t* account_id, size_t account_id_length, uint8_t* response_data, size_t response_buffer_size);
+    int opaque_relay_build_credentials(const uint8_t* registration_record, size_t record_length, uint8_t* credentials_out, size_t credentials_out_length);
+    int opaque_relay_generate_ke2(opaque_relay_handle_t* server_handle, const uint8_t* ke1_data, size_t ke1_length, const uint8_t* account_id, size_t account_id_length, const uint8_t* credentials_data, size_t credentials_length, uint8_t* ke2_data, size_t ke2_buffer_size, server_state_handle_t* state_handle);
+    int opaque_relay_finish(opaque_relay_handle_t* server_handle, const uint8_t* ke3_data, size_t ke3_length, server_state_handle_t* state_handle, uint8_t* session_key, size_t session_key_buffer_size, uint8_t* master_key, size_t master_key_buffer_size);
+    int opaque_relay_create_default(opaque_relay_handle_t** handle);
+    int opaque_relay_derive_keypair_from_seed(const uint8_t* seed, size_t seed_len, uint8_t* private_key, size_t private_key_buffer_len, uint8_t* public_key, size_t public_key_buffer_len);
+    int opaque_relay_create_with_keys(const uint8_t* private_key, size_t private_key_len, const uint8_t* public_key, size_t public_key_len, opaque_relay_handle_t** handle);
 
     size_t opaque_get_ke1_length();
     size_t opaque_get_ke2_length();
     size_t opaque_get_registration_record_length();
     size_t opaque_get_kem_public_key_length();
     size_t opaque_get_kem_ciphertext_length();
-    size_t opaque_server_get_ke2_length();
-    size_t opaque_server_get_registration_record_length();
-    size_t opaque_server_get_credentials_length();
+    size_t opaque_relay_get_ke2_length();
+    size_t opaque_relay_get_registration_record_length();
+    size_t opaque_relay_get_credentials_length();
 }
 
 using namespace ecliptix::security::opaque;
@@ -114,80 +114,80 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
     const char* secure_key = kSecureKey;
 
     server_keypair_handle_t* server_keypair = nullptr;
-    REQUIRE(opaque_server_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
     REQUIRE(server_keypair != nullptr);
 
     uint8_t server_public_key[PUBLIC_KEY_LENGTH];
-    REQUIRE(opaque_server_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-    opaque_server_handle_t* server = nullptr;
-    REQUIRE(opaque_server_create(server_keypair, &server) == static_cast<int>(Result::Success));
+    opaque_relay_handle_t* server = nullptr;
+    REQUIRE(opaque_relay_create(server_keypair, &server) == static_cast<int>(Result::Success));
     REQUIRE(server != nullptr);
 
     void* client = nullptr;
-    REQUIRE(opaque_client_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_agent_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
     REQUIRE(client != nullptr);
 
     void* client_state = nullptr;
-    REQUIRE(opaque_client_state_create(&client_state) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_agent_state_create(&client_state) == static_cast<int>(Result::Success));
 
     uint8_t registration_request[REGISTRATION_REQUEST_LENGTH];
-    REQUIRE(opaque_client_create_registration_request(
+    REQUIRE(opaque_agent_create_registration_request(
         client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
         client_state, registration_request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
     uint8_t registration_response[REGISTRATION_RESPONSE_LENGTH];
-    REQUIRE(opaque_server_create_registration_response(
+    REQUIRE(opaque_relay_create_registration_response(
         server, registration_request, REGISTRATION_REQUEST_LENGTH,
         kAccountId, sizeof(kAccountId),
         registration_response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
     uint8_t registration_record[RECORD_SIZE];
-    REQUIRE(opaque_client_finalize_registration(
+    REQUIRE(opaque_agent_finalize_registration(
         client, registration_response, REGISTRATION_RESPONSE_LENGTH,
         client_state, registration_record, RECORD_SIZE) == static_cast<int>(Result::Success));
 
     uint8_t stored_credentials[CREDENTIALS_SIZE];
-    REQUIRE(opaque_server_build_credentials(
+    REQUIRE(opaque_relay_build_credentials(
         registration_record, RECORD_SIZE,
         stored_credentials, CREDENTIALS_SIZE) == static_cast<int>(Result::Success));
 
-    opaque_client_state_destroy(client_state);
+    opaque_agent_state_destroy(client_state);
 
     SECTION("Ecliptix authentication with correct secure key") {
         void* auth_client_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_client_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_client_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
-        REQUIRE(opaque_server_state_create(&server_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
 
         uint8_t ke1[KE1_SIZE];
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
             auth_client_state, ke1, KE1_SIZE) == static_cast<int>(Result::Success));
 
         uint8_t ke2[KE2_SIZE];
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, ke1, KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             stored_credentials, CREDENTIALS_SIZE,
             ke2, KE2_SIZE, server_state) == static_cast<int>(Result::Success));
 
         uint8_t ke3[KE3_LENGTH];
-        REQUIRE(opaque_client_generate_ke3(
+        REQUIRE(opaque_agent_generate_ke3(
             client, ke2, KE2_SIZE,
             auth_client_state, ke3, KE3_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t server_session_key[HASH_LENGTH];
         uint8_t server_master_key[MASTER_KEY_LENGTH];
-        REQUIRE(opaque_server_finish(
+        REQUIRE(opaque_relay_finish(
             server, ke3, KE3_LENGTH, server_state,
             server_session_key, HASH_LENGTH,
             server_master_key, MASTER_KEY_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t client_session_key[HASH_LENGTH];
         uint8_t recovered_master_key[MASTER_KEY_LENGTH];
-        REQUIRE(opaque_client_finish(
+        REQUIRE(opaque_agent_finish(
             client, auth_client_state,
             client_session_key, HASH_LENGTH,
             recovered_master_key, MASTER_KEY_LENGTH) == static_cast<int>(Result::Success));
@@ -195,39 +195,39 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         REQUIRE(std::memcmp(client_session_key, server_session_key, HASH_LENGTH) == 0);
         REQUIRE(std::memcmp(recovered_master_key, server_master_key, MASTER_KEY_LENGTH) == 0);
 
-        opaque_client_state_destroy(auth_client_state);
-        opaque_server_state_destroy(server_state);
+        opaque_agent_state_destroy(auth_client_state);
+        opaque_relay_state_destroy(server_state);
     }
 
     SECTION("Ecliptix authentication with invalid secure key fails") {
         void* auth_client_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_client_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_client_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
-        REQUIRE(opaque_server_state_create(&server_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
 
         const char* invalid_secure_key = kInvalidSecureKey;
         uint8_t ke1[KE1_SIZE];
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(invalid_secure_key), strlen(invalid_secure_key),
             auth_client_state, ke1, KE1_SIZE) == static_cast<int>(Result::Success));
 
         uint8_t ke2[KE2_SIZE];
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, ke1, KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             stored_credentials, CREDENTIALS_SIZE,
             ke2, KE2_SIZE, server_state) == static_cast<int>(Result::Success));
 
         uint8_t ke3[KE3_LENGTH];
-        int result = opaque_client_generate_ke3(
+        int result = opaque_agent_generate_ke3(
             client, ke2, KE2_SIZE,
             auth_client_state, ke3, KE3_LENGTH);
 
         if (result == static_cast<int>(Result::Success)) {
             uint8_t server_session_key[HASH_LENGTH];
             uint8_t server_master_key[MASTER_KEY_LENGTH];
-            int finish_result = opaque_server_finish(
+            int finish_result = opaque_relay_finish(
                 server, ke3, KE3_LENGTH, server_state,
                 server_session_key, HASH_LENGTH,
                 server_master_key, MASTER_KEY_LENGTH);
@@ -236,24 +236,24 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
             ExpectAuthError(result, "wrong password: client generate ke3");
         }
 
-        opaque_client_state_destroy(auth_client_state);
-        opaque_server_state_destroy(server_state);
+        opaque_agent_state_destroy(auth_client_state);
+        opaque_relay_state_destroy(server_state);
     }
 
     SECTION("Ecliptix authentication fails with tampered responder MAC") {
         void* auth_client_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_client_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_client_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
-        REQUIRE(opaque_server_state_create(&server_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
 
         uint8_t ke1[KE1_SIZE];
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
             auth_client_state, ke1, KE1_SIZE) == static_cast<int>(Result::Success));
 
         uint8_t ke2[KE2_SIZE];
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, ke1, KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             stored_credentials, CREDENTIALS_SIZE,
@@ -262,18 +262,18 @@ TEST_CASE("Ecliptix OPAQUE Protocol Complete Flow", "[opaque][protocol]") {
         ke2[kTamperKe2Index] ^= kTamperMask;
 
         uint8_t ke3[KE3_LENGTH];
-        int result = opaque_client_generate_ke3(
+        int result = opaque_agent_generate_ke3(
             client, ke2, KE2_SIZE,
             auth_client_state, ke3, KE3_LENGTH);
         REQUIRE(result == static_cast<int>(Result::AuthenticationError));
 
-        opaque_client_state_destroy(auth_client_state);
-        opaque_server_state_destroy(server_state);
+        opaque_agent_state_destroy(auth_client_state);
+        opaque_relay_state_destroy(server_state);
     }
 
-    opaque_client_destroy(client);
-    opaque_server_destroy(server);
-    opaque_server_keypair_destroy(server_keypair);
+    opaque_agent_destroy(client);
+    opaque_relay_destroy(server);
+    opaque_relay_keypair_destroy(server_keypair);
 }
 
 TEST_CASE("Ecliptix OPAQUE C++ Client/Server Simulation", "[opaque][cpp][protocol]") {
@@ -466,21 +466,21 @@ TEST_CASE("Ecliptix OPAQUE Input Validation", "[opaque][validation]") {
     SECTION("Ecliptix client creation with invalid public key") {
         uint8_t invalid_key[PUBLIC_KEY_LENGTH] = {kInvalidKeyValue};
         void* client = nullptr;
-        int result = opaque_client_create(invalid_key, PUBLIC_KEY_LENGTH, &client);
+        int result = opaque_agent_create(invalid_key, PUBLIC_KEY_LENGTH, &client);
         REQUIRE((result == static_cast<int>(Result::InvalidPublicKey) ||
                  result == static_cast<int>(Result::MemoryError)));
     }
 
     SECTION("Ecliptix client creation with null pointer") {
         void* client = nullptr;
-        REQUIRE(opaque_client_create(nullptr, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::InvalidInput));
+        REQUIRE(opaque_agent_create(nullptr, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::InvalidInput));
     }
 
     SECTION("Ecliptix client creation with wrong key length") {
         uint8_t key[PUBLIC_KEY_LENGTH];
         randombytes_buf(key, PUBLIC_KEY_LENGTH);
         void* client = nullptr;
-        REQUIRE(opaque_client_create(key, PUBLIC_KEY_LENGTH - 1, &client) == static_cast<int>(Result::InvalidInput));
+        REQUIRE(opaque_agent_create(key, PUBLIC_KEY_LENGTH - 1, &client) == static_cast<int>(Result::InvalidInput));
     }
 }
 
@@ -561,127 +561,127 @@ TEST_CASE("Ecliptix OPAQUE Memory Safety", "[opaque][memory]") {
     REQUIRE(sodium_init() >= 0);
 
     server_keypair_handle_t* server_keypair = nullptr;
-    REQUIRE(opaque_server_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
 
     uint8_t server_public_key[PUBLIC_KEY_LENGTH];
-    REQUIRE(opaque_server_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
     SECTION("Ecliptix multiple client creation and destruction") {
         std::vector<void*> clients;
 
         for (int i = 0; i < kClientIterations; ++i) {
             void* client = nullptr;
-            REQUIRE(opaque_client_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
+            REQUIRE(opaque_agent_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
             clients.push_back(client);
         }
 
         for (void* client : clients) {
-            opaque_client_destroy(client);
+            opaque_agent_destroy(client);
         }
     }
 
-    opaque_server_keypair_destroy(server_keypair);
+    opaque_relay_keypair_destroy(server_keypair);
 }
 
 TEST_CASE("Ecliptix OPAQUE Registration Input Validation", "[opaque][validation][registration]") {
     REQUIRE(sodium_init() >= 0);
 
     server_keypair_handle_t* server_keypair = nullptr;
-    REQUIRE(opaque_server_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
 
     uint8_t server_public_key[PUBLIC_KEY_LENGTH];
-    REQUIRE(opaque_server_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-    opaque_server_handle_t* server = nullptr;
-    REQUIRE(opaque_server_create(server_keypair, &server) == static_cast<int>(Result::Success));
+    opaque_relay_handle_t* server = nullptr;
+    REQUIRE(opaque_relay_create(server_keypair, &server) == static_cast<int>(Result::Success));
 
     void* client = nullptr;
-    REQUIRE(opaque_client_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_agent_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
 
     SECTION("Registration response with empty account ID fails") {
         void* state = nullptr;
-        REQUIRE(opaque_client_state_create(&state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&state) == static_cast<int>(Result::Success));
 
         uint8_t request[REGISTRATION_REQUEST_LENGTH];
-        REQUIRE(opaque_client_create_registration_request(
+        REQUIRE(opaque_agent_create_registration_request(
             client, reinterpret_cast<const uint8_t*>(kSecureKey), strlen(kSecureKey),
             state, request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t response[REGISTRATION_RESPONSE_LENGTH];
-        int result = opaque_server_create_registration_response(
+        int result = opaque_relay_create_registration_response(
             server, request, REGISTRATION_REQUEST_LENGTH,
             kAccountId, 0,
             response, REGISTRATION_RESPONSE_LENGTH);
         REQUIRE(result == static_cast<int>(Result::InvalidInput));
 
-        opaque_client_state_destroy(state);
+        opaque_agent_state_destroy(state);
     }
 
     SECTION("Finalize registration rejects wrong response length") {
         void* state = nullptr;
-        REQUIRE(opaque_client_state_create(&state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&state) == static_cast<int>(Result::Success));
 
         uint8_t request[REGISTRATION_REQUEST_LENGTH];
-        REQUIRE(opaque_client_create_registration_request(
+        REQUIRE(opaque_agent_create_registration_request(
             client, reinterpret_cast<const uint8_t*>(kSecureKey), strlen(kSecureKey),
             state, request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t response[REGISTRATION_RESPONSE_LENGTH];
-        REQUIRE(opaque_server_create_registration_response(
+        REQUIRE(opaque_relay_create_registration_response(
             server, request, REGISTRATION_REQUEST_LENGTH,
             kAccountId, sizeof(kAccountId),
             response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t record[RECORD_SIZE];
-        int result = opaque_client_finalize_registration(
+        int result = opaque_agent_finalize_registration(
             client, response, REGISTRATION_RESPONSE_LENGTH - 1,
             state, record, RECORD_SIZE);
         REQUIRE(result == static_cast<int>(Result::InvalidInput));
 
-        opaque_client_state_destroy(state);
+        opaque_agent_state_destroy(state);
     }
 
     SECTION("Finalize registration rejects undersized record buffer") {
         void* state = nullptr;
-        REQUIRE(opaque_client_state_create(&state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&state) == static_cast<int>(Result::Success));
 
         uint8_t request[REGISTRATION_REQUEST_LENGTH];
-        REQUIRE(opaque_client_create_registration_request(
+        REQUIRE(opaque_agent_create_registration_request(
             client, reinterpret_cast<const uint8_t*>(kSecureKey), strlen(kSecureKey),
             state, request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t response[REGISTRATION_RESPONSE_LENGTH];
-        REQUIRE(opaque_server_create_registration_response(
+        REQUIRE(opaque_relay_create_registration_response(
             server, request, REGISTRATION_REQUEST_LENGTH,
             kAccountId, sizeof(kAccountId),
             response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> record(RECORD_SIZE - 1);
-        int result = opaque_client_finalize_registration(
+        int result = opaque_agent_finalize_registration(
             client, response, REGISTRATION_RESPONSE_LENGTH,
             state, record.data(), record.size());
         REQUIRE(result == static_cast<int>(Result::InvalidInput));
 
-        opaque_client_state_destroy(state);
+        opaque_agent_state_destroy(state);
     }
 
     SECTION("Registration record rejects oversized buffer") {
         void* state = nullptr;
-        REQUIRE(opaque_client_state_create(&state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&state) == static_cast<int>(Result::Success));
 
         uint8_t request[REGISTRATION_REQUEST_LENGTH];
-        REQUIRE(opaque_client_create_registration_request(
+        REQUIRE(opaque_agent_create_registration_request(
             client, reinterpret_cast<const uint8_t*>(kSecureKey), strlen(kSecureKey),
             state, request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t response[REGISTRATION_RESPONSE_LENGTH];
-        REQUIRE(opaque_server_create_registration_response(
+        REQUIRE(opaque_relay_create_registration_response(
             server, request, REGISTRATION_REQUEST_LENGTH,
             kAccountId, sizeof(kAccountId),
             response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> record(RECORD_SIZE);
-        REQUIRE(opaque_client_finalize_registration(
+        REQUIRE(opaque_agent_finalize_registration(
             client, response, REGISTRATION_RESPONSE_LENGTH,
             state, record.data(), record.size()) == static_cast<int>(Result::Success));
 
@@ -690,45 +690,45 @@ TEST_CASE("Ecliptix OPAQUE Registration Input Validation", "[opaque][validation]
         oversized_record.back() = kTamperMask;
 
         std::vector<uint8_t> creds(CREDENTIALS_SIZE);
-        int result = opaque_server_build_credentials(
+        int result = opaque_relay_build_credentials(
             oversized_record.data(), oversized_record.size(),
             creds.data(), creds.size());
         REQUIRE(result == static_cast<int>(Result::InvalidInput));
 
-        opaque_client_state_destroy(state);
+        opaque_agent_state_destroy(state);
     }
 
-    opaque_client_destroy(client);
-    opaque_server_destroy(server);
-    opaque_server_keypair_destroy(server_keypair);
+    opaque_agent_destroy(client);
+    opaque_relay_destroy(server);
+    opaque_relay_keypair_destroy(server_keypair);
 }
 
 TEST_CASE("Ecliptix OPAQUE Registration Tampering", "[opaque][tamper][registration]") {
     REQUIRE(sodium_init() >= 0);
 
     server_keypair_handle_t* server_keypair = nullptr;
-    REQUIRE(opaque_server_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
 
     uint8_t server_public_key[PUBLIC_KEY_LENGTH];
-    REQUIRE(opaque_server_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-    opaque_server_handle_t* server = nullptr;
-    REQUIRE(opaque_server_create(server_keypair, &server) == static_cast<int>(Result::Success));
+    opaque_relay_handle_t* server = nullptr;
+    REQUIRE(opaque_relay_create(server_keypair, &server) == static_cast<int>(Result::Success));
 
     void* client = nullptr;
-    REQUIRE(opaque_client_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_agent_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
 
     SECTION("Tampered responder public key in registration response fails finalization") {
         void* state = nullptr;
-        REQUIRE(opaque_client_state_create(&state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&state) == static_cast<int>(Result::Success));
 
         uint8_t request[REGISTRATION_REQUEST_LENGTH];
-        REQUIRE(opaque_client_create_registration_request(
+        REQUIRE(opaque_agent_create_registration_request(
             client, reinterpret_cast<const uint8_t*>(kSecureKey), strlen(kSecureKey),
             state, request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t response[REGISTRATION_RESPONSE_LENGTH];
-        REQUIRE(opaque_server_create_registration_response(
+        REQUIRE(opaque_relay_create_registration_response(
             server, request, REGISTRATION_REQUEST_LENGTH,
             kAccountId, sizeof(kAccountId),
             response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
@@ -737,32 +737,32 @@ TEST_CASE("Ecliptix OPAQUE Registration Tampering", "[opaque][tamper][registrati
         tampered_response[crypto_core_ristretto255_BYTES + 3] ^= kTamperMask;
 
         std::vector<uint8_t> record(RECORD_SIZE);
-        int result = opaque_client_finalize_registration(
+        int result = opaque_agent_finalize_registration(
             client, tampered_response.data(), tampered_response.size(),
             state, record.data(), record.size());
         REQUIRE((result == static_cast<int>(Result::AuthenticationError) ||
                  result == static_cast<int>(Result::InvalidPublicKey)));
 
-        opaque_client_state_destroy(state);
+        opaque_agent_state_destroy(state);
     }
 
     SECTION("Tampered initiator public key in registration record is rejected") {
         void* state = nullptr;
-        REQUIRE(opaque_client_state_create(&state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&state) == static_cast<int>(Result::Success));
 
         uint8_t request[REGISTRATION_REQUEST_LENGTH];
-        REQUIRE(opaque_client_create_registration_request(
+        REQUIRE(opaque_agent_create_registration_request(
             client, reinterpret_cast<const uint8_t*>(kSecureKey), strlen(kSecureKey),
             state, request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t response[REGISTRATION_RESPONSE_LENGTH];
-        REQUIRE(opaque_server_create_registration_response(
+        REQUIRE(opaque_relay_create_registration_response(
             server, request, REGISTRATION_REQUEST_LENGTH,
             kAccountId, sizeof(kAccountId),
             response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> record(RECORD_SIZE);
-        REQUIRE(opaque_client_finalize_registration(
+        REQUIRE(opaque_agent_finalize_registration(
             client, response, REGISTRATION_RESPONSE_LENGTH,
             state, record.data(), record.size()) == static_cast<int>(Result::Success));
 
@@ -770,31 +770,31 @@ TEST_CASE("Ecliptix OPAQUE Registration Tampering", "[opaque][tamper][registrati
         std::memset(tampered_record.data() + ENVELOPE_LENGTH, 0, PUBLIC_KEY_LENGTH);
 
         std::vector<uint8_t> creds(CREDENTIALS_SIZE);
-        int result = opaque_server_build_credentials(
+        int result = opaque_relay_build_credentials(
             tampered_record.data(), tampered_record.size(),
             creds.data(), creds.size());
         REQUIRE(result == static_cast<int>(Result::InvalidPublicKey));
 
-        opaque_client_state_destroy(state);
+        opaque_agent_state_destroy(state);
     }
 
     SECTION("Tampered registration envelope fails authentication") {
         void* reg_state = nullptr;
-        REQUIRE(opaque_client_state_create(&reg_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&reg_state) == static_cast<int>(Result::Success));
 
         uint8_t request[REGISTRATION_REQUEST_LENGTH];
-        REQUIRE(opaque_client_create_registration_request(
+        REQUIRE(opaque_agent_create_registration_request(
             client, reinterpret_cast<const uint8_t*>(kSecureKey), strlen(kSecureKey),
             reg_state, request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t response[REGISTRATION_RESPONSE_LENGTH];
-        REQUIRE(opaque_server_create_registration_response(
+        REQUIRE(opaque_relay_create_registration_response(
             server, request, REGISTRATION_REQUEST_LENGTH,
             kAccountId, sizeof(kAccountId),
             response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> record(RECORD_SIZE);
-        REQUIRE(opaque_client_finalize_registration(
+        REQUIRE(opaque_agent_finalize_registration(
             client, response, REGISTRATION_RESPONSE_LENGTH,
             reg_state, record.data(), record.size()) == static_cast<int>(Result::Success));
 
@@ -802,37 +802,37 @@ TEST_CASE("Ecliptix OPAQUE Registration Tampering", "[opaque][tamper][registrati
         tampered_record[0] ^= kTamperMask;
 
         std::vector<uint8_t> creds(CREDENTIALS_SIZE);
-        REQUIRE(opaque_server_build_credentials(
+        REQUIRE(opaque_relay_build_credentials(
             tampered_record.data(), tampered_record.size(),
             creds.data(), creds.size()) == static_cast<int>(Result::Success));
 
         void* auth_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
-        REQUIRE(opaque_server_state_create(&server_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke1(KE1_SIZE);
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(kSecureKey), strlen(kSecureKey),
             auth_state, ke1.data(), KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke2(KE2_SIZE);
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, ke1.data(), KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             creds.data(), CREDENTIALS_SIZE,
             ke2.data(), KE2_SIZE, server_state) == static_cast<int>(Result::Success));
 
         uint8_t ke3[KE3_LENGTH];
-        int ke3_result = opaque_client_generate_ke3(
+        int ke3_result = opaque_agent_generate_ke3(
             client, ke2.data(), KE2_SIZE,
             auth_state, ke3, KE3_LENGTH);
 
         if (ke3_result == static_cast<int>(Result::Success)) {
             uint8_t session_key[HASH_LENGTH];
             uint8_t master_key[MASTER_KEY_LENGTH];
-            int finish_result = opaque_server_finish(
+            int finish_result = opaque_relay_finish(
                 server, ke3, KE3_LENGTH, server_state,
                 session_key, HASH_LENGTH,
                 master_key, MASTER_KEY_LENGTH);
@@ -841,14 +841,14 @@ TEST_CASE("Ecliptix OPAQUE Registration Tampering", "[opaque][tamper][registrati
             REQUIRE(ke3_result == static_cast<int>(Result::AuthenticationError));
         }
 
-        opaque_client_state_destroy(auth_state);
-        opaque_server_state_destroy(server_state);
-        opaque_client_state_destroy(reg_state);
+        opaque_agent_state_destroy(auth_state);
+        opaque_relay_state_destroy(server_state);
+        opaque_agent_state_destroy(reg_state);
     }
 
-    opaque_client_destroy(client);
-    opaque_server_destroy(server);
-    opaque_server_keypair_destroy(server_keypair);
+    opaque_agent_destroy(client);
+    opaque_relay_destroy(server);
+    opaque_relay_keypair_destroy(server_keypair);
 }
 
 TEST_CASE("Ecliptix OPAQUE Interop Key APIs", "[opaque][interop][keys]") {
@@ -857,21 +857,21 @@ TEST_CASE("Ecliptix OPAQUE Interop Key APIs", "[opaque][interop][keys]") {
     SECTION("Default key APIs follow build configuration") {
 #if defined(ECLIPTIX_OPAQUE_ENABLE_INSECURE_TEST_KEYS)
         void* client = nullptr;
-        REQUIRE(opaque_client_create_default(&client) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_create_default(&client) == static_cast<int>(Result::Success));
         REQUIRE(client != nullptr);
-        opaque_client_destroy(client);
+        opaque_agent_destroy(client);
 
-        opaque_server_handle_t* server = nullptr;
-        REQUIRE(opaque_server_create_default(&server) == static_cast<int>(Result::Success));
+        opaque_relay_handle_t* server = nullptr;
+        REQUIRE(opaque_relay_create_default(&server) == static_cast<int>(Result::Success));
         REQUIRE(server != nullptr);
-        opaque_server_destroy(server);
+        opaque_relay_destroy(server);
 #else
         void* client = reinterpret_cast<void*>(0x1);
-        REQUIRE(opaque_client_create_default(&client) == static_cast<int>(Result::InvalidInput));
+        REQUIRE(opaque_agent_create_default(&client) == static_cast<int>(Result::InvalidInput));
         REQUIRE(client == nullptr);
 
-        opaque_server_handle_t* server = reinterpret_cast<opaque_server_handle_t*>(0x1);
-        REQUIRE(opaque_server_create_default(&server) == static_cast<int>(Result::InvalidInput));
+        opaque_relay_handle_t* server = reinterpret_cast<opaque_relay_handle_t*>(0x1);
+        REQUIRE(opaque_relay_create_default(&server) == static_cast<int>(Result::InvalidInput));
         REQUIRE(server == nullptr);
 #endif
     }
@@ -897,14 +897,14 @@ TEST_CASE("Ecliptix OPAQUE Interop Key APIs", "[opaque][interop][keys]") {
         uint8_t pk3[PUBLIC_KEY_LENGTH];
         uint8_t sk3[PRIVATE_KEY_LENGTH];
 
-        REQUIRE(opaque_server_derive_keypair_from_seed(
+        REQUIRE(opaque_relay_derive_keypair_from_seed(
             seed1, sizeof(seed1), sk1, sizeof(sk1), pk1, sizeof(pk1)) == static_cast<int>(Result::Success));
-        REQUIRE(opaque_server_derive_keypair_from_seed(
+        REQUIRE(opaque_relay_derive_keypair_from_seed(
             seed1, sizeof(seed1), sk2, sizeof(sk2), pk2, sizeof(pk2)) == static_cast<int>(Result::Success));
         REQUIRE(std::memcmp(sk1, sk2, PRIVATE_KEY_LENGTH) == 0);
         REQUIRE(std::memcmp(pk1, pk2, PUBLIC_KEY_LENGTH) == 0);
 
-        REQUIRE(opaque_server_derive_keypair_from_seed(
+        REQUIRE(opaque_relay_derive_keypair_from_seed(
             seed2, sizeof(seed2), sk3, sizeof(sk3), pk3, sizeof(pk3)) == static_cast<int>(Result::Success));
         REQUIRE(std::memcmp(sk1, sk3, PRIVATE_KEY_LENGTH) != 0);
         REQUIRE(std::memcmp(pk1, pk3, PUBLIC_KEY_LENGTH) != 0);
@@ -920,14 +920,14 @@ TEST_CASE("Ecliptix OPAQUE Interop Key APIs", "[opaque][interop][keys]") {
 
         uint8_t pk[PUBLIC_KEY_LENGTH];
         uint8_t sk[PRIVATE_KEY_LENGTH];
-        REQUIRE(opaque_server_derive_keypair_from_seed(
+        REQUIRE(opaque_relay_derive_keypair_from_seed(
             seed, sizeof(seed), sk, sizeof(sk), pk, sizeof(pk)) == static_cast<int>(Result::Success));
 
-        opaque_server_handle_t* server = nullptr;
-        REQUIRE(opaque_server_create_with_keys(
+        opaque_relay_handle_t* server = nullptr;
+        REQUIRE(opaque_relay_create_with_keys(
             sk, sizeof(sk), pk, sizeof(pk), &server) == static_cast<int>(Result::Success));
         REQUIRE(server != nullptr);
-        opaque_server_destroy(server);
+        opaque_relay_destroy(server);
     }
 
     SECTION("Create server with mismatched public key fails") {
@@ -940,15 +940,15 @@ TEST_CASE("Ecliptix OPAQUE Interop Key APIs", "[opaque][interop][keys]") {
 
         uint8_t pk[PUBLIC_KEY_LENGTH];
         uint8_t sk[PRIVATE_KEY_LENGTH];
-        REQUIRE(opaque_server_derive_keypair_from_seed(
+        REQUIRE(opaque_relay_derive_keypair_from_seed(
             seed, sizeof(seed), sk, sizeof(sk), pk, sizeof(pk)) == static_cast<int>(Result::Success));
 
         uint8_t bad_pk[PUBLIC_KEY_LENGTH];
         std::memcpy(bad_pk, pk, sizeof(bad_pk));
         bad_pk[0] ^= kTamperMask;
 
-        opaque_server_handle_t* server = nullptr;
-        int result = opaque_server_create_with_keys(
+        opaque_relay_handle_t* server = nullptr;
+        int result = opaque_relay_create_with_keys(
             sk, sizeof(sk), bad_pk, sizeof(bad_pk), &server);
         REQUIRE(result == static_cast<int>(Result::InvalidPublicKey));
         REQUIRE(server == nullptr);
@@ -959,13 +959,13 @@ TEST_CASE("Ecliptix OPAQUE Interop Key APIs", "[opaque][interop][keys]") {
         uint8_t pk[PUBLIC_KEY_LENGTH];
         uint8_t sk[PRIVATE_KEY_LENGTH];
 
-        REQUIRE(opaque_server_derive_keypair_from_seed(
+        REQUIRE(opaque_relay_derive_keypair_from_seed(
             nullptr, sizeof(seed), sk, sizeof(sk), pk, sizeof(pk)) == static_cast<int>(Result::InvalidInput));
-        REQUIRE(opaque_server_derive_keypair_from_seed(
+        REQUIRE(opaque_relay_derive_keypair_from_seed(
             seed, 0, sk, sizeof(sk), pk, sizeof(pk)) == static_cast<int>(Result::InvalidInput));
-        REQUIRE(opaque_server_derive_keypair_from_seed(
+        REQUIRE(opaque_relay_derive_keypair_from_seed(
             seed, sizeof(seed), sk, sizeof(sk) - 1, pk, sizeof(pk)) == static_cast<int>(Result::InvalidInput));
-        REQUIRE(opaque_server_derive_keypair_from_seed(
+        REQUIRE(opaque_relay_derive_keypair_from_seed(
             seed, sizeof(seed), sk, sizeof(sk), pk, sizeof(pk) - 1) == static_cast<int>(Result::InvalidInput));
     }
 }
@@ -1081,59 +1081,59 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
     REQUIRE(opaque_get_registration_record_length() == RECORD_SIZE);
 
     server_keypair_handle_t* server_keypair = nullptr;
-    REQUIRE(opaque_server_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
 
     uint8_t server_public_key[PUBLIC_KEY_LENGTH];
-    REQUIRE(opaque_server_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-    opaque_server_handle_t* server = nullptr;
-    REQUIRE(opaque_server_create(server_keypair, &server) == static_cast<int>(Result::Success));
+    opaque_relay_handle_t* server = nullptr;
+    REQUIRE(opaque_relay_create(server_keypair, &server) == static_cast<int>(Result::Success));
 
     void* client = nullptr;
-    REQUIRE(opaque_client_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_agent_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
 
     void* client_state = nullptr;
-    REQUIRE(opaque_client_state_create(&client_state) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_agent_state_create(&client_state) == static_cast<int>(Result::Success));
 
     uint8_t registration_request[REGISTRATION_REQUEST_LENGTH];
-    REQUIRE(opaque_client_create_registration_request(
+    REQUIRE(opaque_agent_create_registration_request(
         client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
         client_state, registration_request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
     uint8_t registration_response[REGISTRATION_RESPONSE_LENGTH];
-    REQUIRE(opaque_server_create_registration_response(
+    REQUIRE(opaque_relay_create_registration_response(
         server, registration_request, REGISTRATION_REQUEST_LENGTH,
         kAccountId, sizeof(kAccountId),
         registration_response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
     std::vector<uint8_t> pq_registration_record(RECORD_SIZE);
-    REQUIRE(opaque_client_finalize_registration(
+    REQUIRE(opaque_agent_finalize_registration(
         client, registration_response, REGISTRATION_RESPONSE_LENGTH,
         client_state, pq_registration_record.data(),
         RECORD_SIZE) == static_cast<int>(Result::Success));
 
     std::vector<uint8_t> pq_credentials(CREDENTIALS_SIZE);
-    REQUIRE(opaque_server_build_credentials(
+    REQUIRE(opaque_relay_build_credentials(
         pq_registration_record.data(), RECORD_SIZE,
         pq_credentials.data(), CREDENTIALS_SIZE) == static_cast<int>(Result::Success));
 
-    opaque_client_state_destroy(client_state);
+    opaque_agent_state_destroy(client_state);
 
     SECTION("PQ authentication with correct secure key") {
         void* auth_client_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_client_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_client_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
-        REQUIRE(opaque_server_state_create(&server_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_ke1(KE1_SIZE);
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
             auth_client_state, pq_ke1.data(),
             KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_ke2(KE2_SIZE);
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, pq_ke1.data(), KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             pq_credentials.data(), CREDENTIALS_SIZE,
@@ -1141,20 +1141,20 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
             server_state) == static_cast<int>(Result::Success));
 
         uint8_t ke3[KE3_LENGTH];
-        REQUIRE(opaque_client_generate_ke3(
+        REQUIRE(opaque_agent_generate_ke3(
             client, pq_ke2.data(), KE2_SIZE,
             auth_client_state, ke3, KE3_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t server_session_key[HASH_LENGTH];
         uint8_t server_master_key[MASTER_KEY_LENGTH];
-        REQUIRE(opaque_server_finish(
+        REQUIRE(opaque_relay_finish(
             server, ke3, KE3_LENGTH, server_state,
             server_session_key, HASH_LENGTH,
             server_master_key, MASTER_KEY_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t client_session_key[HASH_LENGTH];
         uint8_t client_master_key[MASTER_KEY_LENGTH];
-        REQUIRE(opaque_client_finish(
+        REQUIRE(opaque_agent_finish(
             client, auth_client_state,
             client_session_key, HASH_LENGTH,
             client_master_key, MASTER_KEY_LENGTH) == static_cast<int>(Result::Success));
@@ -1162,26 +1162,26 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
         REQUIRE(std::memcmp(client_session_key, server_session_key, HASH_LENGTH) == 0);
         REQUIRE(std::memcmp(client_master_key, server_master_key, MASTER_KEY_LENGTH) == 0);
 
-        opaque_client_state_destroy(auth_client_state);
-        opaque_server_state_destroy(server_state);
+        opaque_agent_state_destroy(auth_client_state);
+        opaque_relay_state_destroy(server_state);
     }
 
     SECTION("PQ authentication with wrong secure key fails") {
         void* auth_client_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_client_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_client_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
-        REQUIRE(opaque_server_state_create(&server_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
 
         const char* invalid_secure_key = kInvalidSecureKey;
         std::vector<uint8_t> pq_ke1(KE1_SIZE);
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(invalid_secure_key), strlen(invalid_secure_key),
             auth_client_state, pq_ke1.data(),
             KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_ke2(KE2_SIZE);
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, pq_ke1.data(), KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             pq_credentials.data(), CREDENTIALS_SIZE,
@@ -1189,14 +1189,14 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
             server_state) == static_cast<int>(Result::Success));
 
         uint8_t ke3[KE3_LENGTH];
-        int result = opaque_client_generate_ke3(
+        int result = opaque_agent_generate_ke3(
             client, pq_ke2.data(), KE2_SIZE,
             auth_client_state, ke3, KE3_LENGTH);
 
         if (result == static_cast<int>(Result::Success)) {
             uint8_t server_session_key[HASH_LENGTH];
             uint8_t server_master_key[MASTER_KEY_LENGTH];
-            int finish_result = opaque_server_finish(
+            int finish_result = opaque_relay_finish(
                 server, ke3, KE3_LENGTH, server_state,
                 server_session_key, HASH_LENGTH,
                 server_master_key, MASTER_KEY_LENGTH);
@@ -1205,25 +1205,25 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
             ExpectAuthError(result, "pq wrong password: client generate ke3");
         }
 
-        opaque_client_state_destroy(auth_client_state);
-        opaque_server_state_destroy(server_state);
+        opaque_agent_state_destroy(auth_client_state);
+        opaque_relay_state_destroy(server_state);
     }
 
     SECTION("PQ authentication fails with tampered KE2 KEM ciphertext") {
         void* auth_client_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_client_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_client_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* server_state = nullptr;
-        REQUIRE(opaque_server_state_create(&server_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&server_state) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_ke1(KE1_SIZE);
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
             auth_client_state, pq_ke1.data(),
             KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_ke2(KE2_SIZE);
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, pq_ke1.data(), KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             pq_credentials.data(), CREDENTIALS_SIZE,
@@ -1234,19 +1234,19 @@ TEST_CASE("PQ OPAQUE Protocol Complete Flow", "[opaque][pq][protocol]") {
         pq_ke2[kem_ct_offset] ^= 0x01;
 
         uint8_t ke3[KE3_LENGTH];
-        int result = opaque_client_generate_ke3(
+        int result = opaque_agent_generate_ke3(
             client, pq_ke2.data(), KE2_SIZE,
             auth_client_state, ke3, KE3_LENGTH);
 
         REQUIRE(result == static_cast<int>(Result::AuthenticationError));
 
-        opaque_client_state_destroy(auth_client_state);
-        opaque_server_state_destroy(server_state);
+        opaque_agent_state_destroy(auth_client_state);
+        opaque_relay_state_destroy(server_state);
     }
 
-    opaque_client_destroy(client);
-    opaque_server_destroy(server);
-    opaque_server_keypair_destroy(server_keypair);
+    opaque_agent_destroy(client);
+    opaque_relay_destroy(server);
+    opaque_relay_keypair_destroy(server_keypair);
 }
 
 TEST_CASE("PQ OPAQUE C++ Client/Server Simulation", "[opaque][pq][cpp][protocol]") {
@@ -1633,58 +1633,58 @@ TEST_CASE("PQ Authentication Tampering Tests", "[opaque][pq][integration][tamper
     const char* secure_key = kSecureKey;
 
     server_keypair_handle_t* server_keypair = nullptr;
-    REQUIRE(opaque_server_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
 
     uint8_t server_public_key[PUBLIC_KEY_LENGTH];
-    REQUIRE(opaque_server_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-    opaque_server_handle_t* server = nullptr;
-    REQUIRE(opaque_server_create(server_keypair, &server) == static_cast<int>(Result::Success));
+    opaque_relay_handle_t* server = nullptr;
+    REQUIRE(opaque_relay_create(server_keypair, &server) == static_cast<int>(Result::Success));
 
     void* client = nullptr;
-    REQUIRE(opaque_client_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_agent_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
 
     void* reg_state = nullptr;
-    REQUIRE(opaque_client_state_create(&reg_state) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_agent_state_create(&reg_state) == static_cast<int>(Result::Success));
 
     uint8_t reg_request[REGISTRATION_REQUEST_LENGTH];
-    REQUIRE(opaque_client_create_registration_request(
+    REQUIRE(opaque_agent_create_registration_request(
         client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
         reg_state, reg_request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
     uint8_t reg_response[REGISTRATION_RESPONSE_LENGTH];
-    REQUIRE(opaque_server_create_registration_response(
+    REQUIRE(opaque_relay_create_registration_response(
         server, reg_request, REGISTRATION_REQUEST_LENGTH,
         kAccountId, sizeof(kAccountId),
         reg_response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
     std::vector<uint8_t> pq_record(RECORD_SIZE);
-    REQUIRE(opaque_client_finalize_registration(
+    REQUIRE(opaque_agent_finalize_registration(
         client, reg_response, REGISTRATION_RESPONSE_LENGTH,
         reg_state, pq_record.data(),
         RECORD_SIZE) == static_cast<int>(Result::Success));
 
     std::vector<uint8_t> pq_creds(CREDENTIALS_SIZE);
-    REQUIRE(opaque_server_build_credentials(
+    REQUIRE(opaque_relay_build_credentials(
         pq_record.data(), RECORD_SIZE,
         pq_creds.data(), CREDENTIALS_SIZE) == static_cast<int>(Result::Success));
 
-    opaque_client_state_destroy(reg_state);
+    opaque_agent_state_destroy(reg_state);
 
     SECTION("Tampered KE2 server MAC fails authentication") {
         void* auth_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* srv_state = nullptr;
-        REQUIRE(opaque_server_state_create(&srv_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&srv_state) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke1(KE1_SIZE);
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
             auth_state, ke1.data(), KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke2(KE2_SIZE);
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, ke1.data(), KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             pq_creds.data(), CREDENTIALS_SIZE,
@@ -1694,30 +1694,30 @@ TEST_CASE("PQ Authentication Tampering Tests", "[opaque][pq][integration][tamper
         ke2[mac_offset] ^= 0x01;
 
         uint8_t ke3[KE3_LENGTH];
-        int result = opaque_client_generate_ke3(
+        int result = opaque_agent_generate_ke3(
             client, ke2.data(), KE2_SIZE,
             auth_state, ke3, KE3_LENGTH);
 
         REQUIRE(result == static_cast<int>(Result::AuthenticationError));
 
-        opaque_client_state_destroy(auth_state);
-        opaque_server_state_destroy(srv_state);
+        opaque_agent_state_destroy(auth_state);
+        opaque_relay_state_destroy(srv_state);
     }
 
     SECTION("Tampered KE2 responder nonce fails authentication") {
         void* auth_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* srv_state = nullptr;
-        REQUIRE(opaque_server_state_create(&srv_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&srv_state) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke1(KE1_SIZE);
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
             auth_state, ke1.data(), KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke2(KE2_SIZE);
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, ke1.data(), KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             pq_creds.data(), CREDENTIALS_SIZE,
@@ -1726,30 +1726,30 @@ TEST_CASE("PQ Authentication Tampering Tests", "[opaque][pq][integration][tamper
         ke2[0] ^= 0x01;
 
         uint8_t ke3[KE3_LENGTH];
-        int result = opaque_client_generate_ke3(
+        int result = opaque_agent_generate_ke3(
             client, ke2.data(), KE2_SIZE,
             auth_state, ke3, KE3_LENGTH);
 
         REQUIRE(result == static_cast<int>(Result::AuthenticationError));
 
-        opaque_client_state_destroy(auth_state);
-        opaque_server_state_destroy(srv_state);
+        opaque_agent_state_destroy(auth_state);
+        opaque_relay_state_destroy(srv_state);
     }
 
     SECTION("Tampered KE2 responder public key fails authentication") {
         void* auth_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* srv_state = nullptr;
-        REQUIRE(opaque_server_state_create(&srv_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&srv_state) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke1(KE1_SIZE);
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
             auth_state, ke1.data(), KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke2(KE2_SIZE);
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, ke1.data(), KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             pq_creds.data(), CREDENTIALS_SIZE,
@@ -1758,31 +1758,31 @@ TEST_CASE("PQ Authentication Tampering Tests", "[opaque][pq][integration][tamper
         ke2[NONCE_LENGTH + 5] ^= 0x01;
 
         uint8_t ke3[KE3_LENGTH];
-        int result = opaque_client_generate_ke3(
+        int result = opaque_agent_generate_ke3(
             client, ke2.data(), KE2_SIZE,
             auth_state, ke3, KE3_LENGTH);
 
         REQUIRE((result == static_cast<int>(Result::AuthenticationError) ||
                  result == static_cast<int>(Result::InvalidPublicKey)));
 
-        opaque_client_state_destroy(auth_state);
-        opaque_server_state_destroy(srv_state);
+        opaque_agent_state_destroy(auth_state);
+        opaque_relay_state_destroy(srv_state);
     }
 
     SECTION("Tampered KE2 credential response/envelope fails authentication") {
         void* auth_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* srv_state = nullptr;
-        REQUIRE(opaque_server_state_create(&srv_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&srv_state) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke1(KE1_SIZE);
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
             auth_state, ke1.data(), KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke2(KE2_SIZE);
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, ke1.data(), KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             pq_creds.data(), CREDENTIALS_SIZE,
@@ -1792,37 +1792,37 @@ TEST_CASE("PQ Authentication Tampering Tests", "[opaque][pq][integration][tamper
         ke2[cred_resp_offset + 50] ^= 0x01;
 
         uint8_t ke3[KE3_LENGTH];
-        int result = opaque_client_generate_ke3(
+        int result = opaque_agent_generate_ke3(
             client, ke2.data(), KE2_SIZE,
             auth_state, ke3, KE3_LENGTH);
 
         REQUIRE(result == static_cast<int>(Result::AuthenticationError));
 
-        opaque_client_state_destroy(auth_state);
-        opaque_server_state_destroy(srv_state);
+        opaque_agent_state_destroy(auth_state);
+        opaque_relay_state_destroy(srv_state);
     }
 
     SECTION("Tampered KE3 client MAC fails server verification") {
         void* auth_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* srv_state = nullptr;
-        REQUIRE(opaque_server_state_create(&srv_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&srv_state) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke1(KE1_SIZE);
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
             auth_state, ke1.data(), KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke2(KE2_SIZE);
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, ke1.data(), KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             pq_creds.data(), CREDENTIALS_SIZE,
             ke2.data(), KE2_SIZE, srv_state) == static_cast<int>(Result::Success));
 
         uint8_t ke3[KE3_LENGTH];
-        REQUIRE(opaque_client_generate_ke3(
+        REQUIRE(opaque_agent_generate_ke3(
             client, ke2.data(), KE2_SIZE,
             auth_state, ke3, KE3_LENGTH) == static_cast<int>(Result::Success));
 
@@ -1830,26 +1830,26 @@ TEST_CASE("PQ Authentication Tampering Tests", "[opaque][pq][integration][tamper
 
         uint8_t session_key[HASH_LENGTH];
         uint8_t master_key[MASTER_KEY_LENGTH];
-        int result = opaque_server_finish(
+        int result = opaque_relay_finish(
             server, ke3, KE3_LENGTH, srv_state,
             session_key, HASH_LENGTH,
             master_key, MASTER_KEY_LENGTH);
 
         REQUIRE(result == static_cast<int>(Result::AuthenticationError));
 
-        opaque_client_state_destroy(auth_state);
-        opaque_server_state_destroy(srv_state);
+        opaque_agent_state_destroy(auth_state);
+        opaque_relay_state_destroy(srv_state);
     }
 
     SECTION("Tampered KE1 ephemeral KEM public key fails authentication") {
         void* auth_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* srv_state = nullptr;
-        REQUIRE(opaque_server_state_create(&srv_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&srv_state) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke1(KE1_SIZE);
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(secure_key), strlen(secure_key),
             auth_state, ke1.data(), KE1_SIZE) == static_cast<int>(Result::Success));
 
@@ -1857,7 +1857,7 @@ TEST_CASE("PQ Authentication Tampering Tests", "[opaque][pq][integration][tamper
         ke1[kem_pk_offset + 100] ^= 0xFF;
 
         std::vector<uint8_t> ke2(KE2_SIZE);
-        int ke2_result = opaque_server_generate_ke2(
+        int ke2_result = opaque_relay_generate_ke2(
             server, ke1.data(), KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             pq_creds.data(), CREDENTIALS_SIZE,
@@ -1865,118 +1865,118 @@ TEST_CASE("PQ Authentication Tampering Tests", "[opaque][pq][integration][tamper
 
         if (ke2_result == static_cast<int>(Result::Success)) {
             uint8_t ke3[KE3_LENGTH];
-            int ke3_result = opaque_client_generate_ke3(
+            int ke3_result = opaque_agent_generate_ke3(
                 client, ke2.data(), KE2_SIZE,
                 auth_state, ke3, KE3_LENGTH);
 
             REQUIRE(ke3_result == static_cast<int>(Result::AuthenticationError));
         }
 
-        opaque_client_state_destroy(auth_state);
-        opaque_server_state_destroy(srv_state);
+        opaque_agent_state_destroy(auth_state);
+        opaque_relay_state_destroy(srv_state);
     }
 
-    opaque_client_destroy(client);
-    opaque_server_destroy(server);
-    opaque_server_keypair_destroy(server_keypair);
+    opaque_agent_destroy(client);
+    opaque_relay_destroy(server);
+    opaque_relay_keypair_destroy(server_keypair);
 }
 
 TEST_CASE("PQ Input Validation Tests", "[opaque][pq][integration][validation]") {
     REQUIRE(sodium_init() >= 0);
 
     server_keypair_handle_t* server_keypair = nullptr;
-    REQUIRE(opaque_server_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
 
     uint8_t server_public_key[PUBLIC_KEY_LENGTH];
-    REQUIRE(opaque_server_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-    opaque_server_handle_t* server = nullptr;
-    REQUIRE(opaque_server_create(server_keypair, &server) == static_cast<int>(Result::Success));
+    opaque_relay_handle_t* server = nullptr;
+    REQUIRE(opaque_relay_create(server_keypair, &server) == static_cast<int>(Result::Success));
 
     void* client = nullptr;
-    REQUIRE(opaque_client_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_agent_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
 
     SECTION("PQ registration with empty password fails") {
         void* state = nullptr;
-        REQUIRE(opaque_client_state_create(&state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&state) == static_cast<int>(Result::Success));
 
         uint8_t request[REGISTRATION_REQUEST_LENGTH];
-        int result = opaque_client_create_registration_request(
+        int result = opaque_agent_create_registration_request(
             client, nullptr, 0,
             state, request, REGISTRATION_REQUEST_LENGTH);
 
         REQUIRE(result == static_cast<int>(Result::InvalidInput));
 
-        opaque_client_state_destroy(state);
+        opaque_agent_state_destroy(state);
     }
 
     SECTION("PQ KE1 with empty password fails") {
         void* state = nullptr;
-        REQUIRE(opaque_client_state_create(&state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&state) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke1(KE1_SIZE);
-        int result = opaque_client_generate_ke1(
+        int result = opaque_agent_generate_ke1(
             client, nullptr, 0,
             state, ke1.data(), KE1_SIZE);
 
         REQUIRE(result == static_cast<int>(Result::InvalidInput));
 
-        opaque_client_state_destroy(state);
+        opaque_agent_state_destroy(state);
     }
 
     SECTION("PQ KE1 with undersized buffer fails") {
         void* state = nullptr;
-        REQUIRE(opaque_client_state_create(&state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&state) == static_cast<int>(Result::Success));
 
         const char* password = "test";
         std::vector<uint8_t> ke1(KE1_SIZE - 1);
-        int result = opaque_client_generate_ke1(
+        int result = opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(password), strlen(password),
             state, ke1.data(), ke1.size());
 
         REQUIRE(result == static_cast<int>(Result::InvalidInput));
 
-        opaque_client_state_destroy(state);
+        opaque_agent_state_destroy(state);
     }
 
     SECTION("PQ KE2 generation with wrong KE1 size fails") {
         const char* password = "test_password";
 
         void* reg_state = nullptr;
-        REQUIRE(opaque_client_state_create(&reg_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&reg_state) == static_cast<int>(Result::Success));
 
         uint8_t reg_request[REGISTRATION_REQUEST_LENGTH];
-        REQUIRE(opaque_client_create_registration_request(
+        REQUIRE(opaque_agent_create_registration_request(
             client, reinterpret_cast<const uint8_t*>(password), strlen(password),
             reg_state, reg_request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t reg_response[REGISTRATION_RESPONSE_LENGTH];
-        REQUIRE(opaque_server_create_registration_response(
+        REQUIRE(opaque_relay_create_registration_response(
             server, reg_request, REGISTRATION_REQUEST_LENGTH,
             kAccountId, sizeof(kAccountId),
             reg_response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_record(RECORD_SIZE);
-        REQUIRE(opaque_client_finalize_registration(
+        REQUIRE(opaque_agent_finalize_registration(
             client, reg_response, REGISTRATION_RESPONSE_LENGTH,
             reg_state, pq_record.data(),
             RECORD_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_creds(CREDENTIALS_SIZE);
-        REQUIRE(opaque_server_build_credentials(
+        REQUIRE(opaque_relay_build_credentials(
             pq_record.data(), RECORD_SIZE,
             pq_creds.data(), CREDENTIALS_SIZE) == static_cast<int>(Result::Success));
 
-        opaque_client_state_destroy(reg_state);
+        opaque_agent_state_destroy(reg_state);
 
         server_state_handle_t* srv_state = nullptr;
-        REQUIRE(opaque_server_state_create(&srv_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&srv_state) == static_cast<int>(Result::Success));
 
         const size_t base_ke1_length = REGISTRATION_REQUEST_LENGTH + PUBLIC_KEY_LENGTH + NONCE_LENGTH;
         std::vector<uint8_t> bad_ke1(base_ke1_length);
         std::vector<uint8_t> ke2(KE2_SIZE);
 
-        int result = opaque_server_generate_ke2(
+        int result = opaque_relay_generate_ke2(
             server, bad_ke1.data(), bad_ke1.size(),
             kAccountId, sizeof(kAccountId),
             pq_creds.data(), CREDENTIALS_SIZE,
@@ -1984,7 +1984,7 @@ TEST_CASE("PQ Input Validation Tests", "[opaque][pq][integration][validation]") 
 
         REQUIRE(result == static_cast<int>(Result::InvalidInput));
 
-        opaque_server_state_destroy(srv_state);
+        opaque_relay_state_destroy(srv_state);
     }
 
     SECTION("PQ credentials with wrong size fails") {
@@ -1994,32 +1994,32 @@ TEST_CASE("PQ Input Validation Tests", "[opaque][pq][integration][validation]") 
         const size_t pq_creds_len = ENVELOPE_LENGTH + PUBLIC_KEY_LENGTH;
         std::vector<uint8_t> pq_creds(pq_creds_len);
 
-        int result = opaque_server_build_credentials(
+        int result = opaque_relay_build_credentials(
             bad_record.data(), bad_record.size(),
             pq_creds.data(), pq_creds_len);
 
         REQUIRE(result == static_cast<int>(Result::InvalidInput));
     }
 
-    opaque_client_destroy(client);
-    opaque_server_destroy(server);
-    opaque_server_keypair_destroy(server_keypair);
+    opaque_agent_destroy(client);
+    opaque_relay_destroy(server);
+    opaque_relay_keypair_destroy(server_keypair);
 }
 
 TEST_CASE("PQ Edge Cases Tests", "[opaque][pq][integration][edge]") {
     REQUIRE(sodium_init() >= 0);
 
     server_keypair_handle_t* server_keypair = nullptr;
-    REQUIRE(opaque_server_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_generate(&server_keypair) == static_cast<int>(Result::Success));
 
     uint8_t server_public_key[PUBLIC_KEY_LENGTH];
-    REQUIRE(opaque_server_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_relay_keypair_get_public_key(server_keypair, server_public_key, PUBLIC_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-    opaque_server_handle_t* server = nullptr;
-    REQUIRE(opaque_server_create(server_keypair, &server) == static_cast<int>(Result::Success));
+    opaque_relay_handle_t* server = nullptr;
+    REQUIRE(opaque_relay_create(server_keypair, &server) == static_cast<int>(Result::Success));
 
     void* client = nullptr;
-    REQUIRE(opaque_client_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
+    REQUIRE(opaque_agent_create(server_public_key, PUBLIC_KEY_LENGTH, &client) == static_cast<int>(Result::Success));
 
     SECTION("Very long password works correctly") {
 
@@ -2029,140 +2029,140 @@ TEST_CASE("PQ Edge Cases Tests", "[opaque][pq][integration][edge]") {
         }
 
         void* reg_state = nullptr;
-        REQUIRE(opaque_client_state_create(&reg_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&reg_state) == static_cast<int>(Result::Success));
 
         uint8_t reg_request[REGISTRATION_REQUEST_LENGTH];
-        REQUIRE(opaque_client_create_registration_request(
+        REQUIRE(opaque_agent_create_registration_request(
             client, reinterpret_cast<const uint8_t*>(long_password.data()), long_password.size(),
             reg_state, reg_request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t reg_response[REGISTRATION_RESPONSE_LENGTH];
-        REQUIRE(opaque_server_create_registration_response(
+        REQUIRE(opaque_relay_create_registration_response(
             server, reg_request, REGISTRATION_REQUEST_LENGTH,
             kAccountId, sizeof(kAccountId),
             reg_response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_record(RECORD_SIZE);
-        REQUIRE(opaque_client_finalize_registration(
+        REQUIRE(opaque_agent_finalize_registration(
             client, reg_response, REGISTRATION_RESPONSE_LENGTH,
             reg_state, pq_record.data(),
             RECORD_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_creds(CREDENTIALS_SIZE);
-        REQUIRE(opaque_server_build_credentials(
+        REQUIRE(opaque_relay_build_credentials(
             pq_record.data(), RECORD_SIZE,
             pq_creds.data(), CREDENTIALS_SIZE) == static_cast<int>(Result::Success));
 
-        opaque_client_state_destroy(reg_state);
+        opaque_agent_state_destroy(reg_state);
 
         void* auth_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* srv_state = nullptr;
-        REQUIRE(opaque_server_state_create(&srv_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&srv_state) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke1(KE1_SIZE);
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(long_password.data()), long_password.size(),
             auth_state, ke1.data(), KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke2(KE2_SIZE);
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, ke1.data(), KE1_SIZE,
             kAccountId, sizeof(kAccountId),
             pq_creds.data(), CREDENTIALS_SIZE,
             ke2.data(), KE2_SIZE, srv_state) == static_cast<int>(Result::Success));
 
         uint8_t ke3[KE3_LENGTH];
-        REQUIRE(opaque_client_generate_ke3(
+        REQUIRE(opaque_agent_generate_ke3(
             client, ke2.data(), KE2_SIZE,
             auth_state, ke3, KE3_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t server_session_key[HASH_LENGTH];
         uint8_t server_master_key[MASTER_KEY_LENGTH];
-        REQUIRE(opaque_server_finish(
+        REQUIRE(opaque_relay_finish(
             server, ke3, KE3_LENGTH, srv_state,
             server_session_key, HASH_LENGTH,
             server_master_key, MASTER_KEY_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t client_session_key[HASH_LENGTH];
         uint8_t client_master_key[MASTER_KEY_LENGTH];
-        REQUIRE(opaque_client_finish(
+        REQUIRE(opaque_agent_finish(
             client, auth_state,
             client_session_key, HASH_LENGTH,
             client_master_key, MASTER_KEY_LENGTH) == static_cast<int>(Result::Success));
 
         REQUIRE(std::memcmp(client_session_key, server_session_key, HASH_LENGTH) == 0);
 
-        opaque_client_state_destroy(auth_state);
-        opaque_server_state_destroy(srv_state);
+        opaque_agent_state_destroy(auth_state);
+        opaque_relay_state_destroy(srv_state);
     }
 
     SECTION("Multiple re-authentications with same registration") {
         const char* password = "test_password_123";
 
         void* reg_state = nullptr;
-        REQUIRE(opaque_client_state_create(&reg_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&reg_state) == static_cast<int>(Result::Success));
 
         uint8_t reg_request[REGISTRATION_REQUEST_LENGTH];
-        REQUIRE(opaque_client_create_registration_request(
+        REQUIRE(opaque_agent_create_registration_request(
             client, reinterpret_cast<const uint8_t*>(password), strlen(password),
             reg_state, reg_request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t reg_response[REGISTRATION_RESPONSE_LENGTH];
-        REQUIRE(opaque_server_create_registration_response(
+        REQUIRE(opaque_relay_create_registration_response(
             server, reg_request, REGISTRATION_REQUEST_LENGTH,
             kAccountId, sizeof(kAccountId),
             reg_response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_record(RECORD_SIZE);
-        REQUIRE(opaque_client_finalize_registration(
+        REQUIRE(opaque_agent_finalize_registration(
             client, reg_response, REGISTRATION_RESPONSE_LENGTH,
             reg_state, pq_record.data(),
             RECORD_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_creds(CREDENTIALS_SIZE);
-        REQUIRE(opaque_server_build_credentials(
+        REQUIRE(opaque_relay_build_credentials(
             pq_record.data(), RECORD_SIZE,
             pq_creds.data(), CREDENTIALS_SIZE) == static_cast<int>(Result::Success));
 
-        opaque_client_state_destroy(reg_state);
+        opaque_agent_state_destroy(reg_state);
 
         for (int i = 0; i < 5; ++i) {
             INFO("Authentication iteration: " << i);
 
             void* auth_state = nullptr;
-            REQUIRE(opaque_client_state_create(&auth_state) == static_cast<int>(Result::Success));
+            REQUIRE(opaque_agent_state_create(&auth_state) == static_cast<int>(Result::Success));
 
             server_state_handle_t* srv_state = nullptr;
-            REQUIRE(opaque_server_state_create(&srv_state) == static_cast<int>(Result::Success));
+            REQUIRE(opaque_relay_state_create(&srv_state) == static_cast<int>(Result::Success));
 
             std::vector<uint8_t> ke1(KE1_SIZE);
-            REQUIRE(opaque_client_generate_ke1(
+            REQUIRE(opaque_agent_generate_ke1(
                 client, reinterpret_cast<const uint8_t*>(password), strlen(password),
                 auth_state, ke1.data(), KE1_SIZE) == static_cast<int>(Result::Success));
 
             std::vector<uint8_t> ke2(KE2_SIZE);
-            REQUIRE(opaque_server_generate_ke2(
+            REQUIRE(opaque_relay_generate_ke2(
                 server, ke1.data(), KE1_SIZE,
                 kAccountId, sizeof(kAccountId),
                 pq_creds.data(), CREDENTIALS_SIZE,
                 ke2.data(), KE2_SIZE, srv_state) == static_cast<int>(Result::Success));
 
             uint8_t ke3[KE3_LENGTH];
-            REQUIRE(opaque_client_generate_ke3(
+            REQUIRE(opaque_agent_generate_ke3(
                 client, ke2.data(), KE2_SIZE,
                 auth_state, ke3, KE3_LENGTH) == static_cast<int>(Result::Success));
 
             uint8_t session_key[HASH_LENGTH];
             uint8_t master_key[MASTER_KEY_LENGTH];
-            REQUIRE(opaque_server_finish(
+            REQUIRE(opaque_relay_finish(
                 server, ke3, KE3_LENGTH, srv_state,
                 session_key, HASH_LENGTH,
                 master_key, MASTER_KEY_LENGTH) == static_cast<int>(Result::Success));
 
-            opaque_client_state_destroy(auth_state);
-            opaque_server_state_destroy(srv_state);
+            opaque_agent_state_destroy(auth_state);
+            opaque_relay_state_destroy(srv_state);
         }
     }
 
@@ -2170,69 +2170,69 @@ TEST_CASE("PQ Edge Cases Tests", "[opaque][pq][integration][edge]") {
         const char* password = "test_password_456";
 
         void* reg_state = nullptr;
-        REQUIRE(opaque_client_state_create(&reg_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&reg_state) == static_cast<int>(Result::Success));
 
         uint8_t reg_request[REGISTRATION_REQUEST_LENGTH];
-        REQUIRE(opaque_client_create_registration_request(
+        REQUIRE(opaque_agent_create_registration_request(
             client, reinterpret_cast<const uint8_t*>(password), strlen(password),
             reg_state, reg_request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t reg_response[REGISTRATION_RESPONSE_LENGTH];
-        REQUIRE(opaque_server_create_registration_response(
+        REQUIRE(opaque_relay_create_registration_response(
             server, reg_request, REGISTRATION_REQUEST_LENGTH,
             kAccountId, sizeof(kAccountId),
             reg_response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_record(RECORD_SIZE);
-        REQUIRE(opaque_client_finalize_registration(
+        REQUIRE(opaque_agent_finalize_registration(
             client, reg_response, REGISTRATION_RESPONSE_LENGTH,
             reg_state, pq_record.data(),
             RECORD_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_creds(CREDENTIALS_SIZE);
-        REQUIRE(opaque_server_build_credentials(
+        REQUIRE(opaque_relay_build_credentials(
             pq_record.data(), RECORD_SIZE,
             pq_creds.data(), CREDENTIALS_SIZE) == static_cast<int>(Result::Success));
 
-        opaque_client_state_destroy(reg_state);
+        opaque_agent_state_destroy(reg_state);
 
         std::vector<std::vector<uint8_t>> session_keys;
 
         for (int i = 0; i < 3; ++i) {
             void* auth_state = nullptr;
-            REQUIRE(opaque_client_state_create(&auth_state) == static_cast<int>(Result::Success));
+            REQUIRE(opaque_agent_state_create(&auth_state) == static_cast<int>(Result::Success));
 
             server_state_handle_t* srv_state = nullptr;
-            REQUIRE(opaque_server_state_create(&srv_state) == static_cast<int>(Result::Success));
+            REQUIRE(opaque_relay_state_create(&srv_state) == static_cast<int>(Result::Success));
 
             std::vector<uint8_t> ke1(KE1_SIZE);
-            REQUIRE(opaque_client_generate_ke1(
+            REQUIRE(opaque_agent_generate_ke1(
                 client, reinterpret_cast<const uint8_t*>(password), strlen(password),
                 auth_state, ke1.data(), KE1_SIZE) == static_cast<int>(Result::Success));
 
             std::vector<uint8_t> ke2(KE2_SIZE);
-            REQUIRE(opaque_server_generate_ke2(
+            REQUIRE(opaque_relay_generate_ke2(
                 server, ke1.data(), KE1_SIZE,
                 kAccountId, sizeof(kAccountId),
                 pq_creds.data(), CREDENTIALS_SIZE,
                 ke2.data(), KE2_SIZE, srv_state) == static_cast<int>(Result::Success));
 
             uint8_t ke3[KE3_LENGTH];
-            REQUIRE(opaque_client_generate_ke3(
+            REQUIRE(opaque_agent_generate_ke3(
                 client, ke2.data(), KE2_SIZE,
                 auth_state, ke3, KE3_LENGTH) == static_cast<int>(Result::Success));
 
             uint8_t session_key[HASH_LENGTH];
             uint8_t master_key[MASTER_KEY_LENGTH];
-            REQUIRE(opaque_server_finish(
+            REQUIRE(opaque_relay_finish(
                 server, ke3, KE3_LENGTH, srv_state,
                 session_key, HASH_LENGTH,
                 master_key, MASTER_KEY_LENGTH) == static_cast<int>(Result::Success));
 
             session_keys.emplace_back(session_key, session_key + HASH_LENGTH);
 
-            opaque_client_state_destroy(auth_state);
-            opaque_server_state_destroy(srv_state);
+            opaque_agent_state_destroy(auth_state);
+            opaque_relay_state_destroy(srv_state);
         }
 
         for (size_t i = 0; i < session_keys.size(); ++i) {
@@ -2247,67 +2247,67 @@ TEST_CASE("PQ Edge Cases Tests", "[opaque][pq][integration][edge]") {
         const char* password = "test_password_789";
 
         void* reg_state = nullptr;
-        REQUIRE(opaque_client_state_create(&reg_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&reg_state) == static_cast<int>(Result::Success));
 
         uint8_t reg_request[REGISTRATION_REQUEST_LENGTH];
-        REQUIRE(opaque_client_create_registration_request(
+        REQUIRE(opaque_agent_create_registration_request(
             client, reinterpret_cast<const uint8_t*>(password), strlen(password),
             reg_state, reg_request, REGISTRATION_REQUEST_LENGTH) == static_cast<int>(Result::Success));
 
         uint8_t reg_response[REGISTRATION_RESPONSE_LENGTH];
-        REQUIRE(opaque_server_create_registration_response(
+        REQUIRE(opaque_relay_create_registration_response(
             server, reg_request, REGISTRATION_REQUEST_LENGTH,
             kAccountId, sizeof(kAccountId),
             reg_response, REGISTRATION_RESPONSE_LENGTH) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_record(RECORD_SIZE);
-        REQUIRE(opaque_client_finalize_registration(
+        REQUIRE(opaque_agent_finalize_registration(
             client, reg_response, REGISTRATION_RESPONSE_LENGTH,
             reg_state, pq_record.data(),
             RECORD_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> pq_creds(CREDENTIALS_SIZE);
-        REQUIRE(opaque_server_build_credentials(
+        REQUIRE(opaque_relay_build_credentials(
             pq_record.data(), RECORD_SIZE,
             pq_creds.data(), CREDENTIALS_SIZE) == static_cast<int>(Result::Success));
 
-        opaque_client_state_destroy(reg_state);
+        opaque_agent_state_destroy(reg_state);
 
         uint8_t wrong_account_id[16] = {0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8,
                                          0xF7, 0xF6, 0xF5, 0xF4, 0xF3, 0xF2, 0xF1, 0xF0};
 
         void* auth_state = nullptr;
-        REQUIRE(opaque_client_state_create(&auth_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_agent_state_create(&auth_state) == static_cast<int>(Result::Success));
 
         server_state_handle_t* srv_state = nullptr;
-        REQUIRE(opaque_server_state_create(&srv_state) == static_cast<int>(Result::Success));
+        REQUIRE(opaque_relay_state_create(&srv_state) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke1(KE1_SIZE);
-        REQUIRE(opaque_client_generate_ke1(
+        REQUIRE(opaque_agent_generate_ke1(
             client, reinterpret_cast<const uint8_t*>(password), strlen(password),
             auth_state, ke1.data(), KE1_SIZE) == static_cast<int>(Result::Success));
 
         std::vector<uint8_t> ke2(KE2_SIZE);
-        REQUIRE(opaque_server_generate_ke2(
+        REQUIRE(opaque_relay_generate_ke2(
             server, ke1.data(), KE1_SIZE,
             wrong_account_id, sizeof(wrong_account_id),
             pq_creds.data(), CREDENTIALS_SIZE,
             ke2.data(), KE2_SIZE, srv_state) == static_cast<int>(Result::Success));
 
         uint8_t ke3[KE3_LENGTH];
-        int result = opaque_client_generate_ke3(
+        int result = opaque_agent_generate_ke3(
             client, ke2.data(), KE2_SIZE,
             auth_state, ke3, KE3_LENGTH);
 
         REQUIRE(result == static_cast<int>(Result::AuthenticationError));
 
-        opaque_client_state_destroy(auth_state);
-        opaque_server_state_destroy(srv_state);
+        opaque_agent_state_destroy(auth_state);
+        opaque_relay_state_destroy(srv_state);
     }
 
-    opaque_client_destroy(client);
-    opaque_server_destroy(server);
-    opaque_server_keypair_destroy(server_keypair);
+    opaque_agent_destroy(client);
+    opaque_relay_destroy(server);
+    opaque_relay_keypair_destroy(server_keypair);
 }
 
 TEST_CASE("PQ C++ API Edge Cases", "[opaque][pq][cpp][edge]") {

@@ -55,7 +55,7 @@ public final class OpaqueClient {
 
         var rawHandle: UnsafeMutableRawPointer?
         let result = serverPublicKey.withUnsafeBytes { keyPtr in
-            opaque_client_create(
+            opaque_agent_create(
                 keyPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
                 serverPublicKey.count,
                 &rawHandle
@@ -71,7 +71,7 @@ public final class OpaqueClient {
 
     deinit {
         if let handle = handle {
-            opaque_client_destroy(UnsafeMutableRawPointer(handle))
+            opaque_agent_destroy(UnsafeMutableRawPointer(handle))
         }
     }
 
@@ -95,7 +95,7 @@ public final class OpaqueClient {
 
         let result = password.withUnsafeBytes { passwordPtr in
             request.withUnsafeMutableBytes { requestPtr in
-                opaque_client_create_registration_request(
+                opaque_agent_create_registration_request(
                     UnsafeMutableRawPointer(handle),
                     passwordPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
                     password.count,
@@ -133,7 +133,7 @@ public final class OpaqueClient {
 
         let result = response.withUnsafeBytes { responsePtr in
             record.withUnsafeMutableBytes { recordPtr in
-                opaque_client_finalize_registration(
+                opaque_agent_finalize_registration(
                     UnsafeMutableRawPointer(handle),
                     responsePtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
                     response.count,
@@ -165,7 +165,7 @@ public final class OpaqueClient {
 
         let result = password.withUnsafeBytes { passwordPtr in
             ke1.withUnsafeMutableBytes { ke1Ptr in
-                opaque_client_generate_ke1(
+                opaque_agent_generate_ke1(
                     UnsafeMutableRawPointer(handle),
                     passwordPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
                     password.count,
@@ -203,7 +203,7 @@ public final class OpaqueClient {
 
         let result = ke2.withUnsafeBytes { ke2Ptr in
             ke3.withUnsafeMutableBytes { ke3Ptr in
-                opaque_client_generate_ke3(
+                opaque_agent_generate_ke3(
                     UnsafeMutableRawPointer(handle),
                     ke2Ptr.baseAddress?.assumingMemoryBound(to: UInt8.self),
                     ke2.count,
@@ -234,7 +234,7 @@ public final class OpaqueClient {
 
         let result = sessionKey.withUnsafeMutableBytes { sessionPtr in
             masterKey.withUnsafeMutableBytes { masterPtr in
-                opaque_client_finish(
+                opaque_agent_finish(
                     UnsafeMutableRawPointer(handle),
                     UnsafeMutableRawPointer(state.handle),
                     sessionPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
@@ -277,7 +277,7 @@ public final class OpaqueClient {
 
     /// Get the library version
     public static var version: String {
-        guard let cString = opaque_client_get_version() else {
+        guard let cString = opaque_agent_get_version() else {
             return "unknown"
         }
         return String(cString: cString)
@@ -295,7 +295,7 @@ extension OpaqueClient {
 
         internal init() throws {
             var rawHandle: UnsafeMutableRawPointer?
-            let result = opaque_client_state_create(&rawHandle)
+            let result = opaque_agent_state_create(&rawHandle)
 
             guard result == 0, let validHandle = rawHandle else {
                 throw OpaqueError.fromCode(result)
@@ -305,7 +305,7 @@ extension OpaqueClient {
         }
 
         deinit {
-            opaque_client_state_destroy(UnsafeMutableRawPointer(handle))
+            opaque_agent_state_destroy(UnsafeMutableRawPointer(handle))
         }
     }
 }

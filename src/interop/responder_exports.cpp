@@ -37,7 +37,7 @@ using namespace ecliptix::security::opaque::responder;
 
 typedef struct {
     OpaqueResponder *server;
-} opaque_server_handle_t;
+} opaque_relay_handle_t;
 
 typedef struct {
     ResponderState *state;
@@ -47,8 +47,8 @@ typedef struct {
     ResponderKeyPair *keypair;
 } server_keypair_handle_t;
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_keypair_generate(server_keypair_handle_t **handle) {
-    OPAQUE_SERVER_LOG("=== opaque_server_keypair_generate ===");
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_keypair_generate(server_keypair_handle_t **handle) {
+    OPAQUE_SERVER_LOG("=== opaque_relay_keypair_generate ===");
     if (!handle) {
         OPAQUE_SERVER_LOG("ERROR: InvalidInput - handle is null");
         return static_cast<int>(Result::InvalidInput);
@@ -75,14 +75,14 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_keypair_generate(server_keypair_handl
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT void opaque_server_keypair_destroy(server_keypair_handle_t *handle) {
+ECLIPTIX_OPAQUE_C_EXPORT void opaque_relay_keypair_destroy(server_keypair_handle_t *handle) {
     if (handle) {
         delete handle->keypair;
         delete handle;
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_keypair_get_public_key(server_keypair_handle_t *handle,
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_keypair_get_public_key(server_keypair_handle_t *handle,
                                          uint8_t *public_key, size_t key_buffer_size) {
     if (!handle || !handle->keypair || !public_key || key_buffer_size < PUBLIC_KEY_LENGTH) {
         return static_cast<int>(Result::InvalidInput);
@@ -91,8 +91,8 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_keypair_get_public_key(server_keypair
     return static_cast<int>(Result::Success);
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create(server_keypair_handle_t *keypair_handle,
-                         opaque_server_handle_t **handle) {
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_create(server_keypair_handle_t *keypair_handle,
+                         opaque_relay_handle_t **handle) {
     if (!keypair_handle || !keypair_handle->keypair || !handle) {
         return static_cast<int>(Result::InvalidInput);
     }
@@ -116,7 +116,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create(server_keypair_handle_t *keypa
     sodium_memzero(derived_public_key, sizeof(derived_public_key));
     try {
         const auto server = new OpaqueResponder(*keypair_handle->keypair);
-        const auto server_handle = new opaque_server_handle_t;
+        const auto server_handle = new opaque_relay_handle_t;
         server_handle->server = server;
         *handle = server_handle;
         return static_cast<int>(Result::Success);
@@ -125,14 +125,14 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create(server_keypair_handle_t *keypa
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT void opaque_server_destroy(const opaque_server_handle_t *handle) {
+ECLIPTIX_OPAQUE_C_EXPORT void opaque_relay_destroy(const opaque_relay_handle_t *handle) {
     if (handle) {
         delete handle->server;
         delete handle;
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_state_create(server_state_handle_t **handle) {
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_state_create(server_state_handle_t **handle) {
     if (!handle) {
         return static_cast<int>(Result::InvalidInput);
     }
@@ -147,18 +147,18 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_state_create(server_state_handle_t **
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT void opaque_server_state_destroy(const server_state_handle_t *handle) {
+ECLIPTIX_OPAQUE_C_EXPORT void opaque_relay_state_destroy(const server_state_handle_t *handle) {
     if (handle) {
         delete handle->state;
         delete handle;
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create_registration_response(const opaque_server_handle_t *server_handle,
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_create_registration_response(const opaque_relay_handle_t *server_handle,
                                                const uint8_t *request_data, size_t request_length,
                                                const uint8_t *account_id, size_t account_id_length,
                                                uint8_t *response_data, size_t response_buffer_size) {
-    OPAQUE_SERVER_LOG("=== opaque_server_create_registration_response ===");
+    OPAQUE_SERVER_LOG("=== opaque_relay_create_registration_response ===");
     OPAQUE_SERVER_LOG("server_handle=%p, request_length=%zu (expected=%zu)",
                       (void*)server_handle, request_length, REGISTRATION_REQUEST_LENGTH);
     OPAQUE_SERVER_LOG("response_buffer_size=%zu, account_id_length=%zu",
@@ -184,9 +184,9 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create_registration_response(const op
     return static_cast<int>(result);
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_build_credentials(const uint8_t *registration_record, size_t record_length,
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_build_credentials(const uint8_t *registration_record, size_t record_length,
                                     uint8_t *credentials_out, size_t credentials_out_length) {
-    OPAQUE_SERVER_LOG("=== opaque_server_build_credentials ===");
+    OPAQUE_SERVER_LOG("=== opaque_relay_build_credentials ===");
     const size_t record_expected = REGISTRATION_RECORD_LENGTH;
     const size_t credentials_expected = RESPONDER_CREDENTIALS_LENGTH;
     OPAQUE_SERVER_LOG("record_length=%zu (expected=%zu), credentials_out_length=%zu (expected=%zu)",
@@ -217,13 +217,13 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_build_credentials(const uint8_t *regi
     return static_cast<int>(Result::Success);
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_generate_ke2(const opaque_server_handle_t *server_handle,
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_generate_ke2(const opaque_relay_handle_t *server_handle,
                                const uint8_t *ke1_data, const size_t ke1_length,
                                const uint8_t *account_id, const size_t account_id_length,
                                const uint8_t *credentials_data, size_t credentials_length,
                                uint8_t *ke2_data, const size_t ke2_buffer_size,
                                const server_state_handle_t *state_handle) {
-    OPAQUE_SERVER_LOG("=== opaque_server_generate_ke2 ===");
+    OPAQUE_SERVER_LOG("=== opaque_relay_generate_ke2 ===");
     OPAQUE_SERVER_LOG("server_handle=%p, state_handle=%p", (void*)server_handle, (void*)state_handle);
     OPAQUE_SERVER_LOG("ke1_length=%zu (expected=%zu), credentials_length=%zu (expected=%zu), ke2_buffer_size=%zu (expected=%zu)",
                       ke1_length, KE1_LENGTH,
@@ -272,12 +272,12 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_generate_ke2(const opaque_server_hand
     return static_cast<int>(result);
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_finish(const opaque_server_handle_t *server_handle,
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_finish(const opaque_relay_handle_t *server_handle,
                          const uint8_t *ke3_data, const size_t ke3_length,
                          const server_state_handle_t *state_handle,
                          uint8_t *session_key, const size_t session_key_buffer_size,
                          uint8_t *master_key_out, const size_t master_key_buffer_size) {
-    OPAQUE_SERVER_LOG("=== opaque_server_finish ===");
+    OPAQUE_SERVER_LOG("=== opaque_relay_finish ===");
     OPAQUE_SERVER_LOG("server_handle=%p, state_handle=%p", (void*)server_handle, (void*)state_handle);
     OPAQUE_SERVER_LOG("ke3_length=%zu (expected=%zu), session_key_buffer_size=%zu, master_key_buffer_size=%zu",
                       ke3_length, KE3_LENGTH, session_key_buffer_size, master_key_buffer_size);
@@ -303,7 +303,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_finish(const opaque_server_handle_t *
     return static_cast<int>(result);
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create_default(opaque_server_handle_t **handle) {
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_create_default(opaque_relay_handle_t **handle) {
 #if defined(ECLIPTIX_OPAQUE_ENABLE_INSECURE_TEST_KEYS)
     if (!handle) {
         return static_cast<int>(Result::InvalidInput);
@@ -314,7 +314,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create_default(opaque_server_handle_t
         keypair->public_key.assign(keys::SERVER_PUBLIC_KEY, keys::SERVER_PUBLIC_KEY + PUBLIC_KEY_LENGTH);
 
         const auto server = new OpaqueResponder(*keypair);
-        const auto server_handle = new opaque_server_handle_t;
+        const auto server_handle = new opaque_relay_handle_t;
         server_handle->server = server;
         *handle = server_handle;
 
@@ -332,7 +332,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create_default(opaque_server_handle_t
 #endif
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_derive_keypair_from_seed(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_derive_keypair_from_seed(
     const uint8_t *seed, const size_t seed_len,
     uint8_t *private_key, const size_t private_key_buffer_len,
     uint8_t *public_key, const size_t public_key_buffer_len) {
@@ -368,11 +368,11 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_derive_keypair_from_seed(
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create_with_keys(
+ECLIPTIX_OPAQUE_C_EXPORT int opaque_relay_create_with_keys(
     const uint8_t *private_key, const size_t private_key_len,
     const uint8_t *public_key, const size_t public_key_len,
-    opaque_server_handle_t **handle) {
-    OPAQUE_SERVER_LOG("=== opaque_server_create_with_keys ===");
+    opaque_relay_handle_t **handle) {
+    OPAQUE_SERVER_LOG("=== opaque_relay_create_with_keys ===");
     OPAQUE_SERVER_LOG("private_key_len=%zu, public_key_len=%zu", private_key_len, public_key_len);
     if (!private_key || private_key_len != PRIVATE_KEY_LENGTH ||
         !public_key || public_key_len != PUBLIC_KEY_LENGTH || !handle) {
@@ -408,7 +408,7 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create_with_keys(
         keypair->public_key.assign(public_key, public_key + PUBLIC_KEY_LENGTH);
 
         const auto server = new OpaqueResponder(*keypair);
-        const auto server_handle = new opaque_server_handle_t;
+        const auto server_handle = new opaque_relay_handle_t;
         server_handle->server = server;
         *handle = server_handle;
 
@@ -421,23 +421,23 @@ ECLIPTIX_OPAQUE_C_EXPORT int opaque_server_create_with_keys(
     }
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT const char *opaque_server_get_version() {
+ECLIPTIX_OPAQUE_C_EXPORT const char *opaque_relay_get_version() {
     return OPAQUE_SERVER_VERSION;
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_server_get_ke2_length() {
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_relay_get_ke2_length() {
     return KE2_LENGTH;
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_server_get_registration_record_length() {
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_relay_get_registration_record_length() {
     return REGISTRATION_RECORD_LENGTH;
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_server_get_credentials_length() {
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_relay_get_credentials_length() {
     return RESPONDER_CREDENTIALS_LENGTH;
 }
 
-ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_server_get_kem_ciphertext_length() {
+ECLIPTIX_OPAQUE_C_EXPORT size_t opaque_relay_get_kem_ciphertext_length() {
     return pq_constants::KEM_CIPHERTEXT_LENGTH;
 }
 }

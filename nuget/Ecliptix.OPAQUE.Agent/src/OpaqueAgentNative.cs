@@ -91,19 +91,19 @@ internal static class OpaqueAgentNative
     }
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_client_create(byte[] serverPublicKey, UIntPtr keyLength, out IntPtr handle);
+    internal static extern int opaque_agent_create(byte[] serverPublicKey, UIntPtr keyLength, out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void opaque_client_destroy(IntPtr handle);
+    internal static extern void opaque_agent_destroy(IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_client_state_create(out IntPtr handle);
+    internal static extern int opaque_agent_state_create(out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void opaque_client_state_destroy(IntPtr handle);
+    internal static extern void opaque_agent_state_destroy(IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_client_create_registration_request(
+    internal static extern int opaque_agent_create_registration_request(
         IntPtr clientHandle,
         byte[] password,
         UIntPtr passwordLength,
@@ -112,7 +112,7 @@ internal static class OpaqueAgentNative
         UIntPtr requestBufferSize);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_client_finalize_registration(
+    internal static extern int opaque_agent_finalize_registration(
         IntPtr clientHandle,
         byte[] responseData,
         UIntPtr responseLength,
@@ -121,7 +121,7 @@ internal static class OpaqueAgentNative
         UIntPtr recordBufferSize);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_client_generate_ke1(
+    internal static extern int opaque_agent_generate_ke1(
         IntPtr clientHandle,
         byte[] password,
         UIntPtr passwordLength,
@@ -130,7 +130,7 @@ internal static class OpaqueAgentNative
         UIntPtr ke1BufferSize);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_client_generate_ke3(
+    internal static extern int opaque_agent_generate_ke3(
         IntPtr clientHandle,
         byte[] ke2Data,
         UIntPtr ke2Length,
@@ -139,7 +139,7 @@ internal static class OpaqueAgentNative
         UIntPtr ke3BufferSize);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int opaque_client_finish(
+    internal static extern int opaque_agent_finish(
         IntPtr clientHandle,
         IntPtr stateHandle,
         byte[] sessionKey,
@@ -148,5 +148,5 @@ internal static class OpaqueAgentNative
         UIntPtr masterKeyBufferSize);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern IntPtr opaque_client_get_version();
+    internal static extern IntPtr opaque_agent_get_version();
 }

@@ -95,19 +95,19 @@ public static class OpaqueRelayNative
 
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int opaque_server_keypair_generate(out IntPtr handle);
+    public static extern int opaque_relay_keypair_generate(out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void opaque_server_keypair_destroy(IntPtr handle);
+    public static extern void opaque_relay_keypair_destroy(IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int opaque_server_keypair_get_public_key(
+    public static extern int opaque_relay_keypair_get_public_key(
         IntPtr handle,
         [Out] byte[] publicKey,
         UIntPtr keyBufferSize);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int opaque_server_derive_keypair_from_seed(
+    public static extern int opaque_relay_derive_keypair_from_seed(
         [In] byte[] seed,
         UIntPtr seedLen,
         [Out] byte[] privateKey,
@@ -117,10 +117,10 @@ public static class OpaqueRelayNative
 
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int opaque_server_create(IntPtr keypairHandle, out IntPtr handle);
+    public static extern int opaque_relay_create(IntPtr keypairHandle, out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int opaque_server_create_with_keys(
+    public static extern int opaque_relay_create_with_keys(
         [In] byte[] privateKey,
         UIntPtr privateKeyLen,
         [In] byte[] publicKey,
@@ -128,21 +128,21 @@ public static class OpaqueRelayNative
         out IntPtr serverHandle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int opaque_server_create_default(out IntPtr handle);
+    public static extern int opaque_relay_create_default(out IntPtr handle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void opaque_server_destroy(IntPtr handle);
-
-
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int opaque_server_state_create(out IntPtr handle);
-
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void opaque_server_state_destroy(IntPtr handle);
+    public static extern void opaque_relay_destroy(IntPtr handle);
 
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int opaque_server_create_registration_response(
+    public static extern int opaque_relay_state_create(out IntPtr handle);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void opaque_relay_state_destroy(IntPtr handle);
+
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int opaque_relay_create_registration_response(
         IntPtr serverHandle,
         [In] byte[] requestData,
         UIntPtr requestLength,
@@ -153,7 +153,7 @@ public static class OpaqueRelayNative
 
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int opaque_server_generate_ke2(
+    public static extern int opaque_relay_generate_ke2(
         IntPtr serverHandle,
         [In] byte[] ke1Data,
         UIntPtr ke1Length,
@@ -166,7 +166,7 @@ public static class OpaqueRelayNative
         IntPtr stateHandle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int opaque_server_finish(
+    public static extern int opaque_relay_finish(
         IntPtr serverHandle,
         [In] byte[] ke3Data,
         UIntPtr ke3Length,
@@ -178,5 +178,5 @@ public static class OpaqueRelayNative
 
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr opaque_server_get_version();
+    public static extern IntPtr opaque_relay_get_version();
 }

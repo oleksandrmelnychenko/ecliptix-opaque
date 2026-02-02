@@ -23,11 +23,11 @@ public sealed class OpaqueRelay : IDisposable
 
         if (keyPair.NativeHandle != IntPtr.Zero)
         {
-            result = OpaqueRelayNative.opaque_server_create(keyPair.NativeHandle, out serverHandle);
+            result = OpaqueRelayNative.opaque_relay_create(keyPair.NativeHandle, out serverHandle);
         }
         else
         {
-            result = OpaqueRelayNative.opaque_server_create_with_keys(
+            result = OpaqueRelayNative.opaque_relay_create_with_keys(
                 keyPair.PrivateKey,
                 (UIntPtr)keyPair.PrivateKey.Length,
                 keyPair.GetPublicKeyCopy(),
@@ -59,7 +59,7 @@ public sealed class OpaqueRelay : IDisposable
                 nameof(publicKey));
         }
 
-        int result = OpaqueRelayNative.opaque_server_create_with_keys(
+        int result = OpaqueRelayNative.opaque_relay_create_with_keys(
             privateKey,
             (UIntPtr)privateKey.Length,
             publicKey,
@@ -90,7 +90,7 @@ public sealed class OpaqueRelay : IDisposable
 
         byte[] response = new byte[OpaqueConstants.REGISTRATION_RESPONSE_LENGTH];
 
-        int result = OpaqueRelayNative.opaque_server_create_registration_response(
+        int result = OpaqueRelayNative.opaque_relay_create_registration_response(
             _serverHandle,
             registrationRequest,
             (UIntPtr)registrationRequest.Length,
@@ -133,7 +133,7 @@ public sealed class OpaqueRelay : IDisposable
 
         byte[] ke2 = new byte[OpaqueConstants.KE2_LENGTH];
 
-        int result = OpaqueRelayNative.opaque_server_generate_ke2(
+        int result = OpaqueRelayNative.opaque_relay_generate_ke2(
             _serverHandle,
             ke1,
             (UIntPtr)ke1.Length,
@@ -175,7 +175,7 @@ public sealed class OpaqueRelay : IDisposable
         byte[] sessionKey = new byte[OpaqueConstants.SESSION_KEY_LENGTH];
         byte[] masterKey = new byte[OpaqueConstants.MASTER_KEY_LENGTH];
 
-        int result = OpaqueRelayNative.opaque_server_finish(
+        int result = OpaqueRelayNative.opaque_relay_finish(
             _serverHandle,
             ke3,
             (UIntPtr)ke3.Length,
@@ -197,7 +197,7 @@ public sealed class OpaqueRelay : IDisposable
 
     public static string GetNativeVersion()
     {
-        IntPtr versionPtr = OpaqueRelayNative.opaque_server_get_version();
+        IntPtr versionPtr = OpaqueRelayNative.opaque_relay_get_version();
         return versionPtr != IntPtr.Zero
             ? System.Runtime.InteropServices.Marshal.PtrToStringAnsi(versionPtr) ?? "unknown"
             : "unknown";
@@ -215,7 +215,7 @@ public sealed class OpaqueRelay : IDisposable
 
         if (_serverHandle != IntPtr.Zero)
         {
-            OpaqueRelayNative.opaque_server_destroy(_serverHandle);
+            OpaqueRelayNative.opaque_relay_destroy(_serverHandle);
             _serverHandle = IntPtr.Zero;
         }
 
