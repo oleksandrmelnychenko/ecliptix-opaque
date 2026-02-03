@@ -10,7 +10,7 @@
 
     <!-- Package metadata -->
     <PackageId>Ecliptix.OPAQUE.Agent</PackageId>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <Authors>Ecliptix</Authors>
     <Company>Ecliptix</Company>
     <Product>Ecliptix OPAQUE Agent</Product>
