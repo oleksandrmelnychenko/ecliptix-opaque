@@ -2,28 +2,28 @@ cmake_minimum_required(VERSION 3.15)
 project(opaque_client)
 
 set(CLIENT_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/core/memory.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/oprf.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/crypto.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/envelope.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/pq_kem.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/protocol.cpp
-    ${CMAKE_SOURCE_DIR}/src/initiator/registration.cpp
-    ${CMAKE_SOURCE_DIR}/src/initiator/authentication.cpp
-    ${CMAKE_SOURCE_DIR}/src/initiator/key_management.cpp
-    ${CMAKE_SOURCE_DIR}/src/interop/initiator_exports.cpp
-    ${CMAKE_SOURCE_DIR}/include/opaque/export.h
-    ${CMAKE_SOURCE_DIR}/include/opaque/version.h
-    ${CMAKE_SOURCE_DIR}/include/opaque/opaque.h
-    ${CMAKE_SOURCE_DIR}/include/opaque/initiator.h
-    ${CMAKE_SOURCE_DIR}/include/opaque/pq.h
-    ${CMAKE_SOURCE_DIR}/include/opaque/hardcoded_keys.h
+    ${OPAQUE_ROOT_DIR}/src/core/memory.cpp
+    ${OPAQUE_ROOT_DIR}/src/core/oprf.cpp
+    ${OPAQUE_ROOT_DIR}/src/core/crypto.cpp
+    ${OPAQUE_ROOT_DIR}/src/core/envelope.cpp
+    ${OPAQUE_ROOT_DIR}/src/core/pq_kem.cpp
+    ${OPAQUE_ROOT_DIR}/src/core/protocol.cpp
+    ${OPAQUE_ROOT_DIR}/src/initiator/registration.cpp
+    ${OPAQUE_ROOT_DIR}/src/initiator/authentication.cpp
+    ${OPAQUE_ROOT_DIR}/src/initiator/key_management.cpp
+    ${OPAQUE_ROOT_DIR}/src/interop/initiator_exports.cpp
+    ${OPAQUE_ROOT_DIR}/include/opaque/export.h
+    ${OPAQUE_ROOT_DIR}/include/opaque/version.h
+    ${OPAQUE_ROOT_DIR}/include/opaque/opaque.h
+    ${OPAQUE_ROOT_DIR}/include/opaque/initiator.h
+    ${OPAQUE_ROOT_DIR}/include/opaque/pq.h
+    ${OPAQUE_ROOT_DIR}/include/opaque/hardcoded_keys.h
 )
 
 # Add JNI sources for Android builds
 if(BUILD_ANDROID_JNI AND ANDROID)
     list(APPEND CLIENT_SOURCES
-        ${CMAKE_SOURCE_DIR}/src/interop/jni/OpaqueJni.cpp
+        ${OPAQUE_ROOT_DIR}/src/interop/jni/OpaqueJni.cpp
     )
     message(STATUS "Building with JNI bindings for Android")
 endif()
@@ -39,7 +39,7 @@ set_target_properties(opaque_client PROPERTIES
 )
 set(CLIENT_TARGET opaque_client)
 target_include_directories(${CLIENT_TARGET} PUBLIC
-    ${CMAKE_SOURCE_DIR}/include
+    ${OPAQUE_ROOT_DIR}/include
     ${SODIUM_INCLUDE_DIRS}
     ${OQS_INCLUDE_DIRS}
 )
@@ -153,7 +153,7 @@ install(TARGETS ${CLIENT_TARGET}
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION bin
 )
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/opaque
+install(DIRECTORY ${OPAQUE_ROOT_DIR}/include/opaque
     DESTINATION include
     FILES_MATCHING PATTERN "*.h"
 )

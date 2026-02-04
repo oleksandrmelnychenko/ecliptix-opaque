@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(Ecliptix_Security_OPAQUE VERSION 1.0.0 LANGUAGES CXX)
+# Root directory for when included as subdirectory
+set(OPAQUE_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -36,7 +39,7 @@ if(MSVC AND STATIC_MSVC_RUNTIME)
 endif()
 set(OBFUSCATION_LEVEL "standard" CACHE STRING "Obfuscation level: light, standard, aggressive")
 
-include(${CMAKE_SOURCE_DIR}/cmake/LLVMObfuscator.cmake)
+include(${OPAQUE_ROOT_DIR}/cmake/LLVMObfuscator.cmake)
 
 if(IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
     # For iOS, use pre-built dependencies passed via cmake args
