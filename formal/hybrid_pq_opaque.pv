@@ -5,6 +5,7 @@
  *
  * This model verifies the Hybrid PQ-OPAQUE protocol that combines
  * classical 3DH (Ristretto255) with ML-KEM-768 post-quantum KEM.
+ * Envelope encryption uses XSalsa20-Poly1305 (modeled as ideal AEAD).
  *
  * Properties verified:
  *   1. Session key secrecy
@@ -103,9 +104,7 @@ event ClientCompletesAuth(point, point, key).
 event ServerCompletesAuth(point, point, key).
 event PasswordRegistered(point, password).
 event ServerLTKCompromised(point).
-event ClientLTKCompromised(point).
 event SessionEstablished(point, point, key).
-event HonestSession(point, point, key).
 
 
 (* ============================================================
