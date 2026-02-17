@@ -67,6 +67,8 @@ _deps
 
 # Log files
 *.log
+# Allow formal verification logs (ProVerif/Tamarin raw output — part of the artifact)
+!formal/logs/*.log
 
 # Temporary files
 .DS_Store

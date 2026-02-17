@@ -1,0 +1,224 @@
+File "/Users/oleksandrmelnychenko/Documents/Ecliptix.Security.OPAQUE/formal/hybrid_pq_opaque.pv", line 181, characters 31-36:
+Warning: identifier kem_ct rebound.
+File "/Users/oleksandrmelnychenko/Documents/Ecliptix.Security.OPAQUE/formal/hybrid_pq_opaque.pv", line 243, characters 7-12:
+Warning: identifier kem_ct rebound.
+Linear part:
+ec_dh(a,ec_pk(b)) = ec_dh(b,ec_pk(a))
+Completing equations...
+Completed equations:
+ec_dh(a,ec_pk(b)) = ec_dh(b,ec_pk(a))
+Convergent part:
+kem_decaps(sk,kem_encaps(kem_keygen_pk(sk),r)) = kem_shared(kem_keygen_pk(sk),r)
+Completing equations...
+Completed equations:
+kem_decaps(sk,kem_encaps(kem_keygen_pk(sk),r)) = kem_shared(kem_keygen_pk(sk),r)
+Process 0 (that is, the initial process):
+{1}new skS: scalar;
+{2}let pkS: point = ec_pk(skS) in
+{3}out(c, pkS);
+(
+    {4}let pwd: password = secret_pwd in
+    {5}new r_reg: scalar;
+    {6}let blinded: point = oprf_blind(pwd,r_reg) in
+    {7}out(secure_reg, blinded);
+    {8}in(secure_reg, (evaluated: point,server_pk_confirm: point));
+    {9}let oprf_out: key = oprf_finalize(evaluated,r_reg,pwd) in
+    {10}let rwd: key = argon2id(oprf_out,pwd) in
+    {11}let env_key: key = hkdf_expand(rwd,lbl_envelope) in
+    {12}new skC: scalar;
+    {13}let pkC: point = ec_pk(skC) in
+    {14}new env_nonce: nonce;
+    {15}let env: envelope = aenc(env_key,env_nonce,(pkS,skC,pkC)) in
+    {16}let record: bitstring = (env,env_nonce,pkC) in
+    {17}event PasswordRegistered(pkC,pwd);
+    {18}out(secure_reg, record)
+) | (
+    {19}let skS_1: scalar = skS in
+    {20}in(secure_reg, blinded_1: point);
+    {21}new oprf_key: scalar;
+    {22}let evaluated_1: point = oprf_eval(blinded_1,oprf_key) in
+    {23}out(secure_reg, (evaluated_1,pkS));
+    {24}in(secure_reg, (env_1: envelope,n: nonce,pkC_1: point));
+    {25}out(secure_reg, ((env_1,n,pkC_1),oprf_key))
+) | (
+    {26}in(secure_reg, record_stored: bitstring);
+    {27}in(secure_reg, (record_stored2: bitstring,oprf_key_stored: scalar));
+    (
+        {28}!
+        {29}let pwd_1: password = secret_pwd in
+        {30}new r_auth: scalar;
+        {31}let blinded_2: point = oprf_blind(pwd_1,r_auth) in
+        {32}new ekC: scalar;
+        {33}let eC: point = ec_pk(ekC) in
+        {34}new kem_skC: kem_sk;
+        {35}let kem_pkC: kem_pk = kem_keygen_pk(kem_skC) in
+        {36}new nonceC: nonce;
+        {37}out(c, (blinded_2,eC,nonceC,kem_pkC));
+        {38}in(c, (nonceS: nonce,eS: point,cred_resp: bitstring,resp_mac: bitstring,kem_ct_1: kem_ct));
+        {39}let (evaluated_elem: point,env_2: envelope,env_nonce_1: nonce) = cred_resp in
+        {40}let oprf_out_1: key = oprf_finalize(evaluated_elem,r_auth,pwd_1) in
+        {41}let rwd_1: key = argon2id(oprf_out_1,pwd_1) in
+        {42}let env_key_1: key = hkdf_expand(rwd_1,lbl_envelope) in
+        {43}let (pkS_rec: point,skC_rec: scalar,pkC_rec: point) = adec(env_key_1,env_nonce_1,env_2) in
+        {44}event ClientStartsAuth(pkC_rec,pkS);
+        {45}let dh1: key = ec_dh(skC_rec,pkS) in
+        {46}let dh2: key = ec_dh(ekC,pkS) in
+        {47}let dh3: key = ec_dh(skC_rec,eS) in
+        {48}let kem_ss: key = kem_decaps(kem_skC,kem_ct_1) in
+        {49}let transcript: bitstring = hash((eC,eS,nonceC,nonceS,pkC_rec,pkS,cred_resp,kem_pkC,kem_ct_1)) in
+        {50}let combined_ikm: bitstring = concat_ikm(dh1,dh2,dh3,kem_ss) in
+        {51}let salt: bitstring = hash((lbl_combiner,transcript)) in
+        {52}let prk: key = hkdf_extract(salt,combined_ikm) in
+        {53}let session_key: key = hkdf_expand(prk,lbl_session) in
+        {54}let master_key: key = hkdf_expand(prk,lbl_master) in
+        {55}let resp_mac_key: key = hkdf_expand(prk,lbl_resp_mac) in
+        {56}let init_mac_key: key = hkdf_expand(prk,lbl_init_mac) in
+        {57}let expected_resp_mac: bitstring = hmac_compute(resp_mac_key,transcript) in
+        {58}if (resp_mac = expected_resp_mac) then
+        {59}let init_mac: bitstring = hmac_compute(init_mac_key,transcript) in
+        {60}event ClientCompletesAuth(pkC_rec,pkS,session_key);
+        {61}out(c, init_mac)
+    ) | (
+        {62}!
+        {63}let skS_2: scalar = skS in
+        {64}let (env_3: envelope,env_nonce_2: nonce,pkC_2: point) = record_stored2 in
+        {65}in(c, (blinded_3: point,eC_1: point,nonceC_1: nonce,kem_pkC_1: kem_pk));
+        {66}new ekS: scalar;
+        {67}let eS_1: point = ec_pk(ekS) in
+        {68}new nonceS_1: nonce;
+        {69}let evaluated_2: point = oprf_eval(blinded_3,oprf_key_stored) in
+        {70}let cred_resp_1: bitstring = (evaluated_2,env_3,env_nonce_2) in
+        {71}let dh1_1: key = ec_dh(skS_2,pkC_2) in
+        {72}let dh2_1: key = ec_dh(skS_2,eC_1) in
+        {73}let dh3_1: key = ec_dh(ekS,pkC_2) in
+        {74}new kem_rand: nonce;
+        {75}let kem_ct_2: kem_ct = kem_encaps(kem_pkC_1,kem_rand) in
+        {76}let kem_ss_1: key = kem_shared(kem_pkC_1,kem_rand) in
+        {77}let transcript_1: bitstring = hash((eC_1,eS_1,nonceC_1,nonceS_1,pkC_2,pkS,cred_resp_1,kem_pkC_1,kem_ct_2)) in
+        {78}let combined_ikm_1: bitstring = concat_ikm(dh1_1,dh2_1,dh3_1,kem_ss_1) in
+        {79}let salt_1: bitstring = hash((lbl_combiner,transcript_1)) in
+        {80}let prk_1: key = hkdf_extract(salt_1,combined_ikm_1) in
+        {81}let session_key_1: key = hkdf_expand(prk_1,lbl_session) in
+        {82}let master_key_1: key = hkdf_expand(prk_1,lbl_master) in
+        {83}let resp_mac_key_1: key = hkdf_expand(prk_1,lbl_resp_mac) in
+        {84}let init_mac_key_1: key = hkdf_expand(prk_1,lbl_init_mac) in
+        {85}let resp_mac_1: bitstring = hmac_compute(resp_mac_key_1,transcript_1) in
+        {86}event ServerAcceptsAuth(pkS,pkC_2,session_key_1);
+        {87}out(c, (nonceS_1,eS_1,cred_resp_1,resp_mac_1,kem_ct_2));
+        {88}in(c, init_mac_1: bitstring);
+        {89}let expected_init_mac: bitstring = hmac_compute(init_mac_key_1,transcript_1) in
+        {90}if (init_mac_1 = expected_init_mac) then
+        {91}event ServerCompletesAuth(pkS,pkC_2,session_key_1);
+        {92}event SessionEstablished(pkC_2,pkS,session_key_1)
+    ) | (
+        {93}event ServerLTKCompromised(pkS);
+        {94}out(c, skS)
+    )
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new skS: scalar;
+{2}let pkS: point = ec_pk(skS) in
+{3}out(c, pkS);
+(
+    {5}new r_reg: scalar;
+    {4}let pwd: password = secret_pwd in
+    {6}let blinded: point = oprf_blind(pwd,r_reg) in
+    {7}out(secure_reg, blinded);
+    {8}in(secure_reg, (evaluated: point,server_pk_confirm: point));
+    {9}let oprf_out: key = oprf_finalize(evaluated,r_reg,pwd) in
+    {12}new skC: scalar;
+    {14}new env_nonce: nonce;
+    {13}let pkC: point = ec_pk(skC) in
+    {17}event PasswordRegistered(pkC,pwd);
+    {10}let rwd: key = argon2id(oprf_out,pwd) in
+    {11}let env_key: key = hkdf_expand(rwd,lbl_envelope) in
+    {15}let env: envelope = aenc(env_key,env_nonce,(pkS,skC,pkC)) in
+    {16}let record: bitstring = (env,env_nonce,pkC) in
+    {18}out(secure_reg, record)
+) | (
+    {20}in(secure_reg, blinded_1: point);
+    {21}new oprf_key: scalar;
+    {22}let evaluated_1: point = oprf_eval(blinded_1,oprf_key) in
+    {23}out(secure_reg, (evaluated_1,pkS));
+    {24}in(secure_reg, (env_1: envelope,n: nonce,pkC_1: point));
+    {25}out(secure_reg, ((env_1,n,pkC_1),oprf_key))
+) | (
+    {26}in(secure_reg, record_stored: bitstring);
+    {27}in(secure_reg, (record_stored2: bitstring,oprf_key_stored: scalar));
+    (
+        {28}!
+        {30}new r_auth: scalar;
+        {32}new ekC: scalar;
+        {34}new kem_skC: kem_sk;
+        {36}new nonceC: nonce;
+        {35}let kem_pkC: kem_pk = kem_keygen_pk(kem_skC) in
+        {33}let eC: point = ec_pk(ekC) in
+        {29}let pwd_1: password = secret_pwd in
+        {31}let blinded_2: point = oprf_blind(pwd_1,r_auth) in
+        {37}out(c, (blinded_2,eC,nonceC,kem_pkC));
+        {38}in(c, (nonceS: nonce,eS: point,cred_resp: bitstring,resp_mac: bitstring,kem_ct_1: kem_ct));
+        {39}let (evaluated_elem: point,env_2: envelope,env_nonce_1: nonce) = cred_resp in
+        {40}let oprf_out_1: key = oprf_finalize(evaluated_elem,r_auth,pwd_1) in
+        {41}let rwd_1: key = argon2id(oprf_out_1,pwd_1) in
+        {42}let env_key_1: key = hkdf_expand(rwd_1,lbl_envelope) in
+        {43}let (pkS_rec: point,skC_rec: scalar,pkC_rec: point) = adec(env_key_1,env_nonce_1,env_2) in
+        {44}event ClientStartsAuth(pkC_rec,pkS);
+        {49}let transcript: bitstring = hash((eC,eS,nonceC,nonceS,pkC_rec,pkS,cred_resp,kem_pkC,kem_ct_1)) in
+        {51}let salt: bitstring = hash((lbl_combiner,transcript)) in
+        {48}let kem_ss: key = kem_decaps(kem_skC,kem_ct_1) in
+        {47}let dh3: key = ec_dh(skC_rec,eS) in
+        {46}let dh2: key = ec_dh(ekC,pkS) in
+        {45}let dh1: key = ec_dh(skC_rec,pkS) in
+        {50}let combined_ikm: bitstring = concat_ikm(dh1,dh2,dh3,kem_ss) in
+        {52}let prk: key = hkdf_extract(salt,combined_ikm) in
+        {55}let resp_mac_key: key = hkdf_expand(prk,lbl_resp_mac) in
+        {57}let expected_resp_mac: bitstring = hmac_compute(resp_mac_key,transcript) in
+        {58}if (resp_mac = expected_resp_mac) then
+        {53}let session_key: key = hkdf_expand(prk,lbl_session) in
+        {60}event ClientCompletesAuth(pkC_rec,pkS,session_key);
+        {56}let init_mac_key: key = hkdf_expand(prk,lbl_init_mac) in
+        {59}let init_mac: bitstring = hmac_compute(init_mac_key,transcript) in
+        {61}out(c, init_mac)
+    ) | (
+        {62}!
+        {64}let (env_3: envelope,env_nonce_2: nonce,pkC_2: point) = record_stored2 in
+        {65}in(c, (blinded_3: point,eC_1: point,nonceC_1: nonce,kem_pkC_1: kem_pk));
+        {66}new ekS: scalar;
+        {68}new nonceS_1: nonce;
+        {74}new kem_rand: nonce;
+        {75}let kem_ct_2: kem_ct = kem_encaps(kem_pkC_1,kem_rand) in
+        {69}let evaluated_2: point = oprf_eval(blinded_3,oprf_key_stored) in
+        {70}let cred_resp_1: bitstring = (evaluated_2,env_3,env_nonce_2) in
+        {67}let eS_1: point = ec_pk(ekS) in
+        {77}let transcript_1: bitstring = hash((eC_1,eS_1,nonceC_1,nonceS_1,pkC_2,pkS,cred_resp_1,kem_pkC_1,kem_ct_2)) in
+        {79}let salt_1: bitstring = hash((lbl_combiner,transcript_1)) in
+        {76}let kem_ss_1: key = kem_shared(kem_pkC_1,kem_rand) in
+        {73}let dh3_1: key = ec_dh(ekS,pkC_2) in
+        {63}let skS_2: scalar = skS in
+        {72}let dh2_1: key = ec_dh(skS_2,eC_1) in
+        {71}let dh1_1: key = ec_dh(skS_2,pkC_2) in
+        {78}let combined_ikm_1: bitstring = concat_ikm(dh1_1,dh2_1,dh3_1,kem_ss_1) in
+        {80}let prk_1: key = hkdf_extract(salt_1,combined_ikm_1) in
+        {81}let session_key_1: key = hkdf_expand(prk_1,lbl_session) in
+        {86}event ServerAcceptsAuth(pkS,pkC_2,session_key_1);
+        {83}let resp_mac_key_1: key = hkdf_expand(prk_1,lbl_resp_mac) in
+        {85}let resp_mac_1: bitstring = hmac_compute(resp_mac_key_1,transcript_1) in
+        {87}out(c, (nonceS_1,eS_1,cred_resp_1,resp_mac_1,kem_ct_2));
+        {88}in(c, init_mac_1: bitstring);
+        {84}let init_mac_key_1: key = hkdf_expand(prk_1,lbl_init_mac) in
+        {89}let expected_init_mac: bitstring = hmac_compute(init_mac_key_1,transcript_1) in
+        {90}if (init_mac_1 = expected_init_mac) then
+        {91}event ServerCompletesAuth(pkS,pkC_2,session_key_1);
+        {92}event SessionEstablished(pkC_2,pkS,session_key_1)
+    ) | (
+        {93}event ServerLTKCompromised(pkS);
+        {94}out(c, skS)
+    )
+)
+
+-- Query not attacker(sess_key_test[]) in process 1.
+Translating the process into Horn clauses...
+select mess(secure_reg[],blinded_4)/-5000
+Completing...
+200 rules inserted. Base: 185 rules (51 with conclusion selected). Queue: 35 rules.

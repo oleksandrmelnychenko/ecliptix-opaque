@@ -1,0 +1,443 @@
+File "/Users/oleksandrmelnychenko/Documents/Ecliptix.Security.OPAQUE/formal/hybrid_pq_opaque_auth.pv", line 150, characters 31-36:
+Warning: identifier kem_ct rebound.
+File "/Users/oleksandrmelnychenko/Documents/Ecliptix.Security.OPAQUE/formal/hybrid_pq_opaque_auth.pv", line 198, characters 7-12:
+Warning: identifier kem_ct rebound.
+Linear part:
+ec_dh(a,ec_pk(b)) = ec_dh(b,ec_pk(a))
+Completing equations...
+Completed equations:
+ec_dh(a,ec_pk(b)) = ec_dh(b,ec_pk(a))
+Convergent part:
+kem_decaps(sk,kem_encaps(kem_keygen_pk(sk),r)) = kem_shared(kem_keygen_pk(sk),r)
+Completing equations...
+Completed equations:
+kem_decaps(sk,kem_encaps(kem_keygen_pk(sk),r)) = kem_shared(kem_keygen_pk(sk),r)
+Process 0 (that is, the initial process):
+{1}new skS: scalar;
+{2}let pkS: point = ec_pk(skS) in
+{3}out(c, pkS);
+(
+    {4}let pwd: password = secret_pwd in
+    {5}new oprf_key_c: scalar;
+    {6}let oprf_out: key = oprf_output(pwd,oprf_key_c) in
+    {7}let rwd: key = argon2id(oprf_out,pwd) in
+    {8}let env_key: key = hkdf_expand(rwd,lbl_envelope) in
+    {9}new skC: scalar;
+    {10}let pkC: point = ec_pk(skC) in
+    {11}new env_nonce: nonce;
+    {12}let env: envelope = aenc(env_key,env_nonce,(pkS,skC,pkC)) in
+    {13}event PasswordRegistered(pkC,pwd);
+    {14}out(secure_reg, (env,env_nonce,pkC,oprf_key_c))
+) | (
+    {15}let skS_1: scalar = skS in
+    {16}in(secure_reg, (env_1: envelope,env_nonce_1: nonce,pkC_1: point,oprf_key: scalar));
+    {17}out(secure_reg, (env_1,env_nonce_1,pkC_1,oprf_key))
+) | (
+    {18}in(secure_reg, (env_s: envelope,en_s: nonce,pkC_s: point,oprf_key_s: scalar));
+    (
+        {19}!
+        {20}let pwd_1: password = secret_pwd in
+        {21}new ekC: scalar;
+        {22}let eC: point = ec_pk(ekC) in
+        {23}new kem_skC: kem_sk;
+        {24}let kem_pkC: kem_pk = kem_keygen_pk(kem_skC) in
+        {25}new nonceC: nonce;
+        {26}new r_auth: scalar;
+        {27}let oprf_out_1: key = oprf_output(pwd_1,r_auth) in
+        {28}out(c, (eC,nonceC,kem_pkC));
+        {29}in(c, (nonceS: nonce,eS: point,env_2: envelope,env_nonce_2: nonce,resp_mac: bitstring,kem_ct_1: kem_ct,oprf_key_s_1: scalar));
+        {30}let oprf_out_s: key = oprf_output(pwd_1,oprf_key_s_1) in
+        {31}let rwd_1: key = argon2id(oprf_out_s,pwd_1) in
+        {32}let env_key_1: key = hkdf_expand(rwd_1,lbl_envelope) in
+        {33}let (pkS_rec: point,skC_rec: scalar,pkC_rec: point) = adec(env_key_1,env_nonce_2,env_2) in
+        {34}event ClientStartsAuth(pkC_rec,pkS);
+        {35}let dh1: key = ec_dh(skC_rec,pkS) in
+        {36}let dh2: key = ec_dh(ekC,pkS) in
+        {37}let dh3: key = ec_dh(skC_rec,eS) in
+        {38}let kem_ss: key = kem_decaps(kem_skC,kem_ct_1) in
+        {39}let prk: key = hkdf_extract4(dh1,dh2,dh3,kem_ss) in
+        {40}let session_key: key = hkdf_expand(prk,lbl_session) in
+        {41}let resp_mac_key: key = hkdf_expand(prk,lbl_resp_mac) in
+        {42}let init_mac_key: key = hkdf_expand(prk,lbl_init_mac) in
+        {43}let transcript: bitstring = make_transcript(eC,eS,nonceC,nonceS,pkC_rec,pkS,kem_pkC,kem_ct_1) in
+        {44}let expected_resp_mac: bitstring = hmac_compute(resp_mac_key,transcript) in
+        {45}if (resp_mac = expected_resp_mac) then
+        {46}let init_mac: bitstring = hmac_compute(init_mac_key,transcript) in
+        {47}event ClientCompletesAuth(pkC_rec,pkS,session_key);
+        {48}out(c, init_mac)
+    ) | (
+        {49}!
+        {50}let skS_2: scalar = skS in
+        {51}in(c, (eC_1: point,nonceC_1: nonce,kem_pkC_1: kem_pk));
+        {52}new ekS: scalar;
+        {53}let eS_1: point = ec_pk(ekS) in
+        {54}new nonceS_1: nonce;
+        {55}new kem_rand: nonce;
+        {56}let kem_ct_2: kem_ct = kem_encaps(kem_pkC_1,kem_rand) in
+        {57}let kem_ss_1: key = kem_shared(kem_pkC_1,kem_rand) in
+        {58}let dh1_1: key = ec_dh(skS_2,pkC_s) in
+        {59}let dh2_1: key = ec_dh(skS_2,eC_1) in
+        {60}let dh3_1: key = ec_dh(ekS,pkC_s) in
+        {61}let prk_1: key = hkdf_extract4(dh1_1,dh2_1,dh3_1,kem_ss_1) in
+        {62}let session_key_1: key = hkdf_expand(prk_1,lbl_session) in
+        {63}let resp_mac_key_1: key = hkdf_expand(prk_1,lbl_resp_mac) in
+        {64}let init_mac_key_1: key = hkdf_expand(prk_1,lbl_init_mac) in
+        {65}let transcript_1: bitstring = make_transcript(eC_1,eS_1,nonceC_1,nonceS_1,pkC_s,pkS,kem_pkC_1,kem_ct_2) in
+        {66}let resp_mac_1: bitstring = hmac_compute(resp_mac_key_1,transcript_1) in
+        {67}event ServerAcceptsAuth(pkS,pkC_s,session_key_1);
+        {68}out(c, (nonceS_1,eS_1,env_s,en_s,resp_mac_1,kem_ct_2,oprf_key_s));
+        {69}in(c, init_mac_1: bitstring);
+        {70}let expected_init_mac: bitstring = hmac_compute(init_mac_key_1,transcript_1) in
+        {71}if (init_mac_1 = expected_init_mac) then
+        {72}event ServerCompletesAuth(pkS,pkC_s,session_key_1)
+    )
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new skS: scalar;
+{2}let pkS: point = ec_pk(skS) in
+{3}out(c, pkS);
+(
+    {5}new oprf_key_c: scalar;
+    {9}new skC: scalar;
+    {11}new env_nonce: nonce;
+    {10}let pkC: point = ec_pk(skC) in
+    {4}let pwd: password = secret_pwd in
+    {13}event PasswordRegistered(pkC,pwd);
+    {6}let oprf_out: key = oprf_output(pwd,oprf_key_c) in
+    {7}let rwd: key = argon2id(oprf_out,pwd) in
+    {8}let env_key: key = hkdf_expand(rwd,lbl_envelope) in
+    {12}let env: envelope = aenc(env_key,env_nonce,(pkS,skC,pkC)) in
+    {14}out(secure_reg, (env,env_nonce,pkC,oprf_key_c))
+) | (
+    {16}in(secure_reg, (env_1: envelope,env_nonce_1: nonce,pkC_1: point,oprf_key: scalar));
+    {17}out(secure_reg, (env_1,env_nonce_1,pkC_1,oprf_key))
+) | (
+    {18}in(secure_reg, (env_s: envelope,en_s: nonce,pkC_s: point,oprf_key_s: scalar));
+    (
+        {19}!
+        {21}new ekC: scalar;
+        {23}new kem_skC: kem_sk;
+        {25}new nonceC: nonce;
+        {26}new r_auth: scalar;
+        {24}let kem_pkC: kem_pk = kem_keygen_pk(kem_skC) in
+        {22}let eC: point = ec_pk(ekC) in
+        {28}out(c, (eC,nonceC,kem_pkC));
+        {29}in(c, (nonceS: nonce,eS: point,env_2: envelope,env_nonce_2: nonce,resp_mac: bitstring,kem_ct_1: kem_ct,oprf_key_s_1: scalar));
+        {20}let pwd_1: password = secret_pwd in
+        {30}let oprf_out_s: key = oprf_output(pwd_1,oprf_key_s_1) in
+        {31}let rwd_1: key = argon2id(oprf_out_s,pwd_1) in
+        {32}let env_key_1: key = hkdf_expand(rwd_1,lbl_envelope) in
+        {33}let (pkS_rec: point,skC_rec: scalar,pkC_rec: point) = adec(env_key_1,env_nonce_2,env_2) in
+        {34}event ClientStartsAuth(pkC_rec,pkS);
+        {43}let transcript: bitstring = make_transcript(eC,eS,nonceC,nonceS,pkC_rec,pkS,kem_pkC,kem_ct_1) in
+        {38}let kem_ss: key = kem_decaps(kem_skC,kem_ct_1) in
+        {37}let dh3: key = ec_dh(skC_rec,eS) in
+        {36}let dh2: key = ec_dh(ekC,pkS) in
+        {35}let dh1: key = ec_dh(skC_rec,pkS) in
+        {39}let prk: key = hkdf_extract4(dh1,dh2,dh3,kem_ss) in
+        {41}let resp_mac_key: key = hkdf_expand(prk,lbl_resp_mac) in
+        {44}let expected_resp_mac: bitstring = hmac_compute(resp_mac_key,transcript) in
+        {45}if (resp_mac = expected_resp_mac) then
+        {40}let session_key: key = hkdf_expand(prk,lbl_session) in
+        {47}event ClientCompletesAuth(pkC_rec,pkS,session_key);
+        {42}let init_mac_key: key = hkdf_expand(prk,lbl_init_mac) in
+        {46}let init_mac: bitstring = hmac_compute(init_mac_key,transcript) in
+        {48}out(c, init_mac)
+    ) | (
+        {49}!
+        {51}in(c, (eC_1: point,nonceC_1: nonce,kem_pkC_1: kem_pk));
+        {52}new ekS: scalar;
+        {54}new nonceS_1: nonce;
+        {55}new kem_rand: nonce;
+        {60}let dh3_1: key = ec_dh(ekS,pkC_s) in
+        {50}let skS_2: scalar = skS in
+        {59}let dh2_1: key = ec_dh(skS_2,eC_1) in
+        {58}let dh1_1: key = ec_dh(skS_2,pkC_s) in
+        {57}let kem_ss_1: key = kem_shared(kem_pkC_1,kem_rand) in
+        {61}let prk_1: key = hkdf_extract4(dh1_1,dh2_1,dh3_1,kem_ss_1) in
+        {62}let session_key_1: key = hkdf_expand(prk_1,lbl_session) in
+        {67}event ServerAcceptsAuth(pkS,pkC_s,session_key_1);
+        {56}let kem_ct_2: kem_ct = kem_encaps(kem_pkC_1,kem_rand) in
+        {53}let eS_1: point = ec_pk(ekS) in
+        {65}let transcript_1: bitstring = make_transcript(eC_1,eS_1,nonceC_1,nonceS_1,pkC_s,pkS,kem_pkC_1,kem_ct_2) in
+        {63}let resp_mac_key_1: key = hkdf_expand(prk_1,lbl_resp_mac) in
+        {66}let resp_mac_1: bitstring = hmac_compute(resp_mac_key_1,transcript_1) in
+        {68}out(c, (nonceS_1,eS_1,env_s,en_s,resp_mac_1,kem_ct_2,oprf_key_s));
+        {69}in(c, init_mac_1: bitstring);
+        {64}let init_mac_key_1: key = hkdf_expand(prk_1,lbl_init_mac) in
+        {70}let expected_init_mac: bitstring = hmac_compute(init_mac_key_1,transcript_1) in
+        {71}if (init_mac_1 = expected_init_mac) then
+        {72}event ServerCompletesAuth(pkS,pkC_s,session_key_1)
+    )
+)
+
+-- Query event(ClientCompletesAuth(pkC_2,pkS_1,sk)) ==> event(ServerAcceptsAuth(pkS_1,pkC_2,sk)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+select attacker(ec_pk(b))/-5000
+200 rules inserted. Base: 199 rules (45 with conclusion selected). Queue: 123 rules.
+400 rules inserted. Base: 374 rules (112 with conclusion selected). Queue: 72 rules.
+600 rules inserted. Base: 544 rules (120 with conclusion selected). Queue: 352 rules.
+800 rules inserted. Base: 744 rules (120 with conclusion selected). Queue: 437 rules.
+1000 rules inserted. Base: 894 rules (120 with conclusion selected). Queue: 526 rules.
+1200 rules inserted. Base: 1062 rules (120 with conclusion selected). Queue: 618 rules.
+1400 rules inserted. Base: 1242 rules (120 with conclusion selected). Queue: 683 rules.
+1600 rules inserted. Base: 1442 rules (120 with conclusion selected). Queue: 1078 rules.
+1800 rules inserted. Base: 1642 rules (120 with conclusion selected). Queue: 1388 rules.
+2000 rules inserted. Base: 1770 rules (120 with conclusion selected). Queue: 1451 rules.
+2200 rules inserted. Base: 1878 rules (120 with conclusion selected). Queue: 1564 rules.
+2400 rules inserted. Base: 1972 rules (120 with conclusion selected). Queue: 1640 rules.
+2600 rules inserted. Base: 2037 rules (120 with conclusion selected). Queue: 1741 rules.
+2800 rules inserted. Base: 2038 rules (120 with conclusion selected). Queue: 1846 rules.
+3000 rules inserted. Base: 2102 rules (120 with conclusion selected). Queue: 1906 rules.
+3200 rules inserted. Base: 2198 rules (120 with conclusion selected). Queue: 1908 rules.
+3400 rules inserted. Base: 2319 rules (120 with conclusion selected). Queue: 1910 rules.
+3600 rules inserted. Base: 2387 rules (120 with conclusion selected). Queue: 2039 rules.
+3800 rules inserted. Base: 2456 rules (120 with conclusion selected). Queue: 2433 rules.
+4000 rules inserted. Base: 2524 rules (120 with conclusion selected). Queue: 2775 rules.
+4200 rules inserted. Base: 2578 rules (120 with conclusion selected). Queue: 2967 rules.
+4400 rules inserted. Base: 2674 rules (120 with conclusion selected). Queue: 3058 rules.
+4600 rules inserted. Base: 2761 rules (120 with conclusion selected). Queue: 3043 rules.
+4800 rules inserted. Base: 2841 rules (120 with conclusion selected). Queue: 3004 rules.
+5000 rules inserted. Base: 2987 rules (120 with conclusion selected). Queue: 3028 rules.
+5200 rules inserted. Base: 3075 rules (120 with conclusion selected). Queue: 3038 rules.
+5400 rules inserted. Base: 3125 rules (120 with conclusion selected). Queue: 3066 rules.
+5600 rules inserted. Base: 3172 rules (120 with conclusion selected). Queue: 3163 rules.
+5800 rules inserted. Base: 3215 rules (120 with conclusion selected). Queue: 3165 rules.
+6000 rules inserted. Base: 3260 rules (120 with conclusion selected). Queue: 3164 rules.
+6200 rules inserted. Base: 3304 rules (120 with conclusion selected). Queue: 3154 rules.
+6400 rules inserted. Base: 3346 rules (120 with conclusion selected). Queue: 3160 rules.
+6600 rules inserted. Base: 3394 rules (120 with conclusion selected). Queue: 3148 rules.
+6800 rules inserted. Base: 3414 rules (120 with conclusion selected). Queue: 3149 rules.
+7000 rules inserted. Base: 3430 rules (120 with conclusion selected). Queue: 3133 rules.
+7200 rules inserted. Base: 3438 rules (120 with conclusion selected). Queue: 3124 rules.
+7400 rules inserted. Base: 3463 rules (120 with conclusion selected). Queue: 3116 rules.
+7600 rules inserted. Base: 3508 rules (120 with conclusion selected). Queue: 3116 rules.
+7800 rules inserted. Base: 3483 rules (120 with conclusion selected). Queue: 3114 rules.
+8000 rules inserted. Base: 3549 rules (120 with conclusion selected). Queue: 3160 rules.
+8200 rules inserted. Base: 3585 rules (120 with conclusion selected). Queue: 3184 rules.
+8400 rules inserted. Base: 3598 rules (120 with conclusion selected). Queue: 3204 rules.
+8600 rules inserted. Base: 3764 rules (120 with conclusion selected). Queue: 3173 rules.
+8800 rules inserted. Base: 3860 rules (120 with conclusion selected). Queue: 3154 rules.
+9000 rules inserted. Base: 3939 rules (120 with conclusion selected). Queue: 3131 rules.
+9200 rules inserted. Base: 4025 rules (120 with conclusion selected). Queue: 3110 rules.
+9400 rules inserted. Base: 4103 rules (120 with conclusion selected). Queue: 3098 rules.
+9600 rules inserted. Base: 4177 rules (120 with conclusion selected). Queue: 3160 rules.
+9800 rules inserted. Base: 4251 rules (120 with conclusion selected). Queue: 3222 rules.
+10000 rules inserted. Base: 4277 rules (120 with conclusion selected). Queue: 3196 rules.
+10200 rules inserted. Base: 4301 rules (120 with conclusion selected). Queue: 3172 rules.
+10400 rules inserted. Base: 4311 rules (120 with conclusion selected). Queue: 3162 rules.
+10600 rules inserted. Base: 4315 rules (120 with conclusion selected). Queue: 3158 rules.
+10800 rules inserted. Base: 4315 rules (120 with conclusion selected). Queue: 3158 rules.
+11000 rules inserted. Base: 4319 rules (120 with conclusion selected). Queue: 3158 rules.
+11200 rules inserted. Base: 4329 rules (120 with conclusion selected). Queue: 3158 rules.
+11400 rules inserted. Base: 4361 rules (120 with conclusion selected). Queue: 3136 rules.
+11600 rules inserted. Base: 4405 rules (120 with conclusion selected). Queue: 3102 rules.
+11800 rules inserted. Base: 4431 rules (120 with conclusion selected). Queue: 3096 rules.
+12000 rules inserted. Base: 4431 rules (120 with conclusion selected). Queue: 3096 rules.
+12200 rules inserted. Base: 4449 rules (120 with conclusion selected). Queue: 3276 rules.
+12400 rules inserted. Base: 4467 rules (120 with conclusion selected). Queue: 3456 rules.
+12600 rules inserted. Base: 4485 rules (120 with conclusion selected). Queue: 3636 rules.
+12800 rules inserted. Base: 4485 rules (120 with conclusion selected). Queue: 3636 rules.
+13000 rules inserted. Base: 4503 rules (120 with conclusion selected). Queue: 3816 rules.
+13200 rules inserted. Base: 4521 rules (120 with conclusion selected). Queue: 3897 rules.
+13400 rules inserted. Base: 4541 rules (120 with conclusion selected). Queue: 3976 rules.
+13600 rules inserted. Base: 4561 rules (120 with conclusion selected). Queue: 4055 rules.
+13800 rules inserted. Base: 4598 rules (120 with conclusion selected). Queue: 4144 rules.
+14000 rules inserted. Base: 4631 rules (120 with conclusion selected). Queue: 4120 rules.
+14200 rules inserted. Base: 4688 rules (120 with conclusion selected). Queue: 4083 rules.
+14400 rules inserted. Base: 4781 rules (120 with conclusion selected). Queue: 4049 rules.
+14600 rules inserted. Base: 4845 rules (120 with conclusion selected). Queue: 4046 rules.
+14800 rules inserted. Base: 4945 rules (176 with conclusion selected). Queue: 3956 rules.
+15000 rules inserted. Base: 5042 rules (248 with conclusion selected). Queue: 3885 rules.
+15200 rules inserted. Base: 5059 rules (248 with conclusion selected). Queue: 3884 rules.
+15400 rules inserted. Base: 5086 rules (248 with conclusion selected). Queue: 3885 rules.
+15600 rules inserted. Base: 5109 rules (248 with conclusion selected). Queue: 3884 rules.
+15800 rules inserted. Base: 5132 rules (248 with conclusion selected). Queue: 3885 rules.
+16000 rules inserted. Base: 5158 rules (248 with conclusion selected). Queue: 3885 rules.
+16200 rules inserted. Base: 5176 rules (248 with conclusion selected). Queue: 3884 rules.
+16400 rules inserted. Base: 5208 rules (248 with conclusion selected). Queue: 3894 rules.
+16600 rules inserted. Base: 5227 rules (248 with conclusion selected). Queue: 3893 rules.
+16800 rules inserted. Base: 5254 rules (248 with conclusion selected). Queue: 3902 rules.
+17000 rules inserted. Base: 5295 rules (248 with conclusion selected). Queue: 3934 rules.
+17200 rules inserted. Base: 5317 rules (248 with conclusion selected). Queue: 3977 rules.
+17400 rules inserted. Base: 5344 rules (248 with conclusion selected). Queue: 4007 rules.
+17600 rules inserted. Base: 5370 rules (248 with conclusion selected). Queue: 4033 rules.
+17800 rules inserted. Base: 5399 rules (248 with conclusion selected). Queue: 4030 rules.
+18000 rules inserted. Base: 5470 rules (248 with conclusion selected). Queue: 4045 rules.
+18200 rules inserted. Base: 5572 rules (248 with conclusion selected). Queue: 4049 rules.
+18400 rules inserted. Base: 5690 rules (248 with conclusion selected). Queue: 4047 rules.
+18600 rules inserted. Base: 5783 rules (248 with conclusion selected). Queue: 4094 rules.
+18800 rules inserted. Base: 5898 rules (248 with conclusion selected). Queue: 4139 rules.
+19000 rules inserted. Base: 6007 rules (248 with conclusion selected). Queue: 4101 rules.
+19200 rules inserted. Base: 6090 rules (248 with conclusion selected). Queue: 4094 rules.
+19400 rules inserted. Base: 6198 rules (248 with conclusion selected). Queue: 4060 rules.
+19600 rules inserted. Base: 6270 rules (248 with conclusion selected). Queue: 4044 rules.
+19800 rules inserted. Base: 6378 rules (248 with conclusion selected). Queue: 4023 rules.
+20000 rules inserted. Base: 6440 rules (248 with conclusion selected). Queue: 4004 rules.
+20200 rules inserted. Base: 6594 rules (248 with conclusion selected). Queue: 3999 rules.
+20400 rules inserted. Base: 6692 rules (248 with conclusion selected). Queue: 3971 rules.
+20600 rules inserted. Base: 6773 rules (248 with conclusion selected). Queue: 3964 rules.
+20800 rules inserted. Base: 6891 rules (248 with conclusion selected). Queue: 3981 rules.
+21000 rules inserted. Base: 6926 rules (248 with conclusion selected). Queue: 4001 rules.
+21200 rules inserted. Base: 6973 rules (248 with conclusion selected). Queue: 4028 rules.
+21400 rules inserted. Base: 7017 rules (248 with conclusion selected). Queue: 4057 rules.
+21600 rules inserted. Base: 7046 rules (248 with conclusion selected). Queue: 4078 rules.
+21800 rules inserted. Base: 7080 rules (248 with conclusion selected). Queue: 4100 rules.
+22000 rules inserted. Base: 7137 rules (248 with conclusion selected). Queue: 4130 rules.
+22200 rules inserted. Base: 7217 rules (248 with conclusion selected). Queue: 4168 rules.
+22400 rules inserted. Base: 7301 rules (248 with conclusion selected). Queue: 4168 rules.
+22600 rules inserted. Base: 7397 rules (248 with conclusion selected). Queue: 4168 rules.
+22800 rules inserted. Base: 7503 rules (248 with conclusion selected). Queue: 4134 rules.
+23000 rules inserted. Base: 7637 rules (248 with conclusion selected). Queue: 4188 rules.
+23200 rules inserted. Base: 7691 rules (248 with conclusion selected). Queue: 4246 rules.
+23400 rules inserted. Base: 7776 rules (248 with conclusion selected). Queue: 4341 rules.
+23600 rules inserted. Base: 7829 rules (248 with conclusion selected). Queue: 4400 rules.
+23800 rules inserted. Base: 7914 rules (248 with conclusion selected). Queue: 4495 rules.
+24000 rules inserted. Base: 7967 rules (248 with conclusion selected). Queue: 4554 rules.
+24200 rules inserted. Base: 7985 rules (248 with conclusion selected). Queue: 4572 rules.
+24400 rules inserted. Base: 8103 rules (248 with conclusion selected). Queue: 4706 rules.
+24600 rules inserted. Base: 8105 rules (248 with conclusion selected). Queue: 4708 rules.
+24800 rules inserted. Base: 8193 rules (248 with conclusion selected). Queue: 4808 rules.
+25000 rules inserted. Base: 8263 rules (248 with conclusion selected). Queue: 4886 rules.
+25200 rules inserted. Base: 8379 rules (248 with conclusion selected). Queue: 5014 rules.
+25400 rules inserted. Base: 8466 rules (248 with conclusion selected). Queue: 5111 rules.
+25600 rules inserted. Base: 8537 rules (248 with conclusion selected). Queue: 5199 rules.
+25800 rules inserted. Base: 8657 rules (248 with conclusion selected). Queue: 5342 rules.
+26000 rules inserted. Base: 8747 rules (248 with conclusion selected). Queue: 5434 rules.
+26200 rules inserted. Base: 8861 rules (248 with conclusion selected). Queue: 5559 rules.
+26400 rules inserted. Base: 8990 rules (248 with conclusion selected). Queue: 5667 rules.
+26600 rules inserted. Base: 9086 rules (248 with conclusion selected). Queue: 5581 rules.
+26800 rules inserted. Base: 9192 rules (248 with conclusion selected). Queue: 5487 rules.
+27000 rules inserted. Base: 9343 rules (248 with conclusion selected). Queue: 5348 rules.
+27200 rules inserted. Base: 9482 rules (248 with conclusion selected). Queue: 5249 rules.
+27400 rules inserted. Base: 9578 rules (248 with conclusion selected). Queue: 5203 rules.
+27600 rules inserted. Base: 9659 rules (248 with conclusion selected). Queue: 5164 rules.
+27800 rules inserted. Base: 9798 rules (248 with conclusion selected). Queue: 5057 rules.
+28000 rules inserted. Base: 9879 rules (248 with conclusion selected). Queue: 5044 rules.
+28200 rules inserted. Base: 9976 rules (248 with conclusion selected). Queue: 4971 rules.
+28400 rules inserted. Base: 10113 rules (248 with conclusion selected). Queue: 4866 rules.
+28600 rules inserted. Base: 10171 rules (248 with conclusion selected). Queue: 4868 rules.
+28800 rules inserted. Base: 10239 rules (248 with conclusion selected). Queue: 4808 rules.
+29000 rules inserted. Base: 10378 rules (248 with conclusion selected). Queue: 4709 rules.
+29200 rules inserted. Base: 10460 rules (248 with conclusion selected). Queue: 4695 rules.
+29400 rules inserted. Base: 10504 rules (248 with conclusion selected). Queue: 4651 rules.
+29600 rules inserted. Base: 10640 rules (248 with conclusion selected). Queue: 4555 rules.
+29800 rules inserted. Base: 10743 rules (248 with conclusion selected). Queue: 4513 rules.
+30000 rules inserted. Base: 10872 rules (248 with conclusion selected). Queue: 4442 rules.
+30200 rules inserted. Base: 11001 rules (248 with conclusion selected). Queue: 4362 rules.
+30400 rules inserted. Base: 11100 rules (248 with conclusion selected). Queue: 4325 rules.
+30600 rules inserted. Base: 11236 rules (248 with conclusion selected). Queue: 4229 rules.
+30800 rules inserted. Base: 11323 rules (248 with conclusion selected). Queue: 4221 rules.
+31000 rules inserted. Base: 11460 rules (248 with conclusion selected). Queue: 4116 rules.
+31200 rules inserted. Base: 11549 rules (248 with conclusion selected). Queue: 4092 rules.
+31400 rules inserted. Base: 11727 rules (248 with conclusion selected). Queue: 3936 rules.
+31600 rules inserted. Base: 11909 rules (248 with conclusion selected). Queue: 3771 rules.
+31800 rules inserted. Base: 12090 rules (248 with conclusion selected). Queue: 3607 rules.
+32000 rules inserted. Base: 12270 rules (248 with conclusion selected). Queue: 3427 rules.
+32200 rules inserted. Base: 12466 rules (248 with conclusion selected). Queue: 3303 rules.
+32400 rules inserted. Base: 12662 rules (248 with conclusion selected). Queue: 3179 rules.
+32600 rules inserted. Base: 12850 rules (248 with conclusion selected). Queue: 3109 rules.
+32800 rules inserted. Base: 13024 rules (248 with conclusion selected). Queue: 2970 rules.
+33000 rules inserted. Base: 13214 rules (248 with conclusion selected). Queue: 2920 rules.
+33200 rules inserted. Base: 13386 rules (248 with conclusion selected). Queue: 2761 rules.
+33400 rules inserted. Base: 13573 rules (248 with conclusion selected). Queue: 2722 rules.
+33600 rules inserted. Base: 13745 rules (248 with conclusion selected). Queue: 2555 rules.
+33800 rules inserted. Base: 13931 rules (248 with conclusion selected). Queue: 2435 rules.
+34000 rules inserted. Base: 14106 rules (248 with conclusion selected). Queue: 2347 rules.
+34200 rules inserted. Base: 14286 rules (248 with conclusion selected). Queue: 2167 rules.
+34400 rules inserted. Base: 14461 rules (248 with conclusion selected). Queue: 2145 rules.
+34600 rules inserted. Base: 14637 rules (248 with conclusion selected). Queue: 2043 rules.
+34800 rules inserted. Base: 14816 rules (248 with conclusion selected). Queue: 1943 rules.
+35000 rules inserted. Base: 14979 rules (248 with conclusion selected). Queue: 1933 rules.
+35200 rules inserted. Base: 15143 rules (248 with conclusion selected). Queue: 1779 rules.
+35400 rules inserted. Base: 15332 rules (248 with conclusion selected). Queue: 1731 rules.
+35600 rules inserted. Base: 15530 rules (248 with conclusion selected). Queue: 1533 rules.
+35800 rules inserted. Base: 15721 rules (248 with conclusion selected). Queue: 1342 rules.
+36000 rules inserted. Base: 15912 rules (248 with conclusion selected). Queue: 1151 rules.
+36200 rules inserted. Base: 16094 rules (248 with conclusion selected). Queue: 969 rules.
+36400 rules inserted. Base: 16267 rules (248 with conclusion selected). Queue: 796 rules.
+36600 rules inserted. Base: 16458 rules (248 with conclusion selected). Queue: 605 rules.
+36800 rules inserted. Base: 16640 rules (248 with conclusion selected). Queue: 423 rules.
+37000 rules inserted. Base: 16822 rules (248 with conclusion selected). Queue: 241 rules.
+37200 rules inserted. Base: 17022 rules (248 with conclusion selected). Queue: 41 rules.
+Starting query event(ClientCompletesAuth(pkC_2,pkS_1,sk)) ==> event(ServerAcceptsAuth(pkS_1,pkC_2,sk))
+goal reachable: b-event(ServerAcceptsAuth(ec_pk(skS[]),ec_pk(skC[]),hkdf_expand(hkdf_extract4(ec_dh(skS[],ec_pk(skC[])),ec_dh(skS[],ec_pk(ekC_1)),ec_dh(ekS_1,ec_pk(skC[])),kem_shared(kem_keygen_pk(kem_skC_1),kem_rand_1)),lbl_session[]))) && b-event(ServerAcceptsAuth(ec_pk(skS[]),ec_pk(skC[]),hkdf_expand(hkdf_extract4(ec_dh(skC[],ec_pk(skS[])),ec_dh(skS[],eC_2),ec_dh(skC[],ec_pk(ekS_2)),kem_shared(kem_pkC_2,kem_rand_2)),lbl_session[]))) && attacker(eC_2) && attacker(nonceC_2) && attacker(kem_pkC_2) -> event(ClientCompletesAuth(ec_pk(skC[]),ec_pk(skS[]),hkdf_expand(hkdf_extract4(ec_dh(skS[],ec_pk(skC[])),ec_dh(skS[],ec_pk(ekC_1)),ec_dh(ekS_1,ec_pk(skC[])),kem_shared(kem_keygen_pk(kem_skC_1),kem_rand_1)),lbl_session[])))
+Abbreviations:
+ekC_1 = ekC[!1 = @sid,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+kem_skC_1 = kem_skC[!1 = @sid,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+nonceC_3 = nonceC[!1 = @sid,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+ekS_1 = ekS[kem_pkC_1 = kem_keygen_pk(kem_skC_1),nonceC_1 = nonceC_3,eC_1 = ec_pk(ekC_1),!1 = @sid_1,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+kem_rand_1 = kem_rand[kem_pkC_1 = kem_keygen_pk(kem_skC_1),nonceC_1 = nonceC_3,eC_1 = ec_pk(ekC_1),!1 = @sid_1,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+ekS_2 = ekS[kem_pkC_1 = kem_pkC_2,nonceC_1 = nonceC_2,eC_1 = eC_2,!1 = @sid_2,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+kem_rand_2 = kem_rand[kem_pkC_1 = kem_pkC_2,nonceC_1 = nonceC_2,eC_1 = eC_2,!1 = @sid_2,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+RESULT event(ClientCompletesAuth(pkC_2,pkS_1,sk)) ==> event(ServerAcceptsAuth(pkS_1,pkC_2,sk)) is true.
+-- Query event(ServerCompletesAuth(pkS_1,pkC_2,sk)) ==> event(ClientStartsAuth(pkC_2,pkS_1)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 193 rules (57 with conclusion selected). Queue: 48 rules.
+400 rules inserted. Base: 357 rules (63 with conclusion selected). Queue: 100 rules.
+600 rules inserted. Base: 465 rules (63 with conclusion selected). Queue: 192 rules.
+800 rules inserted. Base: 531 rules (63 with conclusion selected). Queue: 218 rules.
+1000 rules inserted. Base: 614 rules (63 with conclusion selected). Queue: 239 rules.
+1200 rules inserted. Base: 662 rules (63 with conclusion selected). Queue: 251 rules.
+1400 rules inserted. Base: 714 rules (63 with conclusion selected). Queue: 233 rules.
+1600 rules inserted. Base: 775 rules (63 with conclusion selected). Queue: 257 rules.
+1800 rules inserted. Base: 837 rules (67 with conclusion selected). Queue: 252 rules.
+2000 rules inserted. Base: 906 rules (71 with conclusion selected). Queue: 256 rules.
+2200 rules inserted. Base: 982 rules (71 with conclusion selected). Queue: 255 rules.
+2400 rules inserted. Base: 1057 rules (71 with conclusion selected). Queue: 246 rules.
+2600 rules inserted. Base: 1166 rules (71 with conclusion selected). Queue: 195 rules.
+2800 rules inserted. Base: 1309 rules (71 with conclusion selected). Queue: 94 rules.
+Starting query event(ServerCompletesAuth(pkS_1,pkC_2,sk)) ==> event(ClientStartsAuth(pkC_2,pkS_1))
+goal reachable: b-event(ClientStartsAuth(ec_pk(skC[]),ec_pk(skS[]))) -> event(ServerCompletesAuth(ec_pk(skS[]),ec_pk(skC[]),hkdf_expand(hkdf_extract4(ec_dh(skS[],ec_pk(skC[])),ec_dh(ekC_1,ec_pk(skS[])),ec_dh(ekS_1,ec_pk(skC[])),kem_shared(kem_keygen_pk(kem_skC_1),kem_rand_1)),lbl_session[])))
+Abbreviations:
+ekC_1 = ekC[!1 = @sid,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+kem_skC_1 = kem_skC[!1 = @sid,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+nonceC_2 = nonceC[!1 = @sid,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+ekS_1 = ekS[kem_pkC_1 = kem_keygen_pk(kem_skC_1),nonceC_1 = nonceC_2,eC_1 = ec_pk(ekC_1),!1 = @sid_1,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+kem_rand_1 = kem_rand[kem_pkC_1 = kem_keygen_pk(kem_skC_1),nonceC_1 = nonceC_2,eC_1 = ec_pk(ekC_1),!1 = @sid_1,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+RESULT event(ServerCompletesAuth(pkS_1,pkC_2,sk)) ==> event(ClientStartsAuth(pkC_2,pkS_1)) is true.
+-- Query inj-event(ServerCompletesAuth(pkS_1,pkC_2,sk)) ==> inj-event(ClientCompletesAuth(pkC_2,pkS_1,sk)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 193 rules (57 with conclusion selected). Queue: 48 rules.
+400 rules inserted. Base: 357 rules (63 with conclusion selected). Queue: 100 rules.
+600 rules inserted. Base: 465 rules (63 with conclusion selected). Queue: 192 rules.
+800 rules inserted. Base: 531 rules (63 with conclusion selected). Queue: 218 rules.
+1000 rules inserted. Base: 614 rules (63 with conclusion selected). Queue: 239 rules.
+1200 rules inserted. Base: 662 rules (63 with conclusion selected). Queue: 251 rules.
+1400 rules inserted. Base: 714 rules (63 with conclusion selected). Queue: 233 rules.
+1600 rules inserted. Base: 775 rules (63 with conclusion selected). Queue: 261 rules.
+1800 rules inserted. Base: 846 rules (67 with conclusion selected). Queue: 259 rules.
+2000 rules inserted. Base: 909 rules (71 with conclusion selected). Queue: 266 rules.
+2200 rules inserted. Base: 981 rules (71 with conclusion selected). Queue: 279 rules.
+2400 rules inserted. Base: 1054 rules (71 with conclusion selected). Queue: 258 rules.
+2600 rules inserted. Base: 1162 rules (71 with conclusion selected). Queue: 205 rules.
+2800 rules inserted. Base: 1302 rules (71 with conclusion selected). Queue: 116 rules.
+Starting query inj-event(ServerCompletesAuth(pkS_1,pkC_2,sk)) ==> inj-event(ClientCompletesAuth(pkC_2,pkS_1,sk))
+goal reachable: b-inj-event(ClientCompletesAuth(ec_pk(skC[]),ec_pk(skS[]),hkdf_expand(hkdf_extract4(ec_dh(skS[],ec_pk(skC[])),ec_dh(ekC_1,ec_pk(skS[])),ec_dh(ekS_1,ec_pk(skC[])),kem_shared(kem_keygen_pk(kem_skC_1),kem_rand_1)),lbl_session[])),@occ47_1) -> inj-event(ServerCompletesAuth(ec_pk(skS[]),ec_pk(skC[]),hkdf_expand(hkdf_extract4(ec_dh(skS[],ec_pk(skC[])),ec_dh(ekC_1,ec_pk(skS[])),ec_dh(ekS_1,ec_pk(skC[])),kem_shared(kem_keygen_pk(kem_skC_1),kem_rand_1)),lbl_session[])),@occ72_1)
+The hypothesis occurs strictly before the conclusion.
+Abbreviations:
+ekC_1 = ekC[!1 = @sid,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+kem_skC_1 = kem_skC[!1 = @sid,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+nonceC_2 = nonceC[!1 = @sid,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+ekS_1 = ekS[kem_pkC_1 = kem_keygen_pk(kem_skC_1),nonceC_1 = nonceC_2,eC_1 = ec_pk(ekC_1),!1 = @sid_1,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+kem_rand_1 = kem_rand[kem_pkC_1 = kem_keygen_pk(kem_skC_1),nonceC_1 = nonceC_2,eC_1 = ec_pk(ekC_1),!1 = @sid_1,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+nonceS_2 = nonceS_1[kem_pkC_1 = kem_keygen_pk(kem_skC_1),nonceC_1 = nonceC_2,eC_1 = ec_pk(ekC_1),!1 = @sid_1,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+@occ72_1 = @occ72[init_mac_1 = hmac_compute(hkdf_expand(hkdf_extract4(ec_dh(skS[],ec_pk(skC[])),ec_dh(ekC_1,ec_pk(skS[])),ec_dh(ekS_1,ec_pk(skC[])),kem_shared(kem_keygen_pk(kem_skC_1),kem_rand_1)),lbl_init_mac[]),make_transcript(ec_pk(ekC_1),ec_pk(ekS_1),nonceC_2,nonceS_2,ec_pk(skC[]),ec_pk(skS[]),kem_keygen_pk(kem_skC_1),kem_encaps(kem_keygen_pk(kem_skC_1),kem_rand_1))),kem_pkC_1 = kem_keygen_pk(kem_skC_1),nonceC_1 = nonceC_2,eC_1 = ec_pk(ekC_1),!1 = @sid_1,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+@occ47_1 = @occ47[oprf_key_s_1 = oprf_key_c[],kem_ct_1 = kem_encaps(kem_keygen_pk(kem_skC_1),kem_rand_1),resp_mac = hmac_compute(hkdf_expand(hkdf_extract4(ec_dh(skS[],ec_pk(skC[])),ec_dh(ekC_1,ec_pk(skS[])),ec_dh(ekS_1,ec_pk(skC[])),kem_shared(kem_keygen_pk(kem_skC_1),kem_rand_1)),lbl_resp_mac[]),make_transcript(ec_pk(ekC_1),ec_pk(ekS_1),nonceC_2,nonceS_2,ec_pk(skC[]),ec_pk(skS[]),kem_keygen_pk(kem_skC_1),kem_encaps(kem_keygen_pk(kem_skC_1),kem_rand_1))),env_nonce_2 = env_nonce[],env_2 = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[]))),eS = ec_pk(ekS_1),nonceS = nonceS_2,!1 = @sid,oprf_key_s = oprf_key_c[],pkC_s = ec_pk(skC[]),en_s = env_nonce[],env_s = aenc(hkdf_expand(argon2id(oprf_output(secret_pwd[],oprf_key_c[]),secret_pwd[]),lbl_envelope[]),env_nonce[],(ec_pk(skS[]),skC[],ec_pk(skC[])))]
+RESULT inj-event(ServerCompletesAuth(pkS_1,pkC_2,sk)) ==> inj-event(ClientCompletesAuth(pkC_2,pkS_1,sk)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(ClientCompletesAuth(pkC_2,pkS_1,sk)) ==> event(ServerAcceptsAuth(pkS_1,pkC_2,sk)) is true.
+
+Query event(ServerCompletesAuth(pkS_1,pkC_2,sk)) ==> event(ClientStartsAuth(pkC_2,pkS_1)) is true.
+
+Query inj-event(ServerCompletesAuth(pkS_1,pkC_2,sk)) ==> inj-event(ClientCompletesAuth(pkC_2,pkS_1,sk)) is true.
+
+--------------------------------------------------------------
+

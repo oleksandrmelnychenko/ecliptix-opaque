@@ -1,0 +1,8 @@
+maude tool: 'maude'
+ checking version: 2.7.1. OK.
+ checking installation: OK.
+[Theory Hybrid_PQ_OPAQUE] Theory loaded
+[Theory Hybrid_PQ_OPAQUE] Theory translated
+[Theory Hybrid_PQ_OPAQUE] Derivation checks started
+[Theory Hybrid_PQ_OPAQUE] Derivation checks ended
+[Theory Hybrid_PQ_OPAQUE] Theory closed

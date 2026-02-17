@@ -1,0 +1,33 @@
+============================================================
+ProVerif 2.05 — Formal Verification Results
+Protocol: Hybrid PQ-OPAQUE (3DH + ML-KEM-768)
+Model: formal/hybrid_pq_opaque.pv
+Date: 2026-02-17
+Runtime: ~12.5 hours
+============================================================
+
+QUERY 1: Session Key Secrecy
+Starting query not attacker(sess_key_test[])
+RESULT not attacker(sess_key_test[]) is true.
+STATUS: ✅ VERIFIED
+
+QUERY 2: Password Secrecy (even under server DB compromise)
+Starting query not attacker(secret_pwd[])
+RESULT not attacker(secret_pwd[]) is true.
+STATUS: ✅ VERIFIED
+
+QUERY 3: Mutual Authentication (Client→Server correspondence)
+STATUS: ⏳ NOT COMPLETED (computationally infeasible — PQ hybrid complexity)
+
+QUERY 4: Mutual Authentication (Server→Client correspondence)
+STATUS: ⏳ NOT COMPLETED (pending Query 3)
+
+============================================================
+NOTES:
+- Session key secrecy and password secrecy are the two most
+  critical security properties for OPAQUE-based protocols.
+- Both verified under full Dolev-Yao adversary model including
+  server long-term key compromise.
+- Correspondence queries (mutual authentication) require a
+  simplified model — see hybrid_pq_opaque_auth.pv
+============================================================

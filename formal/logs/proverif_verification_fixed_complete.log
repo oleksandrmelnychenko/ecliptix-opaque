@@ -1,0 +1,954 @@
+File "/Users/oleksandrmelnychenko/Documents/Ecliptix.Security.OPAQUE/formal/hybrid_pq_opaque.pv", line 181, characters 31-36:
+Warning: identifier kem_ct rebound.
+File "/Users/oleksandrmelnychenko/Documents/Ecliptix.Security.OPAQUE/formal/hybrid_pq_opaque.pv", line 243, characters 7-12:
+Warning: identifier kem_ct rebound.
+Linear part:
+ec_dh(a,ec_pk(b)) = ec_dh(b,ec_pk(a))
+Completing equations...
+Completed equations:
+ec_dh(a,ec_pk(b)) = ec_dh(b,ec_pk(a))
+Convergent part:
+kem_decaps(sk,kem_encaps(kem_keygen_pk(sk),r)) = kem_shared(kem_keygen_pk(sk),r)
+Completing equations...
+Completed equations:
+kem_decaps(sk,kem_encaps(kem_keygen_pk(sk),r)) = kem_shared(kem_keygen_pk(sk),r)
+Process 0 (that is, the initial process):
+{1}new skS: scalar;
+{2}let pkS: point = ec_pk(skS) in
+{3}out(c, pkS);
+(
+    {4}let pwd: password = secret_pwd in
+    {5}new r_reg: scalar;
+    {6}let blinded: point = oprf_blind(pwd,r_reg) in
+    {7}out(secure_reg, blinded);
+    {8}in(secure_reg, (evaluated: point,server_pk_confirm: point));
+    {9}let oprf_out: key = oprf_finalize(evaluated,r_reg,pwd) in
+    {10}let rwd: key = argon2id(oprf_out,pwd) in
+    {11}let env_key: key = hkdf_expand(rwd,lbl_envelope) in
+    {12}new skC: scalar;
+    {13}let pkC: point = ec_pk(skC) in
+    {14}new env_nonce: nonce;
+    {15}let env: envelope = aenc(env_key,env_nonce,(pkS,skC,pkC)) in
+    {16}let record: bitstring = (env,env_nonce,pkC) in
+    {17}event PasswordRegistered(pkC,pwd);
+    {18}out(secure_reg, record)
+) | (
+    {19}let skS_1: scalar = skS in
+    {20}in(secure_reg, blinded_1: point);
+    {21}new oprf_key: scalar;
+    {22}let evaluated_1: point = oprf_eval(blinded_1,oprf_key) in
+    {23}out(secure_reg, (evaluated_1,pkS));
+    {24}in(secure_reg, (env_1: envelope,n: nonce,pkC_1: point));
+    {25}out(secure_reg, ((env_1,n,pkC_1),oprf_key))
+) | (
+    {26}in(secure_reg, record_stored: bitstring);
+    {27}in(secure_reg, (record_stored2: bitstring,oprf_key_stored: scalar));
+    (
+        {28}!
+        {29}let pwd_1: password = secret_pwd in
+        {30}new r_auth: scalar;
+        {31}let blinded_2: point = oprf_blind(pwd_1,r_auth) in
+        {32}new ekC: scalar;
+        {33}let eC: point = ec_pk(ekC) in
+        {34}new kem_skC: kem_sk;
+        {35}let kem_pkC: kem_pk = kem_keygen_pk(kem_skC) in
+        {36}new nonceC: nonce;
+        {37}out(c, (blinded_2,eC,nonceC,kem_pkC));
+        {38}in(c, (nonceS: nonce,eS: point,cred_resp: bitstring,resp_mac: bitstring,kem_ct_1: kem_ct));
+        {39}let (evaluated_elem: point,env_2: envelope,env_nonce_1: nonce) = cred_resp in
+        {40}let oprf_out_1: key = oprf_finalize(evaluated_elem,r_auth,pwd_1) in
+        {41}let rwd_1: key = argon2id(oprf_out_1,pwd_1) in
+        {42}let env_key_1: key = hkdf_expand(rwd_1,lbl_envelope) in
+        {43}let (pkS_rec: point,skC_rec: scalar,pkC_rec: point) = adec(env_key_1,env_nonce_1,env_2) in
+        {44}event ClientStartsAuth(pkC_rec,pkS);
+        {45}let dh1: key = ec_dh(skC_rec,pkS) in
+        {46}let dh2: key = ec_dh(ekC,pkS) in
+        {47}let dh3: key = ec_dh(skC_rec,eS) in
+        {48}let kem_ss: key = kem_decaps(kem_skC,kem_ct_1) in
+        {49}let transcript: bitstring = hash((eC,eS,nonceC,nonceS,pkC_rec,pkS,cred_resp,kem_pkC,kem_ct_1)) in
+        {50}let combined_ikm: bitstring = concat_ikm(dh1,dh2,dh3,kem_ss) in
+        {51}let salt: bitstring = hash((lbl_combiner,transcript)) in
+        {52}let prk: key = hkdf_extract(salt,combined_ikm) in
+        {53}let session_key: key = hkdf_expand(prk,lbl_session) in
+        {54}let master_key: key = hkdf_expand(prk,lbl_master) in
+        {55}let resp_mac_key: key = hkdf_expand(prk,lbl_resp_mac) in
+        {56}let init_mac_key: key = hkdf_expand(prk,lbl_init_mac) in
+        {57}let expected_resp_mac: bitstring = hmac_compute(resp_mac_key,transcript) in
+        {58}if (resp_mac = expected_resp_mac) then
+        {59}let init_mac: bitstring = hmac_compute(init_mac_key,transcript) in
+        {60}event ClientCompletesAuth(pkC_rec,pkS,session_key);
+        {61}out(c, init_mac)
+    ) | (
+        {62}!
+        {63}let skS_2: scalar = skS in
+        {64}let (env_3: envelope,env_nonce_2: nonce,pkC_2: point) = record_stored2 in
+        {65}in(c, (blinded_3: point,eC_1: point,nonceC_1: nonce,kem_pkC_1: kem_pk));
+        {66}new ekS: scalar;
+        {67}let eS_1: point = ec_pk(ekS) in
+        {68}new nonceS_1: nonce;
+        {69}let evaluated_2: point = oprf_eval(blinded_3,oprf_key_stored) in
+        {70}let cred_resp_1: bitstring = (evaluated_2,env_3,env_nonce_2) in
+        {71}let dh1_1: key = ec_dh(skS_2,pkC_2) in
+        {72}let dh2_1: key = ec_dh(skS_2,eC_1) in
+        {73}let dh3_1: key = ec_dh(ekS,pkC_2) in
+        {74}new kem_rand: nonce;
+        {75}let kem_ct_2: kem_ct = kem_encaps(kem_pkC_1,kem_rand) in
+        {76}let kem_ss_1: key = kem_shared(kem_pkC_1,kem_rand) in
+        {77}let transcript_1: bitstring = hash((eC_1,eS_1,nonceC_1,nonceS_1,pkC_2,pkS,cred_resp_1,kem_pkC_1,kem_ct_2)) in
+        {78}let combined_ikm_1: bitstring = concat_ikm(dh1_1,dh2_1,dh3_1,kem_ss_1) in
+        {79}let salt_1: bitstring = hash((lbl_combiner,transcript_1)) in
+        {80}let prk_1: key = hkdf_extract(salt_1,combined_ikm_1) in
+        {81}let session_key_1: key = hkdf_expand(prk_1,lbl_session) in
+        {82}let master_key_1: key = hkdf_expand(prk_1,lbl_master) in
+        {83}let resp_mac_key_1: key = hkdf_expand(prk_1,lbl_resp_mac) in
+        {84}let init_mac_key_1: key = hkdf_expand(prk_1,lbl_init_mac) in
+        {85}let resp_mac_1: bitstring = hmac_compute(resp_mac_key_1,transcript_1) in
+        {86}event ServerAcceptsAuth(pkS,pkC_2,session_key_1);
+        {87}out(c, (nonceS_1,eS_1,cred_resp_1,resp_mac_1,kem_ct_2));
+        {88}in(c, init_mac_1: bitstring);
+        {89}let expected_init_mac: bitstring = hmac_compute(init_mac_key_1,transcript_1) in
+        {90}if (init_mac_1 = expected_init_mac) then
+        {91}event ServerCompletesAuth(pkS,pkC_2,session_key_1);
+        {92}event SessionEstablished(pkC_2,pkS,session_key_1)
+    ) | (
+        {93}event ServerLTKCompromised(pkS);
+        {94}out(c, skS)
+    )
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new skS: scalar;
+{2}let pkS: point = ec_pk(skS) in
+{3}out(c, pkS);
+(
+    {5}new r_reg: scalar;
+    {4}let pwd: password = secret_pwd in
+    {6}let blinded: point = oprf_blind(pwd,r_reg) in
+    {7}out(secure_reg, blinded);
+    {8}in(secure_reg, (evaluated: point,server_pk_confirm: point));
+    {9}let oprf_out: key = oprf_finalize(evaluated,r_reg,pwd) in
+    {12}new skC: scalar;
+    {14}new env_nonce: nonce;
+    {13}let pkC: point = ec_pk(skC) in
+    {17}event PasswordRegistered(pkC,pwd);
+    {10}let rwd: key = argon2id(oprf_out,pwd) in
+    {11}let env_key: key = hkdf_expand(rwd,lbl_envelope) in
+    {15}let env: envelope = aenc(env_key,env_nonce,(pkS,skC,pkC)) in
+    {16}let record: bitstring = (env,env_nonce,pkC) in
+    {18}out(secure_reg, record)
+) | (
+    {20}in(secure_reg, blinded_1: point);
+    {21}new oprf_key: scalar;
+    {22}let evaluated_1: point = oprf_eval(blinded_1,oprf_key) in
+    {23}out(secure_reg, (evaluated_1,pkS));
+    {24}in(secure_reg, (env_1: envelope,n: nonce,pkC_1: point));
+    {25}out(secure_reg, ((env_1,n,pkC_1),oprf_key))
+) | (
+    {26}in(secure_reg, record_stored: bitstring);
+    {27}in(secure_reg, (record_stored2: bitstring,oprf_key_stored: scalar));
+    (
+        {28}!
+        {30}new r_auth: scalar;
+        {32}new ekC: scalar;
+        {34}new kem_skC: kem_sk;
+        {36}new nonceC: nonce;
+        {35}let kem_pkC: kem_pk = kem_keygen_pk(kem_skC) in
+        {33}let eC: point = ec_pk(ekC) in
+        {29}let pwd_1: password = secret_pwd in
+        {31}let blinded_2: point = oprf_blind(pwd_1,r_auth) in
+        {37}out(c, (blinded_2,eC,nonceC,kem_pkC));
+        {38}in(c, (nonceS: nonce,eS: point,cred_resp: bitstring,resp_mac: bitstring,kem_ct_1: kem_ct));
+        {39}let (evaluated_elem: point,env_2: envelope,env_nonce_1: nonce) = cred_resp in
+        {40}let oprf_out_1: key = oprf_finalize(evaluated_elem,r_auth,pwd_1) in
+        {41}let rwd_1: key = argon2id(oprf_out_1,pwd_1) in
+        {42}let env_key_1: key = hkdf_expand(rwd_1,lbl_envelope) in
+        {43}let (pkS_rec: point,skC_rec: scalar,pkC_rec: point) = adec(env_key_1,env_nonce_1,env_2) in
+        {44}event ClientStartsAuth(pkC_rec,pkS);
+        {49}let transcript: bitstring = hash((eC,eS,nonceC,nonceS,pkC_rec,pkS,cred_resp,kem_pkC,kem_ct_1)) in
+        {51}let salt: bitstring = hash((lbl_combiner,transcript)) in
+        {48}let kem_ss: key = kem_decaps(kem_skC,kem_ct_1) in
+        {47}let dh3: key = ec_dh(skC_rec,eS) in
+        {46}let dh2: key = ec_dh(ekC,pkS) in
+        {45}let dh1: key = ec_dh(skC_rec,pkS) in
+        {50}let combined_ikm: bitstring = concat_ikm(dh1,dh2,dh3,kem_ss) in
+        {52}let prk: key = hkdf_extract(salt,combined_ikm) in
+        {55}let resp_mac_key: key = hkdf_expand(prk,lbl_resp_mac) in
+        {57}let expected_resp_mac: bitstring = hmac_compute(resp_mac_key,transcript) in
+        {58}if (resp_mac = expected_resp_mac) then
+        {53}let session_key: key = hkdf_expand(prk,lbl_session) in
+        {60}event ClientCompletesAuth(pkC_rec,pkS,session_key);
+        {56}let init_mac_key: key = hkdf_expand(prk,lbl_init_mac) in
+        {59}let init_mac: bitstring = hmac_compute(init_mac_key,transcript) in
+        {61}out(c, init_mac)
+    ) | (
+        {62}!
+        {64}let (env_3: envelope,env_nonce_2: nonce,pkC_2: point) = record_stored2 in
+        {65}in(c, (blinded_3: point,eC_1: point,nonceC_1: nonce,kem_pkC_1: kem_pk));
+        {66}new ekS: scalar;
+        {68}new nonceS_1: nonce;
+        {74}new kem_rand: nonce;
+        {75}let kem_ct_2: kem_ct = kem_encaps(kem_pkC_1,kem_rand) in
+        {69}let evaluated_2: point = oprf_eval(blinded_3,oprf_key_stored) in
+        {70}let cred_resp_1: bitstring = (evaluated_2,env_3,env_nonce_2) in
+        {67}let eS_1: point = ec_pk(ekS) in
+        {77}let transcript_1: bitstring = hash((eC_1,eS_1,nonceC_1,nonceS_1,pkC_2,pkS,cred_resp_1,kem_pkC_1,kem_ct_2)) in
+        {79}let salt_1: bitstring = hash((lbl_combiner,transcript_1)) in
+        {76}let kem_ss_1: key = kem_shared(kem_pkC_1,kem_rand) in
+        {73}let dh3_1: key = ec_dh(ekS,pkC_2) in
+        {63}let skS_2: scalar = skS in
+        {72}let dh2_1: key = ec_dh(skS_2,eC_1) in
+        {71}let dh1_1: key = ec_dh(skS_2,pkC_2) in
+        {78}let combined_ikm_1: bitstring = concat_ikm(dh1_1,dh2_1,dh3_1,kem_ss_1) in
+        {80}let prk_1: key = hkdf_extract(salt_1,combined_ikm_1) in
+        {81}let session_key_1: key = hkdf_expand(prk_1,lbl_session) in
+        {86}event ServerAcceptsAuth(pkS,pkC_2,session_key_1);
+        {83}let resp_mac_key_1: key = hkdf_expand(prk_1,lbl_resp_mac) in
+        {85}let resp_mac_1: bitstring = hmac_compute(resp_mac_key_1,transcript_1) in
+        {87}out(c, (nonceS_1,eS_1,cred_resp_1,resp_mac_1,kem_ct_2));
+        {88}in(c, init_mac_1: bitstring);
+        {84}let init_mac_key_1: key = hkdf_expand(prk_1,lbl_init_mac) in
+        {89}let expected_init_mac: bitstring = hmac_compute(init_mac_key_1,transcript_1) in
+        {90}if (init_mac_1 = expected_init_mac) then
+        {91}event ServerCompletesAuth(pkS,pkC_2,session_key_1);
+        {92}event SessionEstablished(pkC_2,pkS,session_key_1)
+    ) | (
+        {93}event ServerLTKCompromised(pkS);
+        {94}out(c, skS)
+    )
+)
+
+-- Query not attacker(sess_key_test[]) in process 1.
+Translating the process into Horn clauses...
+select mess(secure_reg[],blinded_4)/-5000
+Completing...
+200 rules inserted. Base: 185 rules (51 with conclusion selected). Queue: 35 rules.
+400 rules inserted. Base: 349 rules (85 with conclusion selected). Queue: 71 rules.
+600 rules inserted. Base: 474 rules (85 with conclusion selected). Queue: 167 rules.
+800 rules inserted. Base: 592 rules (85 with conclusion selected). Queue: 144 rules.
+1000 rules inserted. Base: 666 rules (85 with conclusion selected). Queue: 198 rules.
+1200 rules inserted. Base: 743 rules (85 with conclusion selected). Queue: 327 rules.
+1400 rules inserted. Base: 829 rules (85 with conclusion selected). Queue: 400 rules.
+1600 rules inserted. Base: 899 rules (85 with conclusion selected). Queue: 473 rules.
+1800 rules inserted. Base: 945 rules (85 with conclusion selected). Queue: 550 rules.
+2000 rules inserted. Base: 1025 rules (85 with conclusion selected). Queue: 551 rules.
+2200 rules inserted. Base: 1082 rules (85 with conclusion selected). Queue: 613 rules.
+2400 rules inserted. Base: 1126 rules (85 with conclusion selected). Queue: 660 rules.
+2600 rules inserted. Base: 1191 rules (85 with conclusion selected). Queue: 676 rules.
+2800 rules inserted. Base: 1230 rules (93 with conclusion selected). Queue: 665 rules.
+3000 rules inserted. Base: 1256 rules (93 with conclusion selected). Queue: 683 rules.
+3200 rules inserted. Base: 1310 rules (93 with conclusion selected). Queue: 671 rules.
+3400 rules inserted. Base: 1380 rules (101 with conclusion selected). Queue: 608 rules.
+3600 rules inserted. Base: 1435 rules (101 with conclusion selected). Queue: 603 rules.
+3800 rules inserted. Base: 1490 rules (101 with conclusion selected). Queue: 539 rules.
+4000 rules inserted. Base: 1534 rules (101 with conclusion selected). Queue: 529 rules.
+4200 rules inserted. Base: 1607 rules (101 with conclusion selected). Queue: 570 rules.
+4400 rules inserted. Base: 1712 rules (101 with conclusion selected). Queue: 550 rules.
+4600 rules inserted. Base: 1796 rules (101 with conclusion selected). Queue: 576 rules.
+4800 rules inserted. Base: 1939 rules (101 with conclusion selected). Queue: 523 rules.
+5000 rules inserted. Base: 2018 rules (101 with conclusion selected). Queue: 460 rules.
+5200 rules inserted. Base: 2147 rules (101 with conclusion selected). Queue: 379 rules.
+5400 rules inserted. Base: 2295 rules (101 with conclusion selected). Queue: 231 rules.
+5600 rules inserted. Base: 2442 rules (101 with conclusion selected). Queue: 104 rules.
+Starting query not attacker(sess_key_test[])
+RESULT not attacker(sess_key_test[]) is true.
+-- Query not attacker(secret_pwd[]) in process 1.
+Translating the process into Horn clauses...
+select mess(secure_reg[],blinded_4)/-5000
+Completing...
+200 rules inserted. Base: 185 rules (51 with conclusion selected). Queue: 35 rules.
+400 rules inserted. Base: 349 rules (85 with conclusion selected). Queue: 71 rules.
+600 rules inserted. Base: 474 rules (85 with conclusion selected). Queue: 167 rules.
+800 rules inserted. Base: 592 rules (85 with conclusion selected). Queue: 144 rules.
+1000 rules inserted. Base: 666 rules (85 with conclusion selected). Queue: 198 rules.
+1200 rules inserted. Base: 743 rules (85 with conclusion selected). Queue: 327 rules.
+1400 rules inserted. Base: 829 rules (85 with conclusion selected). Queue: 400 rules.
+1600 rules inserted. Base: 899 rules (85 with conclusion selected). Queue: 473 rules.
+1800 rules inserted. Base: 945 rules (85 with conclusion selected). Queue: 550 rules.
+2000 rules inserted. Base: 1025 rules (85 with conclusion selected). Queue: 551 rules.
+2200 rules inserted. Base: 1082 rules (85 with conclusion selected). Queue: 613 rules.
+2400 rules inserted. Base: 1126 rules (85 with conclusion selected). Queue: 660 rules.
+2600 rules inserted. Base: 1191 rules (85 with conclusion selected). Queue: 676 rules.
+2800 rules inserted. Base: 1230 rules (93 with conclusion selected). Queue: 665 rules.
+3000 rules inserted. Base: 1256 rules (93 with conclusion selected). Queue: 683 rules.
+3200 rules inserted. Base: 1310 rules (93 with conclusion selected). Queue: 671 rules.
+3400 rules inserted. Base: 1380 rules (101 with conclusion selected). Queue: 608 rules.
+3600 rules inserted. Base: 1435 rules (101 with conclusion selected). Queue: 603 rules.
+3800 rules inserted. Base: 1490 rules (101 with conclusion selected). Queue: 539 rules.
+4000 rules inserted. Base: 1534 rules (101 with conclusion selected). Queue: 529 rules.
+4200 rules inserted. Base: 1607 rules (101 with conclusion selected). Queue: 570 rules.
+4400 rules inserted. Base: 1712 rules (101 with conclusion selected). Queue: 550 rules.
+4600 rules inserted. Base: 1796 rules (101 with conclusion selected). Queue: 576 rules.
+4800 rules inserted. Base: 1939 rules (101 with conclusion selected). Queue: 523 rules.
+5000 rules inserted. Base: 2018 rules (101 with conclusion selected). Queue: 460 rules.
+5200 rules inserted. Base: 2147 rules (101 with conclusion selected). Queue: 379 rules.
+5400 rules inserted. Base: 2295 rules (101 with conclusion selected). Queue: 231 rules.
+5600 rules inserted. Base: 2442 rules (101 with conclusion selected). Queue: 104 rules.
+Starting query not attacker(secret_pwd[])
+RESULT not attacker(secret_pwd[]) is true.
+-- Query event(ClientCompletesAuth(pkC_3,pkS_1,sk)) ==> event(ServerAcceptsAuth(pkS_1,pkC_3,sk)) in process 1.
+Translating the process into Horn clauses...
+select mess(secure_reg[],blinded_4)/-5000
+Completing...
+200 rules inserted. Base: 197 rules (47 with conclusion selected). Queue: 69 rules.
+select attacker(ec_pk(b))/-5000
+400 rules inserted. Base: 365 rules (91 with conclusion selected). Queue: 197 rules.
+600 rules inserted. Base: 527 rules (143 with conclusion selected). Queue: 167 rules.
+800 rules inserted. Base: 670 rules (171 with conclusion selected). Queue: 241 rules.
+1000 rules inserted. Base: 856 rules (194 with conclusion selected). Queue: 483 rules.
+1200 rules inserted. Base: 1056 rules (194 with conclusion selected). Queue: 578 rules.
+1400 rules inserted. Base: 1236 rules (194 with conclusion selected). Queue: 1003 rules.
+1600 rules inserted. Base: 1356 rules (194 with conclusion selected). Queue: 1170 rules.
+1800 rules inserted. Base: 1521 rules (194 with conclusion selected). Queue: 1572 rules.
+2000 rules inserted. Base: 1561 rules (194 with conclusion selected). Queue: 1626 rules.
+2200 rules inserted. Base: 1586 rules (194 with conclusion selected). Queue: 1667 rules.
+2400 rules inserted. Base: 1602 rules (194 with conclusion selected). Queue: 1771 rules.
+2600 rules inserted. Base: 1629 rules (194 with conclusion selected). Queue: 1864 rules.
+2800 rules inserted. Base: 1658 rules (194 with conclusion selected). Queue: 2355 rules.
+3000 rules inserted. Base: 1683 rules (194 with conclusion selected). Queue: 2450 rules.
+3200 rules inserted. Base: 1708 rules (194 with conclusion selected). Queue: 2525 rules.
+3400 rules inserted. Base: 1727 rules (194 with conclusion selected). Queue: 2846 rules.
+3600 rules inserted. Base: 1808 rules (194 with conclusion selected). Queue: 3005 rules.
+3800 rules inserted. Base: 1954 rules (194 with conclusion selected). Queue: 2859 rules.
+4000 rules inserted. Base: 2097 rules (194 with conclusion selected). Queue: 2796 rules.
+4200 rules inserted. Base: 2241 rules (194 with conclusion selected). Queue: 2732 rules.
+4400 rules inserted. Base: 2400 rules (194 with conclusion selected). Queue: 4126 rules.
+4600 rules inserted. Base: 2542 rules (194 with conclusion selected). Queue: 4942 rules.
+4800 rules inserted. Base: 2742 rules (194 with conclusion selected). Queue: 5467 rules.
+5000 rules inserted. Base: 2942 rules (194 with conclusion selected). Queue: 6871 rules.
+5200 rules inserted. Base: 3113 rules (194 with conclusion selected). Queue: 8260 rules.
+5400 rules inserted. Base: 3258 rules (194 with conclusion selected). Queue: 8195 rules.
+5600 rules inserted. Base: 3401 rules (194 with conclusion selected). Queue: 8132 rules.
+5800 rules inserted. Base: 3484 rules (194 with conclusion selected). Queue: 8089 rules.
+6000 rules inserted. Base: 3565 rules (194 with conclusion selected). Queue: 8028 rules.
+6200 rules inserted. Base: 3750 rules (194 with conclusion selected). Queue: 7984 rules.
+6400 rules inserted. Base: 3862 rules (194 with conclusion selected). Queue: 7951 rules.
+6600 rules inserted. Base: 3984 rules (194 with conclusion selected). Queue: 7869 rules.
+6800 rules inserted. Base: 4086 rules (194 with conclusion selected). Queue: 7763 rules.
+7000 rules inserted. Base: 4150 rules (194 with conclusion selected). Queue: 7739 rules.
+7200 rules inserted. Base: 4150 rules (194 with conclusion selected). Queue: 7739 rules.
+7400 rules inserted. Base: 4150 rules (194 with conclusion selected). Queue: 7739 rules.
+7600 rules inserted. Base: 4150 rules (194 with conclusion selected). Queue: 7739 rules.
+7800 rules inserted. Base: 4179 rules (194 with conclusion selected). Queue: 7710 rules.
+8000 rules inserted. Base: 4179 rules (194 with conclusion selected). Queue: 7710 rules.
+8200 rules inserted. Base: 4179 rules (194 with conclusion selected). Queue: 7710 rules.
+8400 rules inserted. Base: 4179 rules (194 with conclusion selected). Queue: 7710 rules.
+8600 rules inserted. Base: 4208 rules (194 with conclusion selected). Queue: 7681 rules.
+8800 rules inserted. Base: 4208 rules (194 with conclusion selected). Queue: 7681 rules.
+9000 rules inserted. Base: 4208 rules (194 with conclusion selected). Queue: 7681 rules.
+9200 rules inserted. Base: 4208 rules (194 with conclusion selected). Queue: 7681 rules.
+9400 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7652 rules.
+9600 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7652 rules.
+9800 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7652 rules.
+10000 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7652 rules.
+10200 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7652 rules.
+10400 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+10600 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+10800 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+11000 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+11200 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+11400 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+11600 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+11800 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+12000 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+12200 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+12400 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+12600 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+12800 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+13000 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+13200 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+13400 rules inserted. Base: 4237 rules (194 with conclusion selected). Queue: 7692 rules.
+13600 rules inserted. Base: 4324 rules (194 with conclusion selected). Queue: 7605 rules.
+13800 rules inserted. Base: 4426 rules (194 with conclusion selected). Queue: 7583 rules.
+14000 rules inserted. Base: 4586 rules (194 with conclusion selected). Queue: 7503 rules.
+14200 rules inserted. Base: 4629 rules (194 with conclusion selected). Queue: 7520 rules.
+14400 rules inserted. Base: 4749 rules (194 with conclusion selected). Queue: 7540 rules.
+14600 rules inserted. Base: 4920 rules (194 with conclusion selected). Queue: 9618 rules.
+14800 rules inserted. Base: 5003 rules (194 with conclusion selected). Queue: 10888 rules.
+15000 rules inserted. Base: 5003 rules (194 with conclusion selected). Queue: 10888 rules.
+15200 rules inserted. Base: 5003 rules (194 with conclusion selected). Queue: 10888 rules.
+15400 rules inserted. Base: 5003 rules (194 with conclusion selected). Queue: 10888 rules.
+15600 rules inserted. Base: 5023 rules (194 with conclusion selected). Queue: 11248 rules.
+15800 rules inserted. Base: 5023 rules (194 with conclusion selected). Queue: 11248 rules.
+16000 rules inserted. Base: 5023 rules (194 with conclusion selected). Queue: 11248 rules.
+16200 rules inserted. Base: 5023 rules (194 with conclusion selected). Queue: 11248 rules.
+16400 rules inserted. Base: 5043 rules (194 with conclusion selected). Queue: 11608 rules.
+16600 rules inserted. Base: 5043 rules (194 with conclusion selected). Queue: 11608 rules.
+16800 rules inserted. Base: 5043 rules (194 with conclusion selected). Queue: 11608 rules.
+17000 rules inserted. Base: 5043 rules (194 with conclusion selected). Queue: 11608 rules.
+17200 rules inserted. Base: 5063 rules (194 with conclusion selected). Queue: 11968 rules.
+17400 rules inserted. Base: 5063 rules (194 with conclusion selected). Queue: 11968 rules.
+17600 rules inserted. Base: 5063 rules (194 with conclusion selected). Queue: 11968 rules.
+17800 rules inserted. Base: 5080 rules (194 with conclusion selected). Queue: 12274 rules.
+18000 rules inserted. Base: 5280 rules (194 with conclusion selected). Queue: 15874 rules.
+18200 rules inserted. Base: 5283 rules (194 with conclusion selected). Queue: 15928 rules.
+18400 rules inserted. Base: 5283 rules (194 with conclusion selected). Queue: 15928 rules.
+18600 rules inserted. Base: 5283 rules (194 with conclusion selected). Queue: 15928 rules.
+18800 rules inserted. Base: 5303 rules (194 with conclusion selected). Queue: 16288 rules.
+19000 rules inserted. Base: 5303 rules (194 with conclusion selected). Queue: 16288 rules.
+19200 rules inserted. Base: 5303 rules (194 with conclusion selected). Queue: 16288 rules.
+19400 rules inserted. Base: 5303 rules (194 with conclusion selected). Queue: 16288 rules.
+19600 rules inserted. Base: 5323 rules (194 with conclusion selected). Queue: 16648 rules.
+19800 rules inserted. Base: 5323 rules (194 with conclusion selected). Queue: 16648 rules.
+20000 rules inserted. Base: 5323 rules (194 with conclusion selected). Queue: 16648 rules.
+20200 rules inserted. Base: 5323 rules (194 with conclusion selected). Queue: 16648 rules.
+20400 rules inserted. Base: 5343 rules (194 with conclusion selected). Queue: 17008 rules.
+20600 rules inserted. Base: 5343 rules (194 with conclusion selected). Queue: 17008 rules.
+20800 rules inserted. Base: 5343 rules (194 with conclusion selected). Queue: 17008 rules.
+21000 rules inserted. Base: 5343 rules (194 with conclusion selected). Queue: 17008 rules.
+21200 rules inserted. Base: 5440 rules (194 with conclusion selected). Queue: 17522 rules.
+21400 rules inserted. Base: 5583 rules (194 with conclusion selected). Queue: 18168 rules.
+21600 rules inserted. Base: 5680 rules (194 with conclusion selected). Queue: 18362 rules.
+21800 rules inserted. Base: 5843 rules (194 with conclusion selected). Queue: 18688 rules.
+22000 rules inserted. Base: 5920 rules (194 with conclusion selected). Queue: 18842 rules.
+22200 rules inserted. Base: 5942 rules (194 with conclusion selected). Queue: 18866 rules.
+22400 rules inserted. Base: 5953 rules (194 with conclusion selected). Queue: 18888 rules.
+22600 rules inserted. Base: 5963 rules (194 with conclusion selected). Queue: 18908 rules.
+22800 rules inserted. Base: 5974 rules (194 with conclusion selected). Queue: 18930 rules.
+23000 rules inserted. Base: 5984 rules (194 with conclusion selected). Queue: 18950 rules.
+23200 rules inserted. Base: 5995 rules (194 with conclusion selected). Queue: 18972 rules.
+23400 rules inserted. Base: 6006 rules (194 with conclusion selected). Queue: 18994 rules.
+23600 rules inserted. Base: 6016 rules (194 with conclusion selected). Queue: 19014 rules.
+23800 rules inserted. Base: 6027 rules (194 with conclusion selected). Queue: 19036 rules.
+24000 rules inserted. Base: 6038 rules (194 with conclusion selected). Queue: 19090 rules.
+24200 rules inserted. Base: 6059 rules (194 with conclusion selected). Queue: 19356 rules.
+24400 rules inserted. Base: 6077 rules (194 with conclusion selected). Queue: 19584 rules.
+24600 rules inserted. Base: 6096 rules (194 with conclusion selected). Queue: 19814 rules.
+24800 rules inserted. Base: 6107 rules (194 with conclusion selected). Queue: 19836 rules.
+25000 rules inserted. Base: 6118 rules (194 with conclusion selected). Queue: 19890 rules.
+25200 rules inserted. Base: 6139 rules (194 with conclusion selected). Queue: 20156 rules.
+25400 rules inserted. Base: 6157 rules (194 with conclusion selected). Queue: 20384 rules.
+25600 rules inserted. Base: 6175 rules (194 with conclusion selected). Queue: 20612 rules.
+25800 rules inserted. Base: 6175 rules (194 with conclusion selected). Queue: 20612 rules.
+26000 rules inserted. Base: 6175 rules (194 with conclusion selected). Queue: 20612 rules.
+26200 rules inserted. Base: 6175 rules (194 with conclusion selected). Queue: 20612 rules.
+26400 rules inserted. Base: 6178 rules (194 with conclusion selected). Queue: 20618 rules.
+26600 rules inserted. Base: 6189 rules (194 with conclusion selected). Queue: 20640 rules.
+26800 rules inserted. Base: 6195 rules (194 with conclusion selected). Queue: 20652 rules.
+27000 rules inserted. Base: 6195 rules (194 with conclusion selected). Queue: 20652 rules.
+27200 rules inserted. Base: 6195 rules (194 with conclusion selected). Queue: 20652 rules.
+27400 rules inserted. Base: 6195 rules (194 with conclusion selected). Queue: 20652 rules.
+27600 rules inserted. Base: 6201 rules (194 with conclusion selected). Queue: 20664 rules.
+27800 rules inserted. Base: 6212 rules (194 with conclusion selected). Queue: 20686 rules.
+28000 rules inserted. Base: 6215 rules (194 with conclusion selected). Queue: 20692 rules.
+28200 rules inserted. Base: 6215 rules (194 with conclusion selected). Queue: 20692 rules.
+28400 rules inserted. Base: 6215 rules (194 with conclusion selected). Queue: 20692 rules.
+28600 rules inserted. Base: 6215 rules (194 with conclusion selected). Queue: 20692 rules.
+28800 rules inserted. Base: 6224 rules (194 with conclusion selected). Queue: 20710 rules.
+29000 rules inserted. Base: 6235 rules (194 with conclusion selected). Queue: 20732 rules.
+29200 rules inserted. Base: 6235 rules (194 with conclusion selected). Queue: 20732 rules.
+29400 rules inserted. Base: 6235 rules (194 with conclusion selected). Queue: 20732 rules.
+29600 rules inserted. Base: 6235 rules (194 with conclusion selected). Queue: 20732 rules.
+29800 rules inserted. Base: 6237 rules (194 with conclusion selected). Queue: 20736 rules.
+30000 rules inserted. Base: 6248 rules (194 with conclusion selected). Queue: 20758 rules.
+30200 rules inserted. Base: 6258 rules (194 with conclusion selected). Queue: 20778 rules.
+30400 rules inserted. Base: 6269 rules (194 with conclusion selected). Queue: 20800 rules.
+30600 rules inserted. Base: 6279 rules (194 with conclusion selected). Queue: 20820 rules.
+30800 rules inserted. Base: 6290 rules (194 with conclusion selected). Queue: 20842 rules.
+31000 rules inserted. Base: 6300 rules (194 with conclusion selected). Queue: 20862 rules.
+31200 rules inserted. Base: 6311 rules (194 with conclusion selected). Queue: 20884 rules.
+31400 rules inserted. Base: 6321 rules (194 with conclusion selected). Queue: 20904 rules.
+31600 rules inserted. Base: 6332 rules (194 with conclusion selected). Queue: 20926 rules.
+31800 rules inserted. Base: 6342 rules (194 with conclusion selected). Queue: 20946 rules.
+32000 rules inserted. Base: 6353 rules (194 with conclusion selected). Queue: 20968 rules.
+32200 rules inserted. Base: 6363 rules (194 with conclusion selected). Queue: 20988 rules.
+32400 rules inserted. Base: 6374 rules (194 with conclusion selected). Queue: 21010 rules.
+32600 rules inserted. Base: 6384 rules (194 with conclusion selected). Queue: 21030 rules.
+32800 rules inserted. Base: 6395 rules (194 with conclusion selected). Queue: 21052 rules.
+33000 rules inserted. Base: 6406 rules (194 with conclusion selected). Queue: 21074 rules.
+33200 rules inserted. Base: 6416 rules (194 with conclusion selected). Queue: 21094 rules.
+33400 rules inserted. Base: 6427 rules (194 with conclusion selected). Queue: 21116 rules.
+33600 rules inserted. Base: 6437 rules (194 with conclusion selected). Queue: 21136 rules.
+33800 rules inserted. Base: 6448 rules (194 with conclusion selected). Queue: 21158 rules.
+34000 rules inserted. Base: 6455 rules (194 with conclusion selected). Queue: 21172 rules.
+34200 rules inserted. Base: 6455 rules (194 with conclusion selected). Queue: 21172 rules.
+34400 rules inserted. Base: 6455 rules (194 with conclusion selected). Queue: 21172 rules.
+34600 rules inserted. Base: 6455 rules (194 with conclusion selected). Queue: 21172 rules.
+34800 rules inserted. Base: 6460 rules (194 with conclusion selected). Queue: 21182 rules.
+35000 rules inserted. Base: 6471 rules (194 with conclusion selected). Queue: 21204 rules.
+35200 rules inserted. Base: 6475 rules (194 with conclusion selected). Queue: 21212 rules.
+35400 rules inserted. Base: 6475 rules (194 with conclusion selected). Queue: 21212 rules.
+35600 rules inserted. Base: 6475 rules (194 with conclusion selected). Queue: 21212 rules.
+35800 rules inserted. Base: 6475 rules (194 with conclusion selected). Queue: 21212 rules.
+36000 rules inserted. Base: 6483 rules (194 with conclusion selected). Queue: 21228 rules.
+36200 rules inserted. Base: 6494 rules (194 with conclusion selected). Queue: 21250 rules.
+36400 rules inserted. Base: 6495 rules (194 with conclusion selected). Queue: 21252 rules.
+36600 rules inserted. Base: 6495 rules (194 with conclusion selected). Queue: 21252 rules.
+36800 rules inserted. Base: 6495 rules (194 with conclusion selected). Queue: 21252 rules.
+37000 rules inserted. Base: 6496 rules (194 with conclusion selected). Queue: 21254 rules.
+37200 rules inserted. Base: 6507 rules (194 with conclusion selected). Queue: 21276 rules.
+37400 rules inserted. Base: 6515 rules (194 with conclusion selected). Queue: 21292 rules.
+37600 rules inserted. Base: 6515 rules (194 with conclusion selected). Queue: 21292 rules.
+37800 rules inserted. Base: 6515 rules (194 with conclusion selected). Queue: 21292 rules.
+38000 rules inserted. Base: 6515 rules (194 with conclusion selected). Queue: 21292 rules.
+38200 rules inserted. Base: 6519 rules (194 with conclusion selected). Queue: 21300 rules.
+38400 rules inserted. Base: 6530 rules (194 with conclusion selected). Queue: 21322 rules.
+38600 rules inserted. Base: 6610 rules (194 with conclusion selected). Queue: 21354 rules.
+38800 rules inserted. Base: 6744 rules (194 with conclusion selected). Queue: 21400 rules.
+39000 rules inserted. Base: 6796 rules (194 with conclusion selected). Queue: 21452 rules.
+39200 rules inserted. Base: 6878 rules (194 with conclusion selected). Queue: 21514 rules.
+39400 rules inserted. Base: 6930 rules (194 with conclusion selected). Queue: 21566 rules.
+39600 rules inserted. Base: 6991 rules (194 with conclusion selected). Queue: 21602 rules.
+39800 rules inserted. Base: 7073 rules (194 with conclusion selected). Queue: 21624 rules.
+40000 rules inserted. Base: 7210 rules (194 with conclusion selected). Queue: 21624 rules.
+40200 rules inserted. Base: 7346 rules (194 with conclusion selected). Queue: 21624 rules.
+40400 rules inserted. Base: 7481 rules (194 with conclusion selected). Queue: 21624 rules.
+40600 rules inserted. Base: 7563 rules (194 with conclusion selected). Queue: 21624 rules.
+40800 rules inserted. Base: 7645 rules (194 with conclusion selected). Queue: 21624 rules.
+41000 rules inserted. Base: 7778 rules (194 with conclusion selected). Queue: 21794 rules.
+41200 rules inserted. Base: 7948 rules (194 with conclusion selected). Queue: 22134 rules.
+41400 rules inserted. Base: 8121 rules (194 with conclusion selected). Queue: 22480 rules.
+41600 rules inserted. Base: 8291 rules (194 with conclusion selected). Queue: 22820 rules.
+41800 rules inserted. Base: 8464 rules (194 with conclusion selected). Queue: 23166 rules.
+42000 rules inserted. Base: 8634 rules (194 with conclusion selected). Queue: 23506 rules.
+42200 rules inserted. Base: 8807 rules (194 with conclusion selected). Queue: 23852 rules.
+42400 rules inserted. Base: 8977 rules (194 with conclusion selected). Queue: 24192 rules.
+42600 rules inserted. Base: 9150 rules (194 with conclusion selected). Queue: 24538 rules.
+42800 rules inserted. Base: 9320 rules (194 with conclusion selected). Queue: 24878 rules.
+43000 rules inserted. Base: 9493 rules (194 with conclusion selected). Queue: 25224 rules.
+43200 rules inserted. Base: 9582 rules (194 with conclusion selected). Queue: 25882 rules.
+43400 rules inserted. Base: 9672 rules (194 with conclusion selected). Queue: 26542 rules.
+43600 rules inserted. Base: 9757 rules (194 with conclusion selected). Queue: 27112 rules.
+43800 rules inserted. Base: 9841 rules (194 with conclusion selected). Queue: 27680 rules.
+44000 rules inserted. Base: 9931 rules (194 with conclusion selected). Queue: 28340 rules.
+44200 rules inserted. Base: 10021 rules (194 with conclusion selected). Queue: 29000 rules.
+44400 rules inserted. Base: 10110 rules (194 with conclusion selected). Queue: 29658 rules.
+44600 rules inserted. Base: 10280 rules (194 with conclusion selected). Queue: 29998 rules.
+44800 rules inserted. Base: 10453 rules (194 with conclusion selected). Queue: 30344 rules.
+45000 rules inserted. Base: 10542 rules (194 with conclusion selected). Queue: 31002 rules.
+45200 rules inserted. Base: 10632 rules (194 with conclusion selected). Queue: 31662 rules.
+45400 rules inserted. Base: 10717 rules (194 with conclusion selected). Queue: 32232 rules.
+45600 rules inserted. Base: 10801 rules (194 with conclusion selected). Queue: 32800 rules.
+45800 rules inserted. Base: 10891 rules (194 with conclusion selected). Queue: 33460 rules.
+46000 rules inserted. Base: 10981 rules (194 with conclusion selected). Queue: 34120 rules.
+46200 rules inserted. Base: 11053 rules (194 with conclusion selected). Queue: 34744 rules.
+46400 rules inserted. Base: 11053 rules (194 with conclusion selected). Queue: 34744 rules.
+46600 rules inserted. Base: 11053 rules (194 with conclusion selected). Queue: 34744 rules.
+46800 rules inserted. Base: 11053 rules (194 with conclusion selected). Queue: 34744 rules.
+47000 rules inserted. Base: 11104 rules (194 with conclusion selected). Queue: 34846 rules.
+47200 rules inserted. Base: 11274 rules (194 with conclusion selected). Queue: 35186 rules.
+47400 rules inserted. Base: 11413 rules (194 with conclusion selected). Queue: 35464 rules.
+47600 rules inserted. Base: 11413 rules (194 with conclusion selected). Queue: 35464 rules.
+47800 rules inserted. Base: 11413 rules (194 with conclusion selected). Queue: 35464 rules.
+48000 rules inserted. Base: 11413 rules (194 with conclusion selected). Queue: 35464 rules.
+48200 rules inserted. Base: 11481 rules (194 with conclusion selected). Queue: 35600 rules.
+48400 rules inserted. Base: 11651 rules (194 with conclusion selected). Queue: 35940 rules.
+48600 rules inserted. Base: 11773 rules (194 with conclusion selected). Queue: 36184 rules.
+48800 rules inserted. Base: 11773 rules (194 with conclusion selected). Queue: 36184 rules.
+49000 rules inserted. Base: 11773 rules (194 with conclusion selected). Queue: 36184 rules.
+49200 rules inserted. Base: 11773 rules (194 with conclusion selected). Queue: 36184 rules.
+49400 rules inserted. Base: 11858 rules (194 with conclusion selected). Queue: 36354 rules.
+49600 rules inserted. Base: 12028 rules (194 with conclusion selected). Queue: 36694 rules.
+49800 rules inserted. Base: 12133 rules (194 with conclusion selected). Queue: 36904 rules.
+50000 rules inserted. Base: 12133 rules (194 with conclusion selected). Queue: 36904 rules.
+50200 rules inserted. Base: 12133 rules (194 with conclusion selected). Queue: 36904 rules.
+50400 rules inserted. Base: 12133 rules (194 with conclusion selected). Queue: 36904 rules.
+50600 rules inserted. Base: 12235 rules (194 with conclusion selected). Queue: 37108 rules.
+50800 rules inserted. Base: 12405 rules (194 with conclusion selected). Queue: 37448 rules.
+51000 rules inserted. Base: 12578 rules (194 with conclusion selected). Queue: 37794 rules.
+51200 rules inserted. Base: 12748 rules (194 with conclusion selected). Queue: 38134 rules.
+51400 rules inserted. Base: 12921 rules (194 with conclusion selected). Queue: 38480 rules.
+51600 rules inserted. Base: 13091 rules (194 with conclusion selected). Queue: 38820 rules.
+51800 rules inserted. Base: 13264 rules (194 with conclusion selected). Queue: 39166 rules.
+52000 rules inserted. Base: 13434 rules (194 with conclusion selected). Queue: 39506 rules.
+52200 rules inserted. Base: 13607 rules (194 with conclusion selected). Queue: 39852 rules.
+52400 rules inserted. Base: 13777 rules (194 with conclusion selected). Queue: 40192 rules.
+52600 rules inserted. Base: 13950 rules (194 with conclusion selected). Queue: 40538 rules.
+52800 rules inserted. Base: 14120 rules (194 with conclusion selected). Queue: 40878 rules.
+53000 rules inserted. Base: 14293 rules (194 with conclusion selected). Queue: 41224 rules.
+53200 rules inserted. Base: 14463 rules (194 with conclusion selected). Queue: 41564 rules.
+53400 rules inserted. Base: 14635 rules (194 with conclusion selected). Queue: 41908 rules.
+53600 rules inserted. Base: 14806 rules (194 with conclusion selected). Queue: 42250 rules.
+53800 rules inserted. Base: 14977 rules (194 with conclusion selected). Queue: 42592 rules.
+54000 rules inserted. Base: 15149 rules (194 with conclusion selected). Queue: 42936 rules.
+54200 rules inserted. Base: 15319 rules (194 with conclusion selected). Queue: 43276 rules.
+54400 rules inserted. Base: 15492 rules (194 with conclusion selected). Queue: 43622 rules.
+54600 rules inserted. Base: 15662 rules (194 with conclusion selected). Queue: 43962 rules.
+54800 rules inserted. Base: 15835 rules (194 with conclusion selected). Queue: 44308 rules.
+55000 rules inserted. Base: 16005 rules (194 with conclusion selected). Queue: 44648 rules.
+55200 rules inserted. Base: 16093 rules (194 with conclusion selected). Queue: 44824 rules.
+55400 rules inserted. Base: 16093 rules (194 with conclusion selected). Queue: 44824 rules.
+55600 rules inserted. Base: 16093 rules (194 with conclusion selected). Queue: 44824 rules.
+55800 rules inserted. Base: 16093 rules (194 with conclusion selected). Queue: 44824 rules.
+56000 rules inserted. Base: 16212 rules (194 with conclusion selected). Queue: 45062 rules.
+56200 rules inserted. Base: 16382 rules (194 with conclusion selected). Queue: 45402 rules.
+56400 rules inserted. Base: 16453 rules (194 with conclusion selected). Queue: 45544 rules.
+56600 rules inserted. Base: 16453 rules (194 with conclusion selected). Queue: 45544 rules.
+56800 rules inserted. Base: 16453 rules (194 with conclusion selected). Queue: 45544 rules.
+57000 rules inserted. Base: 16453 rules (194 with conclusion selected). Queue: 45544 rules.
+57200 rules inserted. Base: 16589 rules (194 with conclusion selected). Queue: 45816 rules.
+57400 rules inserted. Base: 16759 rules (194 with conclusion selected). Queue: 46156 rules.
+57600 rules inserted. Base: 16813 rules (194 with conclusion selected). Queue: 46264 rules.
+57800 rules inserted. Base: 16813 rules (194 with conclusion selected). Queue: 46264 rules.
+58000 rules inserted. Base: 16813 rules (194 with conclusion selected). Queue: 46264 rules.
+58200 rules inserted. Base: 16813 rules (194 with conclusion selected). Queue: 46264 rules.
+58400 rules inserted. Base: 16966 rules (194 with conclusion selected). Queue: 46570 rules.
+58600 rules inserted. Base: 17137 rules (194 with conclusion selected). Queue: 46912 rules.
+58800 rules inserted. Base: 17173 rules (194 with conclusion selected). Queue: 46984 rules.
+59000 rules inserted. Base: 17173 rules (194 with conclusion selected). Queue: 46984 rules.
+59200 rules inserted. Base: 17173 rules (194 with conclusion selected). Queue: 46984 rules.
+59400 rules inserted. Base: 17173 rules (194 with conclusion selected). Queue: 46984 rules.
+59600 rules inserted. Base: 17343 rules (194 with conclusion selected). Queue: 47324 rules.
+59800 rules inserted. Base: 17515 rules (194 with conclusion selected). Queue: 47668 rules.
+60000 rules inserted. Base: 17584 rules (194 with conclusion selected). Queue: 48199 rules.
+60200 rules inserted. Base: 17648 rules (194 with conclusion selected). Queue: 48759 rules.
+60400 rules inserted. Base: 17806 rules (194 with conclusion selected). Queue: 49079 rules.
+60600 rules inserted. Base: 17948 rules (194 with conclusion selected). Queue: 49413 rules.
+60800 rules inserted. Base: 18083 rules (194 with conclusion selected). Queue: 49804 rules.
+61000 rules inserted. Base: 18239 rules (194 with conclusion selected). Queue: 50127 rules.
+61200 rules inserted. Base: 18289 rules (194 with conclusion selected). Queue: 50396 rules.
+61400 rules inserted. Base: 18328 rules (194 with conclusion selected). Queue: 50803 rules.
+61600 rules inserted. Base: 18388 rules (194 with conclusion selected). Queue: 51011 rules.
+61800 rules inserted. Base: 18451 rules (194 with conclusion selected). Queue: 51009 rules.
+62000 rules inserted. Base: 18495 rules (194 with conclusion selected). Queue: 51008 rules.
+62200 rules inserted. Base: 18526 rules (194 with conclusion selected). Queue: 51008 rules.
+62400 rules inserted. Base: 18564 rules (194 with conclusion selected). Queue: 51008 rules.
+62600 rules inserted. Base: 18620 rules (194 with conclusion selected). Queue: 51239 rules.
+62800 rules inserted. Base: 18620 rules (194 with conclusion selected). Queue: 51239 rules.
+63000 rules inserted. Base: 18620 rules (194 with conclusion selected). Queue: 51239 rules.
+63200 rules inserted. Base: 18620 rules (194 with conclusion selected). Queue: 51239 rules.
+63400 rules inserted. Base: 18620 rules (194 with conclusion selected). Queue: 51239 rules.
+63600 rules inserted. Base: 18620 rules (194 with conclusion selected). Queue: 51239 rules.
+63800 rules inserted. Base: 18639 rules (194 with conclusion selected). Queue: 51448 rules.
+64000 rules inserted. Base: 18639 rules (194 with conclusion selected). Queue: 51448 rules.
+64200 rules inserted. Base: 18639 rules (194 with conclusion selected). Queue: 51448 rules.
+64400 rules inserted. Base: 18639 rules (194 with conclusion selected). Queue: 51448 rules.
+64600 rules inserted. Base: 18639 rules (194 with conclusion selected). Queue: 51448 rules.
+64800 rules inserted. Base: 18639 rules (194 with conclusion selected). Queue: 51448 rules.
+65000 rules inserted. Base: 18658 rules (194 with conclusion selected). Queue: 51657 rules.
+65200 rules inserted. Base: 18658 rules (194 with conclusion selected). Queue: 51657 rules.
+65400 rules inserted. Base: 18658 rules (194 with conclusion selected). Queue: 51657 rules.
+65600 rules inserted. Base: 18658 rules (194 with conclusion selected). Queue: 51657 rules.
+65800 rules inserted. Base: 18658 rules (194 with conclusion selected). Queue: 51657 rules.
+66000 rules inserted. Base: 18675 rules (194 with conclusion selected). Queue: 51844 rules.
+66200 rules inserted. Base: 18677 rules (194 with conclusion selected). Queue: 51866 rules.
+66400 rules inserted. Base: 18677 rules (194 with conclusion selected). Queue: 51866 rules.
+66600 rules inserted. Base: 18677 rules (194 with conclusion selected). Queue: 51866 rules.
+66800 rules inserted. Base: 18677 rules (194 with conclusion selected). Queue: 51866 rules.
+67000 rules inserted. Base: 18677 rules (194 with conclusion selected). Queue: 51866 rules.
+67200 rules inserted. Base: 18696 rules (194 with conclusion selected). Queue: 52075 rules.
+67400 rules inserted. Base: 18696 rules (194 with conclusion selected). Queue: 52075 rules.
+67600 rules inserted. Base: 18696 rules (194 with conclusion selected). Queue: 52075 rules.
+67800 rules inserted. Base: 18696 rules (194 with conclusion selected). Queue: 52075 rules.
+68000 rules inserted. Base: 18696 rules (194 with conclusion selected). Queue: 52075 rules.
+68200 rules inserted. Base: 18696 rules (194 with conclusion selected). Queue: 52075 rules.
+68400 rules inserted. Base: 18738 rules (194 with conclusion selected). Queue: 52330 rules.
+68600 rules inserted. Base: 18779 rules (194 with conclusion selected). Queue: 52412 rules.
+68800 rules inserted. Base: 18805 rules (194 with conclusion selected). Queue: 52464 rules.
+69000 rules inserted. Base: 18831 rules (194 with conclusion selected). Queue: 52516 rules.
+69200 rules inserted. Base: 18872 rules (194 with conclusion selected). Queue: 52598 rules.
+69400 rules inserted. Base: 18899 rules (194 with conclusion selected). Queue: 52652 rules.
+69600 rules inserted. Base: 18924 rules (194 with conclusion selected). Queue: 52702 rules.
+69800 rules inserted. Base: 18965 rules (194 with conclusion selected). Queue: 52784 rules.
+70000 rules inserted. Base: 18991 rules (194 with conclusion selected). Queue: 52836 rules.
+70200 rules inserted. Base: 19017 rules (194 with conclusion selected). Queue: 52888 rules.
+70400 rules inserted. Base: 19058 rules (194 with conclusion selected). Queue: 52970 rules.
+70600 rules inserted. Base: 19087 rules (194 with conclusion selected). Queue: 53028 rules.
+70800 rules inserted. Base: 19110 rules (194 with conclusion selected). Queue: 53074 rules.
+71000 rules inserted. Base: 19151 rules (194 with conclusion selected). Queue: 53156 rules.
+71200 rules inserted. Base: 19193 rules (194 with conclusion selected). Queue: 53240 rules.
+71400 rules inserted. Base: 19218 rules (194 with conclusion selected). Queue: 53290 rules.
+71600 rules inserted. Base: 19245 rules (194 with conclusion selected). Queue: 53344 rules.
+71800 rules inserted. Base: 19286 rules (194 with conclusion selected). Queue: 53426 rules.
+72000 rules inserted. Base: 19313 rules (194 with conclusion selected). Queue: 53480 rules.
+72200 rules inserted. Base: 19338 rules (194 with conclusion selected). Queue: 53530 rules.
+72400 rules inserted. Base: 19379 rules (194 with conclusion selected). Queue: 53612 rules.
+72600 rules inserted. Base: 19405 rules (194 with conclusion selected). Queue: 53664 rules.
+72800 rules inserted. Base: 19431 rules (194 with conclusion selected). Queue: 53716 rules.
+73000 rules inserted. Base: 19472 rules (194 with conclusion selected). Queue: 53798 rules.
+73200 rules inserted. Base: 19500 rules (194 with conclusion selected). Queue: 53854 rules.
+73400 rules inserted. Base: 19524 rules (194 with conclusion selected). Queue: 53902 rules.
+73600 rules inserted. Base: 19565 rules (194 with conclusion selected). Queue: 53984 rules.
+73800 rules inserted. Base: 19607 rules (194 with conclusion selected). Queue: 54068 rules.
+74000 rules inserted. Base: 19631 rules (194 with conclusion selected). Queue: 54116 rules.
+74200 rules inserted. Base: 19654 rules (194 with conclusion selected). Queue: 54333 rules.
+74400 rules inserted. Base: 19654 rules (194 with conclusion selected). Queue: 54333 rules.
+74600 rules inserted. Base: 19654 rules (194 with conclusion selected). Queue: 54333 rules.
+74800 rules inserted. Base: 19654 rules (194 with conclusion selected). Queue: 54333 rules.
+75000 rules inserted. Base: 19654 rules (194 with conclusion selected). Queue: 54333 rules.
+75200 rules inserted. Base: 19671 rules (194 with conclusion selected). Queue: 54520 rules.
+75400 rules inserted. Base: 19700 rules (194 with conclusion selected). Queue: 54596 rules.
+75600 rules inserted. Base: 19741 rules (194 with conclusion selected). Queue: 54678 rules.
+75800 rules inserted. Base: 19783 rules (194 with conclusion selected). Queue: 54762 rules.
+76000 rules inserted. Base: 19800 rules (194 with conclusion selected). Queue: 54796 rules.
+76200 rules inserted. Base: 19834 rules (194 with conclusion selected). Queue: 54864 rules.
+76400 rules inserted. Base: 19876 rules (194 with conclusion selected). Queue: 54948 rules.
+76600 rules inserted. Base: 19903 rules (194 with conclusion selected). Queue: 55002 rules.
+76800 rules inserted. Base: 19927 rules (194 with conclusion selected). Queue: 55050 rules.
+77000 rules inserted. Base: 19969 rules (194 with conclusion selected). Queue: 55134 rules.
+77200 rules inserted. Base: 19995 rules (194 with conclusion selected). Queue: 55186 rules.
+77400 rules inserted. Base: 20021 rules (194 with conclusion selected). Queue: 55238 rules.
+77600 rules inserted. Base: 20062 rules (194 with conclusion selected). Queue: 55320 rules.
+77800 rules inserted. Base: 20087 rules (194 with conclusion selected). Queue: 55370 rules.
+78000 rules inserted. Base: 20114 rules (194 with conclusion selected). Queue: 55424 rules.
+78200 rules inserted. Base: 20155 rules (194 with conclusion selected). Queue: 55506 rules.
+78400 rules inserted. Base: 20196 rules (194 with conclusion selected). Queue: 55588 rules.
+78600 rules inserted. Base: 20213 rules (194 with conclusion selected). Queue: 55622 rules.
+78800 rules inserted. Base: 20248 rules (194 with conclusion selected). Queue: 55692 rules.
+79000 rules inserted. Base: 20289 rules (194 with conclusion selected). Queue: 55774 rules.
+79200 rules inserted. Base: 20317 rules (194 with conclusion selected). Queue: 55830 rules.
+79400 rules inserted. Base: 20341 rules (194 with conclusion selected). Queue: 55878 rules.
+79600 rules inserted. Base: 20383 rules (194 with conclusion selected). Queue: 55962 rules.
+79800 rules inserted. Base: 20409 rules (194 with conclusion selected). Queue: 56014 rules.
+80000 rules inserted. Base: 20434 rules (194 with conclusion selected). Queue: 56064 rules.
+80200 rules inserted. Base: 20476 rules (194 with conclusion selected). Queue: 56148 rules.
+80400 rules inserted. Base: 20501 rules (194 with conclusion selected). Queue: 56198 rules.
+80600 rules inserted. Base: 20528 rules (194 with conclusion selected). Queue: 56252 rules.
+80800 rules inserted. Base: 20569 rules (194 with conclusion selected). Queue: 56334 rules.
+81000 rules inserted. Base: 20593 rules (194 with conclusion selected). Queue: 56382 rules.
+81200 rules inserted. Base: 20593 rules (194 with conclusion selected). Queue: 56382 rules.
+81400 rules inserted. Base: 20593 rules (194 with conclusion selected). Queue: 56382 rules.
+81600 rules inserted. Base: 20593 rules (194 with conclusion selected). Queue: 56382 rules.
+81800 rules inserted. Base: 20612 rules (194 with conclusion selected). Queue: 56591 rules.
+82000 rules inserted. Base: 20612 rules (194 with conclusion selected). Queue: 56591 rules.
+82200 rules inserted. Base: 20612 rules (194 with conclusion selected). Queue: 56591 rules.
+82400 rules inserted. Base: 20612 rules (194 with conclusion selected). Queue: 56591 rules.
+82600 rules inserted. Base: 20612 rules (194 with conclusion selected). Queue: 56591 rules.
+82800 rules inserted. Base: 20612 rules (194 with conclusion selected). Queue: 56591 rules.
+83000 rules inserted. Base: 20612 rules (194 with conclusion selected). Queue: 56591 rules.
+83200 rules inserted. Base: 20612 rules (194 with conclusion selected). Queue: 56591 rules.
+83400 rules inserted. Base: 20612 rules (194 with conclusion selected). Queue: 56591 rules.
+83600 rules inserted. Base: 20616 rules (194 with conclusion selected). Queue: 56635 rules.
+83800 rules inserted. Base: 20631 rules (194 with conclusion selected). Queue: 56800 rules.
+84000 rules inserted. Base: 20631 rules (194 with conclusion selected). Queue: 56800 rules.
+84200 rules inserted. Base: 20631 rules (194 with conclusion selected). Queue: 56800 rules.
+84400 rules inserted. Base: 20631 rules (194 with conclusion selected). Queue: 56800 rules.
+84600 rules inserted. Base: 20631 rules (194 with conclusion selected). Queue: 56800 rules.
+84800 rules inserted. Base: 20631 rules (194 with conclusion selected). Queue: 56800 rules.
+85000 rules inserted. Base: 20631 rules (194 with conclusion selected). Queue: 56800 rules.
+85200 rules inserted. Base: 20631 rules (194 with conclusion selected). Queue: 56800 rules.
+85400 rules inserted. Base: 20631 rules (194 with conclusion selected). Queue: 56800 rules.
+85600 rules inserted. Base: 20650 rules (194 with conclusion selected). Queue: 57009 rules.
+85800 rules inserted. Base: 20650 rules (194 with conclusion selected). Queue: 57009 rules.
+86000 rules inserted. Base: 20650 rules (194 with conclusion selected). Queue: 57009 rules.
+86200 rules inserted. Base: 20650 rules (194 with conclusion selected). Queue: 57009 rules.
+86400 rules inserted. Base: 20650 rules (194 with conclusion selected). Queue: 57009 rules.
+86600 rules inserted. Base: 20650 rules (194 with conclusion selected). Queue: 57009 rules.
+86800 rules inserted. Base: 20650 rules (194 with conclusion selected). Queue: 57009 rules.
+87000 rules inserted. Base: 20650 rules (194 with conclusion selected). Queue: 57009 rules.
+87200 rules inserted. Base: 20650 rules (194 with conclusion selected). Queue: 57009 rules.
+87400 rules inserted. Base: 20654 rules (194 with conclusion selected). Queue: 57053 rules.
+87600 rules inserted. Base: 20669 rules (194 with conclusion selected). Queue: 57218 rules.
+87800 rules inserted. Base: 20669 rules (194 with conclusion selected). Queue: 57218 rules.
+88000 rules inserted. Base: 20669 rules (194 with conclusion selected). Queue: 57218 rules.
+88200 rules inserted. Base: 20669 rules (194 with conclusion selected). Queue: 57218 rules.
+88400 rules inserted. Base: 20669 rules (194 with conclusion selected). Queue: 57218 rules.
+88600 rules inserted. Base: 20669 rules (194 with conclusion selected). Queue: 57218 rules.
+88800 rules inserted. Base: 20669 rules (194 with conclusion selected). Queue: 57218 rules.
+89000 rules inserted. Base: 20669 rules (194 with conclusion selected). Queue: 57218 rules.
+89200 rules inserted. Base: 20669 rules (194 with conclusion selected). Queue: 57218 rules.
+89400 rules inserted. Base: 20669 rules (194 with conclusion selected). Queue: 57218 rules.
+89600 rules inserted. Base: 20669 rules (194 with conclusion selected). Queue: 57218 rules.
+89800 rules inserted. Base: 20688 rules (194 with conclusion selected). Queue: 57199 rules.
+90000 rules inserted. Base: 20688 rules (194 with conclusion selected). Queue: 57199 rules.
+90200 rules inserted. Base: 20688 rules (194 with conclusion selected). Queue: 57199 rules.
+90400 rules inserted. Base: 20688 rules (194 with conclusion selected). Queue: 57199 rules.
+90600 rules inserted. Base: 20688 rules (194 with conclusion selected). Queue: 57199 rules.
+90800 rules inserted. Base: 20688 rules (194 with conclusion selected). Queue: 57199 rules.
+91000 rules inserted. Base: 20688 rules (194 with conclusion selected). Queue: 57199 rules.
+91200 rules inserted. Base: 20688 rules (194 with conclusion selected). Queue: 57199 rules.
+91400 rules inserted. Base: 20688 rules (194 with conclusion selected). Queue: 57199 rules.
+91600 rules inserted. Base: 20688 rules (194 with conclusion selected). Queue: 57199 rules.
+91800 rules inserted. Base: 20688 rules (194 with conclusion selected). Queue: 57199 rules.
+92000 rules inserted. Base: 20705 rules (194 with conclusion selected). Queue: 57182 rules.
+92200 rules inserted. Base: 20707 rules (194 with conclusion selected). Queue: 57180 rules.
+92400 rules inserted. Base: 20707 rules (194 with conclusion selected). Queue: 57180 rules.
+92600 rules inserted. Base: 20707 rules (194 with conclusion selected). Queue: 57180 rules.
+92800 rules inserted. Base: 20707 rules (194 with conclusion selected). Queue: 57180 rules.
+93000 rules inserted. Base: 20707 rules (194 with conclusion selected). Queue: 57180 rules.
+93200 rules inserted. Base: 20707 rules (194 with conclusion selected). Queue: 57180 rules.
+93400 rules inserted. Base: 20707 rules (194 with conclusion selected). Queue: 57180 rules.
+93600 rules inserted. Base: 20707 rules (194 with conclusion selected). Queue: 57180 rules.
+93800 rules inserted. Base: 20707 rules (194 with conclusion selected). Queue: 57180 rules.
+94000 rules inserted. Base: 20707 rules (194 with conclusion selected). Queue: 57180 rules.
+94200 rules inserted. Base: 20707 rules (194 with conclusion selected). Queue: 57180 rules.
+94400 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+94600 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+94800 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+95000 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+95200 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+95400 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+95600 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+95800 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+96000 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+96200 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+96400 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+96600 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+96800 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+97000 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+97200 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+97400 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+97600 rules inserted. Base: 20726 rules (194 with conclusion selected). Queue: 57161 rules.
+97800 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+98000 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+98200 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+98400 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+98600 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+98800 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+99000 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+99200 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+99400 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+99600 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+99800 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+100000 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+100200 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+100400 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+100600 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+100800 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+101000 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+101200 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+101400 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+101600 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+101800 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+102000 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+102200 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+102400 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+102600 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+102800 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+103000 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+103200 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+103400 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+103600 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+103800 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+104000 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+104200 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+104400 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+104600 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+104800 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+105000 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+105200 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+105400 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+105600 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+105800 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+106000 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+106200 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+106400 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+106600 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+106800 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+107000 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+107200 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+107400 rules inserted. Base: 20745 rules (194 with conclusion selected). Queue: 57142 rules.
+107600 rules inserted. Base: 20764 rules (194 with conclusion selected). Queue: 57142 rules.
+107800 rules inserted. Base: 20792 rules (194 with conclusion selected). Queue: 57142 rules.
+108000 rules inserted. Base: 20830 rules (194 with conclusion selected). Queue: 57144 rules.
+108200 rules inserted. Base: 20867 rules (194 with conclusion selected). Queue: 57144 rules.
+108400 rules inserted. Base: 20906 rules (194 with conclusion selected). Queue: 57146 rules.
+108600 rules inserted. Base: 20934 rules (194 with conclusion selected). Queue: 57146 rules.
+108800 rules inserted. Base: 20970 rules (194 with conclusion selected). Queue: 57146 rules.
+109000 rules inserted. Base: 21040 rules (194 with conclusion selected). Queue: 57147 rules.
+109200 rules inserted. Base: 21136 rules (194 with conclusion selected). Queue: 57147 rules.
+109400 rules inserted. Base: 21232 rules (194 with conclusion selected). Queue: 57147 rules.
+109600 rules inserted. Base: 21328 rules (194 with conclusion selected). Queue: 57147 rules.
+109800 rules inserted. Base: 21424 rules (194 with conclusion selected). Queue: 57147 rules.
+110000 rules inserted. Base: 21508 rules (194 with conclusion selected). Queue: 57147 rules.
+110200 rules inserted. Base: 21536 rules (194 with conclusion selected). Queue: 57147 rules.
+110400 rules inserted. Base: 21650 rules (194 with conclusion selected). Queue: 57148 rules.
+110600 rules inserted. Base: 21746 rules (194 with conclusion selected). Queue: 57148 rules.
+110800 rules inserted. Base: 21842 rules (194 with conclusion selected). Queue: 57148 rules.
+111000 rules inserted. Base: 21938 rules (194 with conclusion selected). Queue: 57148 rules.
+111200 rules inserted. Base: 22034 rules (194 with conclusion selected). Queue: 57148 rules.
+111400 rules inserted. Base: 22106 rules (194 with conclusion selected). Queue: 57108 rules.
+111600 rules inserted. Base: 22178 rules (194 with conclusion selected). Queue: 57068 rules.
+111800 rules inserted. Base: 22206 rules (194 with conclusion selected). Queue: 57068 rules.
+112000 rules inserted. Base: 22277 rules (194 with conclusion selected). Queue: 57028 rules.
+112200 rules inserted. Base: 22334 rules (194 with conclusion selected). Queue: 56995 rules.
+112400 rules inserted. Base: 22376 rules (194 with conclusion selected). Queue: 56988 rules.
+112600 rules inserted. Base: 22406 rules (194 with conclusion selected). Queue: 57005 rules.
+112800 rules inserted. Base: 22431 rules (194 with conclusion selected). Queue: 57030 rules.
+113000 rules inserted. Base: 22477 rules (194 with conclusion selected). Queue: 57054 rules.
+113200 rules inserted. Base: 22562 rules (194 with conclusion selected). Queue: 57011 rules.
+113400 rules inserted. Base: 22642 rules (194 with conclusion selected). Queue: 56931 rules.
+113600 rules inserted. Base: 22681 rules (194 with conclusion selected). Queue: 56894 rules.
+113800 rules inserted. Base: 22681 rules (194 with conclusion selected). Queue: 56894 rules.
+114000 rules inserted. Base: 22740 rules (194 with conclusion selected). Queue: 57543 rules.
+114200 rules inserted. Base: 22806 rules (194 with conclusion selected). Queue: 58269 rules.
+114400 rules inserted. Base: 22873 rules (194 with conclusion selected). Queue: 59006 rules.
+114600 rules inserted. Base: 22940 rules (194 with conclusion selected). Queue: 59743 rules.
+114800 rules inserted. Base: 23006 rules (194 with conclusion selected). Queue: 60469 rules.
+115000 rules inserted. Base: 23055 rules (194 with conclusion selected). Queue: 60878 rules.
+115200 rules inserted. Base: 23089 rules (194 with conclusion selected). Queue: 61002 rules.
+115400 rules inserted. Base: 23156 rules (194 with conclusion selected). Queue: 61739 rules.
+115600 rules inserted. Base: 23222 rules (194 with conclusion selected). Queue: 62465 rules.
+115800 rules inserted. Base: 23289 rules (194 with conclusion selected). Queue: 63202 rules.
+116000 rules inserted. Base: 23356 rules (194 with conclusion selected). Queue: 63939 rules.
+116200 rules inserted. Base: 23422 rules (194 with conclusion selected). Queue: 64665 rules.
+116400 rules inserted. Base: 23441 rules (194 with conclusion selected). Queue: 64874 rules.
+116600 rules inserted. Base: 23467 rules (194 with conclusion selected). Queue: 65160 rules.
+116800 rules inserted. Base: 23534 rules (194 with conclusion selected). Queue: 65897 rules.
+117000 rules inserted. Base: 23600 rules (194 with conclusion selected). Queue: 66623 rules.
+117200 rules inserted. Base: 23667 rules (194 with conclusion selected). Queue: 67360 rules.
+117400 rules inserted. Base: 23734 rules (194 with conclusion selected). Queue: 68097 rules.
+117600 rules inserted. Base: 23800 rules (194 with conclusion selected). Queue: 68823 rules.
+117800 rules inserted. Base: 23830 rules (194 with conclusion selected). Queue: 68873 rules.
+118000 rules inserted. Base: 23883 rules (194 with conclusion selected). Queue: 69356 rules.
+118200 rules inserted. Base: 23950 rules (194 with conclusion selected). Queue: 70093 rules.
+118400 rules inserted. Base: 24016 rules (194 with conclusion selected). Queue: 70819 rules.
+118600 rules inserted. Base: 24083 rules (194 with conclusion selected). Queue: 71556 rules.
+118800 rules inserted. Base: 24150 rules (194 with conclusion selected). Queue: 72293 rules.
+119000 rules inserted. Base: 24201 rules (194 with conclusion selected). Queue: 72854 rules.
+119200 rules inserted. Base: 24201 rules (194 with conclusion selected). Queue: 72854 rules.
+119400 rules inserted. Base: 24261 rules (194 with conclusion selected). Queue: 73514 rules.
+119600 rules inserted. Base: 24328 rules (194 with conclusion selected). Queue: 74251 rules.
+119800 rules inserted. Base: 24394 rules (194 with conclusion selected). Queue: 74977 rules.
+120000 rules inserted. Base: 24461 rules (194 with conclusion selected). Queue: 75714 rules.
+120200 rules inserted. Base: 24528 rules (194 with conclusion selected). Queue: 76451 rules.
+120400 rules inserted. Base: 24576 rules (194 with conclusion selected). Queue: 76839 rules.
+120600 rules inserted. Base: 24610 rules (194 with conclusion selected). Queue: 76863 rules.
+120800 rules inserted. Base: 24770 rules (194 with conclusion selected). Queue: 77165 rules.
+121000 rules inserted. Base: 24837 rules (194 with conclusion selected). Queue: 77413 rules.
+121200 rules inserted. Base: 25004 rules (194 with conclusion selected). Queue: 77747 rules.
+121400 rules inserted. Base: 25049 rules (194 with conclusion selected). Queue: 78008 rules.
+121600 rules inserted. Base: 25216 rules (194 with conclusion selected). Queue: 78342 rules.
+121800 rules inserted. Base: 25264 rules (194 with conclusion selected). Queue: 78609 rules.
+122000 rules inserted. Base: 25415 rules (194 with conclusion selected). Queue: 78911 rules.
+122200 rules inserted. Base: 25479 rules (194 with conclusion selected). Queue: 79210 rules.
+122400 rules inserted. Base: 25614 rules (194 with conclusion selected). Queue: 79480 rules.
+122600 rules inserted. Base: 25694 rules (194 with conclusion selected). Queue: 79811 rules.
+122800 rules inserted. Base: 25814 rules (194 with conclusion selected). Queue: 80060 rules.
+123000 rules inserted. Base: 25909 rules (194 with conclusion selected). Queue: 80412 rules.
+123200 rules inserted. Base: 26019 rules (194 with conclusion selected). Queue: 80695 rules.
+123400 rules inserted. Base: 26124 rules (194 with conclusion selected). Queue: 81013 rules.
+123600 rules inserted. Base: 26224 rules (194 with conclusion selected). Queue: 81330 rules.
+123800 rules inserted. Base: 26339 rules (194 with conclusion selected). Queue: 81614 rules.
+124000 rules inserted. Base: 26429 rules (194 with conclusion selected). Queue: 81965 rules.
+124200 rules inserted. Base: 26555 rules (194 with conclusion selected). Queue: 82217 rules.
+124400 rules inserted. Base: 26628 rules (194 with conclusion selected). Queue: 82534 rules.
+124600 rules inserted. Base: 26772 rules (194 with conclusion selected). Queue: 82822 rules.
+124800 rules inserted. Base: 26827 rules (194 with conclusion selected). Queue: 83103 rules.
+125000 rules inserted. Base: 26987 rules (194 with conclusion selected). Queue: 83423 rules.
+125200 rules inserted. Base: 27029 rules (194 with conclusion selected). Queue: 83678 rules.
+125400 rules inserted. Base: 27202 rules (194 with conclusion selected). Queue: 84024 rules.
+125600 rules inserted. Base: 27244 rules (194 with conclusion selected). Queue: 84279 rules.
+125800 rules inserted. Base: 27405 rules (194 with conclusion selected). Queue: 84601 rules.
+126000 rules inserted. Base: 27460 rules (194 with conclusion selected). Queue: 84882 rules.
+126200 rules inserted. Base: 27604 rules (194 with conclusion selected). Queue: 85170 rules.
+126400 rules inserted. Base: 27677 rules (194 with conclusion selected). Queue: 85487 rules.
+126600 rules inserted. Base: 27803 rules (194 with conclusion selected). Queue: 85739 rules.
+126800 rules inserted. Base: 27892 rules (194 with conclusion selected). Queue: 86088 rules.
+127000 rules inserted. Base: 28006 rules (194 with conclusion selected). Queue: 86352 rules.
+127200 rules inserted. Base: 28107 rules (194 with conclusion selected). Queue: 86689 rules.
+127400 rules inserted. Base: 28211 rules (194 with conclusion selected). Queue: 86987 rules.
+127600 rules inserted. Base: 28322 rules (194 with conclusion selected). Queue: 87290 rules.
+127800 rules inserted. Base: 28416 rules (194 with conclusion selected). Queue: 87622 rules.
+128000 rules inserted. Base: 28537 rules (194 with conclusion selected). Queue: 87891 rules.
+128200 rules inserted. Base: 28599 rules (194 with conclusion selected). Queue: 88015 rules.
+128400 rules inserted. Base: 28600 rules (194 with conclusion selected). Queue: 88026 rules.
+128600 rules inserted. Base: 28666 rules (194 with conclusion selected). Queue: 88752 rules.
+128800 rules inserted. Base: 28733 rules (194 with conclusion selected). Queue: 89489 rules.
+129000 rules inserted. Base: 28800 rules (194 with conclusion selected). Queue: 90226 rules.
+129200 rules inserted. Base: 28866 rules (194 with conclusion selected). Queue: 90952 rules.
+129400 rules inserted. Base: 28933 rules (194 with conclusion selected). Queue: 91689 rules.
+129600 rules inserted. Base: 28977 rules (194 with conclusion selected). Queue: 92003 rules.
+129800 rules inserted. Base: 29016 rules (194 with conclusion selected). Queue: 92024 rules.
+130000 rules inserted. Base: 29187 rules (194 with conclusion selected). Queue: 92364 rules.
+130200 rules inserted. Base: 29251 rules (194 with conclusion selected). Queue: 92606 rules.
+130400 rules inserted. Base: 29415 rules (194 with conclusion selected). Queue: 92934 rules.
+130600 rules inserted. Base: 29466 rules (194 with conclusion selected). Queue: 93207 rules.
+130800 rules inserted. Base: 29614 rules (194 with conclusion selected). Queue: 93503 rules.
+131000 rules inserted. Base: 29681 rules (194 with conclusion selected). Queue: 93808 rules.
+131200 rules inserted. Base: 29813 rules (194 with conclusion selected). Queue: 94072 rules.
+131400 rules inserted. Base: 29896 rules (194 with conclusion selected). Queue: 94409 rules.
+131600 rules inserted. Base: 30014 rules (194 with conclusion selected). Queue: 94663 rules.
+131800 rules inserted. Base: 30111 rules (194 with conclusion selected). Queue: 95010 rules.
+132000 rules inserted. Base: 30219 rules (194 with conclusion selected). Queue: 95298 rules.
+132200 rules inserted. Base: 30326 rules (194 with conclusion selected). Queue: 95611 rules.
+132400 rules inserted. Base: 30424 rules (194 with conclusion selected). Queue: 95933 rules.
