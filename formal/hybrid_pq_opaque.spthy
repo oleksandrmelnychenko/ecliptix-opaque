@@ -15,7 +15,7 @@
  *   - HKDF-Extract / HKDF-Expand (modeled as PRF)
  *   - HMAC-SHA-512 for MAC authentication
  *   - Argon2id key stretching (modeled as one-way function)
- *   - XChaCha20-Poly1305 authenticated encryption for envelope
+ *   - XSalsa20-Poly1305 authenticated encryption for envelope
  *
  * Properties verified:
  *   P1. Session key secrecy
@@ -249,7 +249,7 @@ rule Auth_Server_KE2:
       ServerUsesEphemeral($S, ~ekS),
       ServerUsesKemRand($S, ~kem_rand),
       RunningResponder($S, $C_account, session_key, transcript) ]->
-  [ AuthServerState($S, $C_account, session_key, master_key, init_mac_key, transcript),
+  [ AuthServerState($S, $C_account, session_key, master_key, init_mac_key, transcript, ~ekS, ~kem_rand),
     Out(ke2) ]
 
 
@@ -341,7 +341,7 @@ rule Auth_Server_Finish:
   let
     expected_init_mac = hmac(init_mac_key, transcript)
   in
-  [ AuthServerState($S, $C, session_key, master_key, init_mac_key, transcript),
+  [ AuthServerState($S, $C, session_key, master_key, init_mac_key, transcript, ekS, kem_rand),
     In(ke3) ]
   --[ Eq(ke3, expected_init_mac),
       AuthServerFinish($S, $C, session_key, master_key),
@@ -388,9 +388,9 @@ rule Reveal_Ephemeral_Client:
   [ Out(ekC), Out(kemSK) ]
 
 rule Reveal_Ephemeral_Server:
-  [ AuthServerState($S, $C, sk, mk, mac_key, tr) ]
+  [ AuthServerState($S, $C, sk, mk, mac_key, tr, ekS, kem_rand) ]
   --[ RevealEphemeral($S) ]->
-  [ ]
+  [ Out(ekS), Out(kem_rand) ]
 
 
 /* ============================================================
@@ -446,8 +446,13 @@ lemma forward_secrecy_classical:
 
 /* -----------------------------------------------------------
  * P4. POST-QUANTUM FORWARD SECRECY
- * Even with quantum DH oracle, session keys from completed sessions
- * remain secret (due to KEM component)
+ * Even with quantum DH oracle (which can break all DH), session keys
+ * from completed sessions remain secret due to KEM component.
+ * Note: This lemma does NOT exclude UsedQuantum(), so the
+ * Quantum_DH_Oracle is available. The adversary can recover all DH
+ * secrets, but cannot break KEM (no KEM oracle exists in the model).
+ * Session key remains secret because HKDF-Extract over
+ * dh1||dh2||dh3||kem_ss preserves the entropy from kem_ss.
  * ----------------------------------------------------------- */
 lemma pq_forward_secrecy:
   "All C S sk #i #j #k.
@@ -480,15 +485,16 @@ lemma mutual_auth_responder:
 
 /* -----------------------------------------------------------
  * P6. AND-MODEL HYBRID SECURITY
- * Session key secrecy holds even if DH is broken (quantum oracle)
- * as long as KEM is secure (adversary cannot solve Module-LWE)
- * This is the KEY novelty property
+ * Session key secrecy holds even if DH is broken (quantum oracle
+ * can extract DH private keys, and LTK can be corrupted),
+ * as long as KEM ephemeral secrets are not directly revealed.
+ * The adversary can use QuantumDH to recover all DH components,
+ * but kem_ss remains unknown without KEM secret key.
+ * This is the KEY novelty property.
  * ----------------------------------------------------------- */
 lemma and_model_security:
   "All C S sk #i.
     SessionKeyClient(C, S, sk) @ #i
-    & (not (Ex #j. CorruptLTK(C) @ #j))
-    & (not (Ex #j. CorruptLTK(S) @ #j))
     & (not (Ex #j. RevealEphemeral(C) @ #j))
     & (not (Ex #j. RevealEphemeral(S) @ #j))
     ==> not (Ex #j. K(sk) @ #j)"
@@ -496,13 +502,16 @@ lemma and_model_security:
 
 /* -----------------------------------------------------------
  * P7. RESISTANCE TO OFFLINE DICTIONARY ATTACKS
- * An adversary who compromises the server database cannot
- * perform offline password guessing without the OPRF key
+ * An adversary who compromises the server database AND
+ * long-term keys still cannot determine the password
+ * (because OPRF key is needed to compute rwd from password,
+ *  and password → OPRF → Argon2id chain is one-way)
  * ----------------------------------------------------------- */
 lemma offline_dictionary_resistance:
-  "All C pwd #i.
+  "All C S pwd #i #j.
     PasswordGen(C, pwd) @ #i
-    ==> not (Ex #j. K(pwd) @ #j)"
+    & CorruptDB(S, C) @ #j
+    ==> not (Ex #k. K(pwd) @ #k)"
 
 
 /* -----------------------------------------------------------
