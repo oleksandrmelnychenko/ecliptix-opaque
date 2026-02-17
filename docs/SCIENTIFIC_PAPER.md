@@ -923,12 +923,12 @@ RESULT inj-event(ServerCompletesAuth(pkS_1,pkC_2,sk)) ==>
 | 2 | `password_secrecy` | Секретність паролю |
 | 3 | `forward_secrecy_classical` | Класична пряма секретність (компрометація LTK) |
 | 4 | `pq_forward_secrecy` | Постквантова пряма секретність (компрометація KEM SK) |
-| 5 | `mutual_authentication_server_to_client` | Автентифікація сервер→клієнт |
-| 6 | `mutual_authentication_client_to_server` | Автентифікація клієнт→сервер |
+| 5 | `mutual_auth_responder` | Автентифікація сервер→клієнт |
+| 6 | `mutual_auth_initiator` | Автентифікація клієнт→сервер |
 | 7 | `and_model_security` | AND-модель: безпека при компрометації одного примітиву |
 | 8 | `offline_dictionary_resistance` | Стійкість до офлайн-атак за словником |
 
-Модель Tamarin успішно скомпільована та завантажена. Усі 8 лем безпеки та 1 допоміжну лему (sanity check: `protocol_functional` — існування успішної сесії) верифіковано з результатом `verified`. Автоматичне доведення виконано за допомогою евристик `--heuristic=o "--oraclename=oracle.py"` для оптимізації пошуку; леми `session_key_secrecy`, `password_secrecy`, `forward_secrecy_classical`, `pq_forward_secrecy`, `mutual_authentication_server_to_client`, `mutual_authentication_client_to_server`, `and_model_security`, `offline_dictionary_resistance` — усі підтверджені.
+Модель Tamarin успішно скомпільована та завантажена. Для повної верифікації використовується запуск `tamarin-prover hybrid_pq_opaque.spthy --prove -v`; перевірка виконується для 8 лем безпеки та 1 допоміжної леми (sanity check: `protocol_completion` — існування успішної сесії). У звіті використовуються фактичні назви лем із моделі: `session_key_secrecy`, `password_secrecy`, `forward_secrecy_classical`, `pq_forward_secrecy`, `mutual_auth_initiator`, `mutual_auth_responder`, `and_model_security`, `offline_dictionary_resistance`.
 
 Лема `and_model_security` є унікальною серед формальних моделей PAKE-протоколів: вона моделює сценарій, у якому противник може компрометувати довготривалі ключі (зокрема, через квантовий оракул для DH), та перевіряє, що сеансовий ключ залишається секретним за умови збереження ефемерних секретів обох сторін. Формально: `not (Ex #j. RevealEphemeral(C) @ #j) & not (Ex #j. RevealEphemeral(S) @ #j) ==> not (Ex #k. K(sk) @ #k)`. Правило `Reveal_Ephemeral_Server` видає обидва ефемерні секрети ($S_e$ та `kem_rand`), що моделює повну компрометацію ефемерного стану.
 
