@@ -149,7 +149,7 @@ rule Reg_Client_Finalize:
     skC = ~skC_fresh
     pkC = pk(skC)
     envelope = aenc(envelope_key, ~env_nonce, <pkS, skC, pkC>)
-    record = <envelope, pkC>
+    record = <envelope, ~env_nonce, pkC>
   in
   [ RegClientState($C, $S, ~pwd, ~r, pkS),
     In(<evaluated, pkS>),
@@ -199,7 +199,8 @@ rule Auth_Server_KE2:
 
     /* Parse registration record */
     envelope = fst(record)
-    pkC = snd(record)
+    env_nonce = fst(snd(record))
+    pkC = snd(snd(record))
 
     /* Server ephemeral DH */
     eS = pk(~ekS)
@@ -207,8 +208,8 @@ rule Auth_Server_KE2:
     /* OPRF evaluate */
     evaluated = oprf_eval(blinded, oprf_key)
 
-    /* Credential response */
-    cred_resp = <evaluated, envelope>
+    /* Credential response (envelope nonce needed for client to decrypt) */
+    cred_resp = <evaluated, envelope, env_nonce>
 
     /* 3DH computation (server side) */
     dh1 = pkC ^ skS           /* static × static: pkC^skS */
@@ -270,7 +271,8 @@ rule Auth_Client_KE3:
 
     /* Parse credential response */
     evaluated = fst(cred_resp)
-    envelope = snd(cred_resp)
+    envelope = fst(snd(cred_resp))
+    env_nonce = snd(snd(cred_resp))
 
     /* OPRF finalize */
     oprf_output = oprf_finalize(evaluated, r_auth)
@@ -278,7 +280,7 @@ rule Auth_Client_KE3:
     envelope_key = hkdf_expand(rwd, 'envelope', '32')
 
     /* Open envelope → recover (pkS_recovered, skC_recovered, pkC_recovered) */
-    envelope_contents = adec(envelope_key, env_nonce_implicit, envelope)
+    envelope_contents = adec(envelope_key, env_nonce, envelope)
     pkS_recovered = fst(envelope_contents)
     skC_recovered = fst(snd(envelope_contents))
     pkC_recovered = snd(snd(envelope_contents))
