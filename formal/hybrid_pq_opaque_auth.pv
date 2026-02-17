@@ -8,7 +8,7 @@
  *
  * Simplifications vs full model:
  *   1. No ServerLTKCompromised event (tested separately)
- *   2. Bounded sessions (single honest client/server pair)
+ *   2. Unbounded sessions (replicated client/server processes)
  *   3. OPRF modeled as a single-step PRF
  *   4. Transcript abstracted as hash of key elements only
  *
@@ -147,11 +147,10 @@ let ClientAuth(pwd: password, pkS: point) =
 
   (* Receive KE2 *)
   in(c, (nonceS: nonce, eS: point, env: envelope, env_nonce: nonce,
-         resp_mac: bitstring, kem_ct: kem_ct, oprf_key_s: scalar));
+         resp_mac: bitstring, kem_ct: kem_ct, oprf_eval_received: key));
 
-  (* Reconstruct OPRF output with server's key *)
-  let oprf_out_s = oprf_output(pwd, oprf_key_s) in
-  let rwd = argon2id(oprf_out_s, pwd) in
+  (* Client uses received OPRF evaluation to derive rwd *)
+  let rwd = argon2id(oprf_eval_received, pwd) in
   let env_key = hkdf_expand(rwd, lbl_envelope) in
 
   (* Decrypt envelope to recover credentials *)
@@ -186,7 +185,7 @@ let ClientAuth(pwd: password, pkS: point) =
 
 (* ----- Server Authentication ----- *)
 let ServerAuth(skS: scalar, pkS: point, oprf_key: scalar,
-               env: envelope, env_nonce: nonce, pkC: point) =
+               env: envelope, env_nonce: nonce, pkC: point, pwd_stored: password) =
 
   (* Receive KE1 *)
   in(c, (eC: point, nonceC: nonce, kem_pkC: kem_pk));
@@ -212,8 +211,11 @@ let ServerAuth(skS: scalar, pkS: point, oprf_key: scalar,
   let transcript = make_transcript(eC, eS, nonceC, nonceS, pkC, pkS, kem_pkC, kem_ct) in
   let resp_mac = hmac_compute(resp_mac_key, transcript) in
 
+  (* OPRF evaluated output — server sends evaluation, NOT the key *)
+  let oprf_evaluated = oprf_output(pwd_stored, oprf_key) in
+
   event ServerAcceptsAuth(pkS, pkC, session_key);
-  out(c, (nonceS, eS, env, env_nonce, resp_mac, kem_ct, oprf_key));
+  out(c, (nonceS, eS, env, env_nonce, resp_mac, kem_ct, oprf_evaluated));
 
   (* Receive KE3 *)
   in(c, init_mac: bitstring);
@@ -237,7 +239,7 @@ process
       in(secure_reg, (env_s: envelope, en_s: nonce, pkC_s: point, oprf_key_s: scalar));
       (
         !ClientAuth(secret_pwd, pkS)
-        | !ServerAuth(skS, pkS, oprf_key_s, env_s, en_s, pkC_s)
+        | !ServerAuth(skS, pkS, oprf_key_s, env_s, en_s, pkC_s, secret_pwd)
       )
     )
   )
