@@ -25,7 +25,7 @@ OPAQUE is a password-authenticated key exchange protocol. This implementation us
 | SHA-512 | Hashing and transcript | 64 bytes |
 | HMAC-SHA512 | MACs and HKDF | 64 bytes |
 | HKDF-SHA512 | Key derivation | variable |
-| XChaCha20-Poly1305 | Envelope encryption | 24 byte nonce, 16 byte tag |
+| XSalsa20-Poly1305 | Envelope encryption | 24 byte nonce, 16 byte tag |
 | Argon2id | Password stretching | 64 bytes output |
 | ML-KEM-768 | PQ KEM | 1184 pk, 2400 sk, 1088 ct, 32 ss |
 
@@ -67,21 +67,25 @@ The protocol derives classical and post-quantum material and then combines them.
 
 Inputs:
 
-- dh1 = DH(initiator_eph_priv, responder_eph_pub)
-- dh2 = DH(initiator_static_priv, responder_eph_pub)
-- dh3 = DH(initiator_eph_priv, responder_static_pub)
-- pq_shared_secret from ML-KEM-768
+- dh1 = DH(initiator_static_priv, responder_static_pub)  — static × static
+- dh2 = DH(initiator_eph_priv, responder_static_pub)      — ephemeral × static
+- dh3 = DH(initiator_static_priv, responder_eph_pub)      — static × ephemeral
+- pq_shared_secret from ML-KEM-768 decapsulation (32 bytes)
 
 IKM and HKDF:
 
-- ikm_classical = dh1 || dh2 || dh3
-- ikm_combined = ikm_classical || pq_shared_secret
-- transcript_hash = H(KE1 fields || KE2 fields)
-- prk = HKDF-Extract(transcript_hash, ikm_combined)
+- ikm_classical = dh1 || dh2 || dh3  (96 bytes total)
+- ikm_combined = ikm_classical || pq_shared_secret  (128 bytes total)
+- transcript_input = initiator_eph_pub || responder_eph_pub || initiator_nonce || responder_nonce || initiator_static_pub || responder_static_pub || credential_response || kem_public_key || kem_ciphertext
+- transcript_hash = SHA-512("ECLIPTIX-OPAQUE-v1/Transcript" || transcript_input)
+- pq_salt = "ECLIPTIX-OPAQUE-PQ-v1/Combiner" || transcript_hash
+- prk = HKDF-Extract(pq_salt, ikm_combined)
 - session_key = HKDF-Expand(prk, "ECLIPTIX-OPAQUE-PQ-v1/SessionKey", 64)
 - master_key = HKDF-Expand(prk, "ECLIPTIX-OPAQUE-PQ-v1/MasterKey", 32)
+- resp_mac_key = HKDF-Expand(prk, "ECLIPTIX-OPAQUE-PQ-v1/ResponderMAC", 64)
+- init_mac_key = HKDF-Expand(prk, "ECLIPTIX-OPAQUE-PQ-v1/InitiatorMAC", 64)
 
-MAC keys use the same PRK with the responder and initiator MAC labels.
+All four output keys are derived from the single PRK via HKDF-Expand with distinct labels.
 
 ## 7. C# API examples
 
@@ -193,7 +197,7 @@ DerivedKeys keys = server.FinishAuthentication(ke3, authState);
 
 ## 10. Domain separators
 
-OPAQUE labels:
+OPAQUE core labels (used for OPRF, envelope, transcript, and KSF):
 
 - ECLIPTIX-OPAQUE-v1/OPRF
 - ECLIPTIX-OPAQUE-v1/OPRF-Key
@@ -203,15 +207,18 @@ OPAQUE labels:
 - ECLIPTIX-OPAQUE-v1/Transcript
 - ECLIPTIX-OPAQUE-v1/KSF
 - ECLIPTIX-OPAQUE-v1/KSF-Salt
+
+Classical key derivation labels (defined, reserved for classical-only path):
+
 - ECLIPTIX-OPAQUE-v1/SessionKey
 - ECLIPTIX-OPAQUE-v1/MasterKey
 - ECLIPTIX-OPAQUE-v1/ResponderMAC
 - ECLIPTIX-OPAQUE-v1/InitiatorMAC
 
-Post-quantum labels:
+Post-quantum key derivation labels (active — used in all authentication flows):
 
-- ECLIPTIX-OPAQUE-PQ-v1/Combiner
-- ECLIPTIX-OPAQUE-PQ-v1/KEM
+- ECLIPTIX-OPAQUE-PQ-v1/Combiner   (HKDF-Extract salt prefix)
+- ECLIPTIX-OPAQUE-PQ-v1/KEM        (reserved)
 - ECLIPTIX-OPAQUE-PQ-v1/SessionKey
 - ECLIPTIX-OPAQUE-PQ-v1/MasterKey
 - ECLIPTIX-OPAQUE-PQ-v1/ResponderMAC
