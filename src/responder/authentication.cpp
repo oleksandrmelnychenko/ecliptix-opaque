@@ -1,400 +1,292 @@
 #include "opaque/responder.h"
 #include "opaque/protocol.h"
 #include "opaque/pq.h"
+#include "opaque/secure_cleanup.h"
 #include "opaque/debug_log.h"
 #include <sodium.h>
 #include <algorithm>
 
 namespace ecliptix::security::opaque::responder {
-    namespace {
-        namespace oblivious_prf = oblivious_prf;
-        namespace crypto = crypto;
 
-        void secure_wipe(secure_bytes &buffer) {
-            if (!buffer.empty()) {
-                sodium_memzero(buffer.data(), buffer.size());
-            }
-        }
+KE2::KE2() : responder_nonce(NONCE_LENGTH),
+             responder_public_key(PUBLIC_KEY_LENGTH),
+             credential_response(CREDENTIAL_RESPONSE_LENGTH),
+             responder_mac(MAC_LENGTH),
+             kem_ciphertext(pq_constants::KEM_CIPHERTEXT_LENGTH) {}
 
-        void secure_clear(secure_bytes &buffer) {
-            if (!buffer.empty()) {
-                sodium_memzero(buffer.data(), buffer.size());
-                buffer.clear();
-            }
-        }
+
+ResponderState::ResponderState()
+    : responder_private_key(PRIVATE_KEY_LENGTH)
+    , responder_public_key(PUBLIC_KEY_LENGTH)
+    , responder_ephemeral_private_key(PRIVATE_KEY_LENGTH)
+    , responder_ephemeral_public_key(PUBLIC_KEY_LENGTH)
+    , initiator_public_key(PUBLIC_KEY_LENGTH)
+    , session_key(0)
+    , expected_initiator_mac(MAC_LENGTH)
+    , master_key(0)
+    , handshake_complete(false)
+    , pq_shared_secret(0) {}
+
+
+ResponderState::~ResponderState() {
+    secure_wipe(responder_private_key);
+    secure_wipe(responder_public_key);
+    secure_wipe(responder_ephemeral_private_key);
+    secure_wipe(responder_ephemeral_public_key);
+    secure_wipe(initiator_public_key);
+    secure_clear(session_key);
+    secure_wipe(expected_initiator_mac);
+    secure_clear(master_key);
+    secure_clear(pq_shared_secret);
+}
+
+
+Result responder_finish_impl(const uint8_t *ke3_data, size_t ke3_length,
+                             ResponderState &state, secure_bytes &session_key,
+                             secure_bytes &master_key) {
+    log::section("RELAY: Finish (Verify KE3)");
+
+    if (!ke3_data || ke3_length != KE3_LENGTH) {
+        return Result::InvalidInput;
+    }
+    if (!crypto::init()) {
+        return Result::CryptoError;
+    }
+    if (state.session_key.empty() || state.master_key.size() != MASTER_KEY_LENGTH) {
+        return Result::ValidationError;
     }
 
-    KE2::KE2() : responder_nonce(NONCE_LENGTH),
-                 responder_public_key(PUBLIC_KEY_LENGTH),
-                 credential_response(CREDENTIAL_RESPONSE_LENGTH),
-                 responder_mac(MAC_LENGTH),
-                 kem_ciphertext(pq_constants::KEM_CIPHERTEXT_LENGTH) {
-    }
+    const uint8_t *initiator_mac = ke3_data;
+    log::hex("ke3 initiator_mac (received)", initiator_mac, MAC_LENGTH);
+    log::hex("expected_initiator_mac", state.expected_initiator_mac);
 
-    ResponderState::ResponderState() : responder_private_key(PRIVATE_KEY_LENGTH),
-                                       responder_public_key(PUBLIC_KEY_LENGTH),
-                                       responder_ephemeral_private_key(PRIVATE_KEY_LENGTH),
-                                       responder_ephemeral_public_key(PUBLIC_KEY_LENGTH),
-                                       initiator_public_key(PUBLIC_KEY_LENGTH),
-                                       session_key(0),
-                                       expected_initiator_mac(MAC_LENGTH),
-                                       master_key(0),
-                                       handshake_complete(false),
-                                       pq_shared_secret(0) {
-    }
-
-    ResponderState::~ResponderState() {
-        sodium_memzero(responder_private_key.data(), responder_private_key.size());
-        sodium_memzero(responder_public_key.data(), responder_public_key.size());
-        sodium_memzero(responder_ephemeral_private_key.data(), responder_ephemeral_private_key.size());
-        sodium_memzero(responder_ephemeral_public_key.data(), responder_ephemeral_public_key.size());
-        sodium_memzero(initiator_public_key.data(), initiator_public_key.size());
-        if (!session_key.empty()) {
-            sodium_memzero(session_key.data(), session_key.size());
-        }
-        sodium_memzero(expected_initiator_mac.data(), expected_initiator_mac.size());
-        if (!master_key.empty()) {
-            sodium_memzero(master_key.data(), master_key.size());
-        }
-
-        if (!pq_shared_secret.empty()) {
-            sodium_memzero(pq_shared_secret.data(), pq_shared_secret.size());
-        }
-    }
-
-    Result responder_finish_impl(const uint8_t *ke3_data, size_t ke3_length,
-                                 ResponderState &state, secure_bytes &session_key,
-                                 secure_bytes &master_key) {
-        log::section("RELAY: Finish (Verify KE3)");
-        if (!ke3_data || ke3_length != KE3_LENGTH) {
-            return Result::InvalidInput;
-        }
-        if (!crypto::init()) {
-            return Result::CryptoError;
-        }
-        if (state.session_key.empty() || state.master_key.size() != MASTER_KEY_LENGTH) {
-            return Result::ValidationError;
-        }
-        const uint8_t *initiator_mac = ke3_data;
-        log::hex("ke3 initiator_mac (received)", initiator_mac, MAC_LENGTH);
-        log::hex("expected_initiator_mac", state.expected_initiator_mac);
-        if (crypto_verify_64(initiator_mac, state.expected_initiator_mac.data()) != 0) {
-            log::msg("ERROR: Initiator MAC verification failed!");
-            secure_clear(state.session_key);
-            secure_clear(state.master_key);
-            secure_clear(state.pq_shared_secret);
-            secure_wipe(state.expected_initiator_mac);
-            state.handshake_complete = false;
-            return Result::AuthenticationError;
-        }
-        log::msg("Initiator MAC verified successfully");
-        session_key = state.session_key;
-        master_key = state.master_key;
-        log::hex("FINAL session_key", session_key);
-        log::hex("FINAL master_key", master_key);
+    if (crypto_verify_64(initiator_mac, state.expected_initiator_mac.data()) != 0) {
+        log::msg("ERROR: Initiator MAC verification failed!");
         secure_clear(state.session_key);
         secure_clear(state.master_key);
         secure_clear(state.pq_shared_secret);
         secure_wipe(state.expected_initiator_mac);
-        state.handshake_complete = true;
-        return Result::Success;
+        state.handshake_complete = false;
+        return Result::AuthenticationError;
     }
 
-    Result generate_ke2_impl(const uint8_t *ke1_data, size_t ke1_length,
-                             const ResponderCredentials &credentials,
-                             const secure_bytes &responder_private_key,
-                             const secure_bytes &responder_public_key,
-                             const uint8_t *account_id,
-                             size_t account_id_length,
-                             KE2 &ke2, ResponderState &state) {
-        log::section("RELAY: Generate KE2 (PQ)");
+    log::msg("Initiator MAC verified successfully");
 
-        if (!ke1_data || ke1_length != KE1_LENGTH) {
-            return Result::InvalidInput;
-        }
-        if (!account_id || account_id_length == 0) {
-            return Result::InvalidInput;
-        }
-        if (!crypto::init()) {
-            return Result::CryptoError;
-        }
-        log::hex("ke1_data (full)", ke1_data, ke1_length);
-        log::hex("responder_private_key", responder_private_key);
-        log::hex("responder_public_key", responder_public_key);
-        log::hex("account_id", account_id, account_id_length);
-        log::hex("credentials.envelope", credentials.envelope);
-        log::hex("credentials.initiator_public_key (EC)", credentials.initiator_public_key);
+    session_key = state.session_key;
+    master_key = state.master_key;
 
-        protocol::Ke1View ke1_view{};
-        Result parse_result = protocol::parse_ke1(ke1_data, ke1_length, ke1_view);
-        if (parse_result != Result::Success) {
-            return parse_result;
-        }
+    log::hex("FINAL session_key", session_key);
+    log::hex("FINAL master_key", master_key);
 
-        const uint8_t *credential_request = ke1_view.credential_request;
-        const uint8_t *initiator_ephemeral_public = ke1_view.initiator_public_key;
-        const uint8_t *initiator_nonce = ke1_view.initiator_nonce;
-        const uint8_t *initiator_pq_ephemeral_public = ke1_view.pq_ephemeral_public_key;
-        const uint8_t *initiator_static_public = credentials.initiator_public_key.data();
+    secure_clear(state.session_key);
+    secure_clear(state.master_key);
+    secure_clear(state.pq_shared_secret);
+    secure_wipe(state.expected_initiator_mac);
+    state.handshake_complete = true;
 
-        log::hex("credential_request (from KE1)", credential_request, crypto_core_ristretto255_BYTES);
-        log::hex("initiator_ephemeral_public_key (from KE1)", initiator_ephemeral_public, PUBLIC_KEY_LENGTH);
-        log::hex("initiator_nonce (from KE1)", initiator_nonce, NONCE_LENGTH);
-        log::hex("initiator_pq_ephemeral_public_key (from KE1)", initiator_pq_ephemeral_public, pq_constants::KEM_PUBLIC_KEY_LENGTH);
-        log::hex("initiator_static_public (from credentials)", initiator_static_public, PUBLIC_KEY_LENGTH);
+    return Result::Success;
+}
 
-        if (Result point_result = crypto::validate_ristretto_point(credential_request, REGISTRATION_REQUEST_LENGTH);
-            point_result != Result::Success) {
-            return Result::InvalidInput;
-        }
-        if (Result key_result = crypto::validate_public_key(initiator_ephemeral_public, PUBLIC_KEY_LENGTH);
-            key_result != Result::Success) {
-            return key_result;
-        }
-        if (credentials.initiator_public_key.size() != PUBLIC_KEY_LENGTH) {
-            return Result::InvalidPublicKey;
-        }
-        if (Result key_result = crypto::validate_public_key(credentials.initiator_public_key.data(), PUBLIC_KEY_LENGTH);
-            key_result != Result::Success) {
-            return key_result;
-        }
-        if (credentials.envelope.size() != ENVELOPE_LENGTH) {
-            return Result::InvalidInput;
-        }
 
-        std::copy(initiator_ephemeral_public, initiator_ephemeral_public + PUBLIC_KEY_LENGTH,
-                  state.initiator_public_key.begin());
-        std::copy(responder_private_key.begin(), responder_private_key.end(),
-                  state.responder_private_key.begin());
-        std::copy(responder_public_key.begin(), responder_public_key.end(),
-                  state.responder_public_key.begin());
+Result generate_ke2_impl(const uint8_t *ke1_data, size_t ke1_length,
+                         const ResponderCredentials &credentials,
+                         const secure_bytes &responder_private_key,
+                         const secure_bytes &responder_public_key,
+                         const uint8_t *account_id,
+                         size_t account_id_length,
+                         KE2 &ke2, ResponderState &state) {
+    log::section("RELAY: Generate KE2 (PQ)");
+
+    if (!ke1_data || ke1_length != KE1_LENGTH)
+        return Result::InvalidInput;
+    if (!account_id || account_id_length == 0)
+        return Result::InvalidInput;
+    if (!crypto::init())
+        return Result::CryptoError;
+    if (credentials.initiator_public_key.size() != PUBLIC_KEY_LENGTH)
+        return Result::InvalidPublicKey;
+    if (credentials.envelope.size() != ENVELOPE_LENGTH)
+        return Result::InvalidInput;
+
+    log::hex("ke1_data (full)", ke1_data, ke1_length);
+    log::hex("responder_private_key", responder_private_key);
+    log::hex("responder_public_key", responder_public_key);
+
+    protocol::Ke1View ke1_view{};
+    OPAQUE_TRY(protocol::parse_ke1(ke1_data, ke1_length, ke1_view));
+
+    const uint8_t *cred_req = ke1_view.credential_request;
+    const uint8_t *init_eph_pk = ke1_view.initiator_public_key;
+    const uint8_t *init_nonce = ke1_view.initiator_nonce;
+    const uint8_t *init_pq_pk = ke1_view.pq_ephemeral_public_key;
+    const uint8_t *init_static_pk = credentials.initiator_public_key.data();
+
+    OPAQUE_TRY(crypto::validate_ristretto_point(cred_req, REGISTRATION_REQUEST_LENGTH));
+    OPAQUE_TRY(crypto::validate_public_key(init_eph_pk, PUBLIC_KEY_LENGTH));
+    OPAQUE_TRY(crypto::validate_public_key(init_static_pk, PUBLIC_KEY_LENGTH));
+
+    std::copy_n(init_eph_pk, PUBLIC_KEY_LENGTH, state.initiator_public_key.begin());
+    std::copy_n(responder_private_key.begin(), responder_private_key.size(),
+                state.responder_private_key.begin());
+    std::copy_n(responder_public_key.begin(), responder_public_key.size(),
+                state.responder_public_key.begin());
+    state.handshake_complete = false;
+
+    SecureLocal<crypto_core_ristretto255_BYTES> evaluated_elem;
+    SecureLocal<PRIVATE_KEY_LENGTH>             oprf_key;
+    SecureLocal<PUBLIC_KEY_LENGTH>              dh1, dh2, dh3;
+    SecureLocal<pq_constants::KEM_SHARED_SECRET_LENGTH> kem_ss;
+    SecureLocal<crypto_auth_hmacsha512_BYTES>   prk;
+    SecureLocal<crypto_auth_hmacsha512_BYTES>   init_mac_key;
+    SecureLocal<crypto_hash_sha512_BYTES>       transcript_hash;
+
+    auto failure_guard = make_cleanup([&] {
+        secure_clear(state.session_key);
+        secure_wipe(state.expected_initiator_mac);
+        secure_clear(state.master_key);
+        secure_clear(state.pq_shared_secret);
         state.handshake_complete = false;
+    });
 
-        Result result = Result::Success;
-        uint8_t evaluated_element[crypto_core_ristretto255_BYTES] = {};
-        uint8_t oprf_key[PRIVATE_KEY_LENGTH] = {};
-        uint8_t dh1[PUBLIC_KEY_LENGTH] = {};
-        uint8_t dh2[PUBLIC_KEY_LENGTH] = {};
-        uint8_t dh3[PUBLIC_KEY_LENGTH] = {};
-        uint8_t kem_shared_secret[pq_constants::KEM_SHARED_SECRET_LENGTH] = {};
-        uint8_t prk[crypto_auth_hmacsha512_BYTES] = {};
-        uint8_t responder_mac_key[crypto_auth_hmacsha512_BYTES] = {};
-        uint8_t initiator_mac_key[crypto_auth_hmacsha512_BYTES] = {};
-        uint8_t transcript_hash[crypto_hash_sha512_BYTES] = {};
-        secure_bytes classical_ikm;
-        secure_bytes mac_input;
-        const auto* session_info = reinterpret_cast<const uint8_t *>(pq::labels::kPqSessionKeyInfo);
-        constexpr size_t session_info_length = pq::labels::kPqSessionKeyInfoLength;
-        const auto* master_key_info = reinterpret_cast<const uint8_t *>(pq::labels::kPqMasterKeyInfo);
-        constexpr size_t master_key_info_length = pq::labels::kPqMasterKeyInfoLength;
-        const auto* responder_mac_info = reinterpret_cast<const uint8_t *>(pq::labels::kPqResponderMacInfo);
-        constexpr size_t responder_mac_info_length = pq::labels::kPqResponderMacInfoLength;
-        const auto* initiator_mac_info = reinterpret_cast<const uint8_t *>(pq::labels::kPqInitiatorMacInfo);
-        constexpr size_t initiator_mac_info_length = pq::labels::kPqInitiatorMacInfoLength;
-        const uint8_t *responder_static_public = responder_public_key.data();
-        const uint8_t *credential_response = ke2.credential_response.data();
+    do {
+        crypto_core_ristretto255_scalar_random(state.responder_ephemeral_private_key.data());
+    } while (sodium_is_zero(state.responder_ephemeral_private_key.data(),
+                            state.responder_ephemeral_private_key.size()) == 1);
 
-        constexpr size_t mac_input_size = 2 * NONCE_LENGTH + 4 * PUBLIC_KEY_LENGTH + CREDENTIAL_RESPONSE_LENGTH +
-                                          pq_constants::KEM_CIPHERTEXT_LENGTH + pq_constants::KEM_PUBLIC_KEY_LENGTH;
-        size_t offset = 0;
+    if (crypto_scalarmult_ristretto255_base(state.responder_ephemeral_public_key.data(),
+                                            state.responder_ephemeral_private_key.data()) != 0) {
+        return Result::CryptoError;
+    }
 
-        do {
-            crypto_core_ristretto255_scalar_random(state.responder_ephemeral_private_key.data());
-        } while (sodium_is_zero(state.responder_ephemeral_private_key.data(),
-                                state.responder_ephemeral_private_key.size()) == 1);
-        log::hex("responder_ephemeral_private_key", state.responder_ephemeral_private_key);
+    OPAQUE_TRY(crypto::random_bytes(ke2.responder_nonce.data(), NONCE_LENGTH));
 
-        if (crypto_scalarmult_ristretto255_base(state.responder_ephemeral_public_key.data(),
-                                                state.responder_ephemeral_private_key.data()) != 0) [[unlikely]] {
-            result = Result::CryptoError;
-            goto cleanup;
-        }
-        log::hex("responder_ephemeral_public_key", state.responder_ephemeral_public_key);
+    std::ranges::copy(state.responder_ephemeral_public_key, ke2.responder_public_key.begin());
 
-        result = crypto::random_bytes(ke2.responder_nonce.data(), NONCE_LENGTH);
-        if (result != Result::Success) [[unlikely]] {
-            goto cleanup;
-        }
-        log::hex("responder_nonce", ke2.responder_nonce);
+    OPAQUE_TRY(crypto::derive_oprf_key(responder_private_key.data(), responder_private_key.size(),
+                                        account_id, account_id_length, oprf_key));
 
-        std::ranges::copy(state.responder_ephemeral_public_key,
-                          ke2.responder_public_key.begin());
+    OPAQUE_TRY(oblivious_prf::evaluate(cred_req, oprf_key, evaluated_elem));
 
-        result = crypto::derive_oprf_key(responder_private_key.data(), responder_private_key.size(),
-                                         account_id, account_id_length, oprf_key);
-        if (result != Result::Success) [[unlikely]] {
-            sodium_memzero(oprf_key, sizeof(oprf_key));
-            goto cleanup;
-        }
-        log::hex("oprf_key (derived)", oprf_key, sizeof(oprf_key));
+    log::hex("evaluated_element (OPRF)", evaluated_elem.data(), evaluated_elem.size());
 
-        result = oblivious_prf::evaluate(credential_request, oprf_key, evaluated_element);
-        sodium_memzero(oprf_key, sizeof(oprf_key));
-        if (result != Result::Success) [[unlikely]] {
-            goto cleanup;
-        }
-        log::hex("evaluated_element (OPRF output)", evaluated_element, sizeof(evaluated_element));
-
-        offset = 0;
-        std::copy_n(evaluated_element, crypto_core_ristretto255_BYTES,
-                  ke2.credential_response.begin() + static_cast<std::ptrdiff_t>(offset));
-        offset += crypto_core_ristretto255_BYTES;
+    {
+        size_t off = 0;
+        std::copy_n(evaluated_elem.data(), crypto_core_ristretto255_BYTES,
+                    ke2.credential_response.begin() + static_cast<std::ptrdiff_t>(off));
+        off += crypto_core_ristretto255_BYTES;
         std::ranges::copy(credentials.envelope,
-                          ke2.credential_response.begin() + static_cast<std::ptrdiff_t>(offset));
-        log::hex("ke2.credential_response", ke2.credential_response);
+                          ke2.credential_response.begin() + static_cast<std::ptrdiff_t>(off));
+    }
 
-        if (crypto_scalarmult_ristretto255(dh1, responder_private_key.data(),
-                                           initiator_static_public) != 0) {
-            result = Result::CryptoError;
-            goto cleanup;
-        }
-        log::hex("dh1 (responder_private * initiator_static)", dh1, PUBLIC_KEY_LENGTH);
+    if (crypto_scalarmult_ristretto255(dh1, responder_private_key.data(), init_static_pk) != 0)
+        return Result::CryptoError;
 
-        if (crypto_scalarmult_ristretto255(dh2, responder_private_key.data(),
-                                           initiator_ephemeral_public) != 0) {
-            result = Result::CryptoError;
-            goto cleanup;
-        }
-        log::hex("dh2 (responder_private * initiator_ephemeral)", dh2, PUBLIC_KEY_LENGTH);
+    if (crypto_scalarmult_ristretto255(dh2, responder_private_key.data(), init_eph_pk) != 0)
+        return Result::CryptoError;
 
-        if (crypto_scalarmult_ristretto255(dh3, state.responder_ephemeral_private_key.data(),
-                                           initiator_static_public) != 0) {
-            result = Result::CryptoError;
-            goto cleanup;
-        }
-        log::hex("dh3 (responder_ephemeral * initiator_static)", dh3, PUBLIC_KEY_LENGTH);
+    if (crypto_scalarmult_ristretto255(dh3, state.responder_ephemeral_private_key.data(), init_static_pk) != 0)
+        return Result::CryptoError;
 
-        result = pq::kem::encapsulate(initiator_pq_ephemeral_public,
-                                      ke2.kem_ciphertext.data(),
-                                      kem_shared_secret);
-        if (result != Result::Success) {
-            goto cleanup;
-        }
-        log::hex("kem_shared_secret (encapsulated)", kem_shared_secret, sizeof(kem_shared_secret));
-        log::hex("ke2.kem_ciphertext", ke2.kem_ciphertext);
+    log::hex("dh1 (resp_priv * init_static)", dh1.data(), PUBLIC_KEY_LENGTH);
+    log::hex("dh2 (resp_priv * init_eph)", dh2.data(), PUBLIC_KEY_LENGTH);
+    log::hex("dh3 (resp_eph * init_static)", dh3.data(), PUBLIC_KEY_LENGTH);
 
-        state.pq_shared_secret.resize(pq_constants::KEM_SHARED_SECRET_LENGTH);
-        std::copy_n(kem_shared_secret, pq_constants::KEM_SHARED_SECRET_LENGTH,
-                    state.pq_shared_secret.begin());
+    OPAQUE_TRY(pq::kem::encapsulate(init_pq_pk, ke2.kem_ciphertext.data(), kem_ss));
 
-        classical_ikm.resize(3 * PUBLIC_KEY_LENGTH);
-        std::copy_n(dh1, PUBLIC_KEY_LENGTH, classical_ikm.begin());
-        std::copy_n(dh2, PUBLIC_KEY_LENGTH, classical_ikm.begin() + PUBLIC_KEY_LENGTH);
-        std::copy_n(dh3, PUBLIC_KEY_LENGTH, classical_ikm.begin() + 2 * PUBLIC_KEY_LENGTH);
+    state.pq_shared_secret.resize(pq_constants::KEM_SHARED_SECRET_LENGTH);
+    std::copy_n(kem_ss.data(), pq_constants::KEM_SHARED_SECRET_LENGTH, state.pq_shared_secret.begin());
 
-        mac_input.resize(mac_input_size);
-        offset = 0;
-        std::copy_n(initiator_ephemeral_public, PUBLIC_KEY_LENGTH,
-                  mac_input.begin() + static_cast<std::ptrdiff_t>(offset));
-        offset += PUBLIC_KEY_LENGTH;
-        std::ranges::copy(state.responder_ephemeral_public_key,
-                          mac_input.begin() + static_cast<std::ptrdiff_t>(offset));
-        offset += PUBLIC_KEY_LENGTH;
-        std::copy_n(initiator_nonce, NONCE_LENGTH,
-                  mac_input.begin() + static_cast<std::ptrdiff_t>(offset));
-        offset += NONCE_LENGTH;
-        std::ranges::copy(ke2.responder_nonce,
-                          mac_input.begin() + static_cast<std::ptrdiff_t>(offset));
-        offset += NONCE_LENGTH;
-        std::copy_n(initiator_static_public, PUBLIC_KEY_LENGTH,
-                  mac_input.begin() + static_cast<std::ptrdiff_t>(offset));
-        offset += PUBLIC_KEY_LENGTH;
-        std::copy_n(responder_static_public, PUBLIC_KEY_LENGTH,
-                  mac_input.begin() + static_cast<std::ptrdiff_t>(offset));
-        offset += PUBLIC_KEY_LENGTH;
-        std::copy_n(credential_response, CREDENTIAL_RESPONSE_LENGTH,
-                  mac_input.begin() + static_cast<std::ptrdiff_t>(offset));
-        offset += CREDENTIAL_RESPONSE_LENGTH;
+    log::hex("kem_shared_secret (encapsulated)", kem_ss.data(), kem_ss.size());
 
-        std::copy_n(initiator_pq_ephemeral_public, pq_constants::KEM_PUBLIC_KEY_LENGTH,
-                  mac_input.begin() + static_cast<std::ptrdiff_t>(offset));
-        offset += pq_constants::KEM_PUBLIC_KEY_LENGTH;
-        std::ranges::copy(ke2.kem_ciphertext,
-                          mac_input.begin() + static_cast<std::ptrdiff_t>(offset));
+    {
+        SecureLocal<crypto_auth_hmacsha512_BYTES> resp_mac_key;
+        constexpr size_t CLASSICAL_IKM_LENGTH = 3 * PUBLIC_KEY_LENGTH;
+        SecureLocal<CLASSICAL_IKM_LENGTH> classical_ikm;
+        std::copy_n(dh1.data(), PUBLIC_KEY_LENGTH, classical_ikm.data());
+        std::copy_n(dh2.data(), PUBLIC_KEY_LENGTH, classical_ikm.data() + PUBLIC_KEY_LENGTH);
+        std::copy_n(dh3.data(), PUBLIC_KEY_LENGTH, classical_ikm.data() + 2 * PUBLIC_KEY_LENGTH);
+
+        constexpr size_t mac_input_size =
+            2 * NONCE_LENGTH + 4 * PUBLIC_KEY_LENGTH + CREDENTIAL_RESPONSE_LENGTH
+            + pq_constants::KEM_CIPHERTEXT_LENGTH + pq_constants::KEM_PUBLIC_KEY_LENGTH;
+
+        secure_bytes mac_input(mac_input_size);
+        size_t off = 0;
+
+        auto append = [&](const uint8_t* src, size_t len) {
+            std::copy_n(src, len, mac_input.begin() + static_cast<std::ptrdiff_t>(off));
+            off += len;
+        };
+
+        append(init_eph_pk, PUBLIC_KEY_LENGTH);
+        append(state.responder_ephemeral_public_key.data(), PUBLIC_KEY_LENGTH);
+        append(init_nonce, NONCE_LENGTH);
+        append(ke2.responder_nonce.data(), NONCE_LENGTH);
+        append(init_static_pk, PUBLIC_KEY_LENGTH);
+        append(responder_public_key.data(), PUBLIC_KEY_LENGTH);
+        append(ke2.credential_response.data(), CREDENTIAL_RESPONSE_LENGTH);
+        append(init_pq_pk, pq_constants::KEM_PUBLIC_KEY_LENGTH);
+        append(ke2.kem_ciphertext.data(), pq_constants::KEM_CIPHERTEXT_LENGTH);
 
         {
-            crypto_hash_sha512_state transcript_state;
-            crypto_hash_sha512_init(&transcript_state);
-            crypto_hash_sha512_update(&transcript_state,
-                                      reinterpret_cast<const uint8_t *>(labels::kTranscriptContext),
-                                      labels::kTranscriptContextLength);
-            crypto_hash_sha512_update(&transcript_state, mac_input.data(), mac_input.size());
-            crypto_hash_sha512_final(&transcript_state, transcript_hash);
+            crypto_hash_sha512_state ts;
+            crypto_hash_sha512_init(&ts);
+            crypto_hash_sha512_update(&ts,
+                reinterpret_cast<const uint8_t*>(labels::kTranscriptContext),
+                labels::kTranscriptContextLength);
+            crypto_hash_sha512_update(&ts, mac_input.data(), mac_input.size());
+            crypto_hash_sha512_final(&ts, transcript_hash);
         }
 
-        result = pq::combine_key_material(classical_ikm.data(), classical_ikm.size(),
-                                          kem_shared_secret, sizeof(kem_shared_secret),
-                                          transcript_hash, sizeof(transcript_hash),
-                                          prk);
-        sodium_memzero(transcript_hash, sizeof(transcript_hash));
-        if (result != Result::Success) {
-            goto cleanup;
-        }
-        log::hex("prk (pseudo-random key from PQ combiner)", prk, sizeof(prk));
+        OPAQUE_TRY(pq::combine_key_material(
+            classical_ikm.data(), classical_ikm.size(),
+            kem_ss, kem_ss.size(),
+            transcript_hash, transcript_hash.size(),
+            prk));
+
+        log::hex("prk (PQ combiner)", prk.data(), prk.size());
 
         state.session_key.resize(HASH_LENGTH);
-        result = crypto::key_derivation_expand(prk, sizeof(prk), session_info, session_info_length,
-                                               state.session_key.data(), state.session_key.size());
-        if (result != Result::Success) {
-            goto cleanup;
-        }
-        log::hex("session_key (derived)", state.session_key);
+        OPAQUE_TRY(crypto::key_derivation_expand(prk, prk.size(),
+            reinterpret_cast<const uint8_t*>(pq::labels::kPqSessionKeyInfo),
+            pq::labels::kPqSessionKeyInfoLength,
+            state.session_key.data(), state.session_key.size()));
 
         state.master_key.resize(MASTER_KEY_LENGTH);
-        result = crypto::key_derivation_expand(prk, sizeof(prk), master_key_info, master_key_info_length,
-                                               state.master_key.data(), state.master_key.size());
-        if (result != Result::Success) {
-            goto cleanup;
-        }
-        log::hex("master_key (derived)", state.master_key);
+        OPAQUE_TRY(crypto::key_derivation_expand(prk, prk.size(),
+            reinterpret_cast<const uint8_t*>(pq::labels::kPqMasterKeyInfo),
+            pq::labels::kPqMasterKeyInfoLength,
+            state.master_key.data(), state.master_key.size()));
 
-        result = crypto::key_derivation_expand(prk, sizeof(prk), responder_mac_info, responder_mac_info_length,
-                                               responder_mac_key, sizeof(responder_mac_key));
-        if (result != Result::Success) {
-            goto cleanup;
-        }
-        log::hex("responder_mac_key", responder_mac_key, sizeof(responder_mac_key));
+        OPAQUE_TRY(crypto::key_derivation_expand(prk, prk.size(),
+            reinterpret_cast<const uint8_t*>(pq::labels::kPqResponderMacInfo),
+            pq::labels::kPqResponderMacInfoLength,
+            resp_mac_key, resp_mac_key.size()));
 
-        result = crypto::hmac(responder_mac_key, sizeof(responder_mac_key),
-                              mac_input.data(), mac_input.size(),
-                              ke2.responder_mac.data());
-        if (result != Result::Success) {
-            goto cleanup;
-        }
+        OPAQUE_TRY(crypto::hmac(resp_mac_key, resp_mac_key.size(),
+                                 mac_input.data(), mac_input.size(),
+                                 ke2.responder_mac.data()));
+
         log::hex("ke2.responder_mac", ke2.responder_mac);
 
-        result = crypto::key_derivation_expand(prk, sizeof(prk), initiator_mac_info, initiator_mac_info_length,
-                                               initiator_mac_key, sizeof(initiator_mac_key));
-        if (result != Result::Success) {
-            goto cleanup;
-        }
-        log::hex("initiator_mac_key", initiator_mac_key, sizeof(initiator_mac_key));
+        OPAQUE_TRY(crypto::key_derivation_expand(prk, prk.size(),
+            reinterpret_cast<const uint8_t*>(pq::labels::kPqInitiatorMacInfo),
+            pq::labels::kPqInitiatorMacInfoLength,
+            init_mac_key, init_mac_key.size()));
 
-        result = crypto::hmac(initiator_mac_key, sizeof(initiator_mac_key),
-                              mac_input.data(), mac_input.size(),
-                              state.expected_initiator_mac.data());
+        OPAQUE_TRY(crypto::hmac(init_mac_key, init_mac_key.size(),
+                                 mac_input.data(), mac_input.size(),
+                                 state.expected_initiator_mac.data()));
+
         log::hex("expected_initiator_mac", state.expected_initiator_mac);
 
-    cleanup:
-        sodium_memzero(evaluated_element, sizeof(evaluated_element));
-        sodium_memzero(dh1, sizeof(dh1));
-        sodium_memzero(dh2, sizeof(dh2));
-        sodium_memzero(dh3, sizeof(dh3));
-        sodium_memzero(kem_shared_secret, sizeof(kem_shared_secret));
-        if (!classical_ikm.empty()) {
-            sodium_memzero(classical_ikm.data(), classical_ikm.size());
-        }
-        sodium_memzero(prk, sizeof(prk));
-        sodium_memzero(responder_mac_key, sizeof(responder_mac_key));
-        sodium_memzero(initiator_mac_key, sizeof(initiator_mac_key));
-        if (result != Result::Success) {
-            secure_clear(state.session_key);
-            secure_wipe(state.expected_initiator_mac);
-            secure_clear(state.master_key);
-            secure_clear(state.pq_shared_secret);
-            state.handshake_complete = false;
-        }
-        return result;
+        sodium_memzero(classical_ikm.data(), classical_ikm.size());
+        sodium_memzero(mac_input.data(), mac_input.size());
     }
 
+    failure_guard.dismiss();
+
+    return Result::Success;
 }
+
+} // namespace ecliptix::security::opaque::responder

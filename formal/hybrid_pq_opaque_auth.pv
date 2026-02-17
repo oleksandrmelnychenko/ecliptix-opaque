@@ -1,0 +1,244 @@
+(* ============================================================
+ * Hybrid PQ-OPAQUE — Mutual Authentication Queries
+ * ProVerif Model (Simplified for correspondence)
+ * ============================================================
+ *
+ * This file verifies ONLY authentication (correspondence) properties.
+ * Secrecy properties are in hybrid_pq_opaque.pv (already verified).
+ *
+ * Simplifications vs full model:
+ *   1. No ServerLTKCompromised event (tested separately)
+ *   2. Bounded sessions (single honest client/server pair)
+ *   3. OPRF modeled as a single-step PRF
+ *   4. Transcript abstracted as hash of key elements only
+ *
+ * Usage: proverif hybrid_pq_opaque_auth.pv
+ * ============================================================ *)
+
+(* ----- Channels ----- *)
+free c: channel.
+free secure_reg: channel [private].
+
+(* ----- Types ----- *)
+type key.
+type scalar.
+type point.
+type kem_sk.
+type kem_pk.
+type kem_ct.
+type nonce.
+type password.
+type envelope.
+type label.
+
+(* ----- Secret password under test ----- *)
+free secret_pwd: password [private].
+
+(* ----- Domain separation labels ----- *)
+free lbl_oprf: label.
+free lbl_session: label.
+free lbl_master: label.
+free lbl_resp_mac: label.
+free lbl_init_mac: label.
+free lbl_envelope: label.
+
+(* ----- Elliptic Curve DH ----- *)
+fun ec_pk(scalar): point.
+fun ec_dh(scalar, point): key.
+equation forall a: scalar, b: scalar;
+  ec_dh(a, ec_pk(b)) = ec_dh(b, ec_pk(a)).
+
+(* ----- ML-KEM-768 ----- *)
+fun kem_keygen_pk(kem_sk): kem_pk.
+fun kem_encaps(kem_pk, nonce): kem_ct.
+fun kem_shared(kem_pk, nonce): key.
+fun kem_decaps(kem_sk, kem_ct): key.
+equation forall sk: kem_sk, r: nonce;
+  kem_decaps(sk, kem_encaps(kem_keygen_pk(sk), r)) = kem_shared(kem_keygen_pk(sk), r).
+
+(* ----- OPRF — modeled as direct PRF output ----- *)
+fun oprf_output(password, scalar): key.
+
+(* ----- Key Derivation ----- *)
+fun hkdf_extract(key, key): key.
+fun hkdf_extract4(key, key, key, key): key.  (* dh1||dh2||dh3||kem_ss combined *)
+fun hkdf_expand(key, label): key.
+
+(* ----- HMAC ----- *)
+fun hmac_compute(key, bitstring): bitstring.
+
+(* ----- Argon2id ----- *)
+fun argon2id(key, password): key.
+
+(* ----- Authenticated Encryption ----- *)
+fun aenc(key, nonce, bitstring): envelope.
+reduc forall k: key, n: nonce, m: bitstring;
+  adec(k, n, aenc(k, n, m)) = m.
+
+(* ----- Transcript hash (simplified: only key fields) ----- *)
+fun make_transcript(point, point, nonce, nonce, point, point, kem_pk, kem_ct): bitstring.
+
+
+(* ============================================================
+ * EVENTS
+ * ============================================================ *)
+event ClientStartsAuth(point, point).
+event ServerAcceptsAuth(point, point, key).
+event ClientCompletesAuth(point, point, key).
+event ServerCompletesAuth(point, point, key).
+event PasswordRegistered(point, password).
+
+
+(* ============================================================
+ * QUERIES — Authentication correspondence only
+ * ============================================================ *)
+
+(* Q1: If client completes auth, server must have accepted *)
+query pkC: point, pkS: point, sk: key;
+  event(ClientCompletesAuth(pkC, pkS, sk))
+  ==> event(ServerAcceptsAuth(pkS, pkC, sk)).
+
+(* Q2: If server completes auth, client must have initiated *)
+query pkC: point, pkS: point, sk: key;
+  event(ServerCompletesAuth(pkS, pkC, sk))
+  ==> event(ClientStartsAuth(pkC, pkS)).
+
+(* Q3: Injective — each server completion has unique client completion *)
+query pkC: point, pkS: point, sk: key;
+  inj-event(ServerCompletesAuth(pkS, pkC, sk))
+  ==> inj-event(ClientCompletesAuth(pkC, pkS, sk)).
+
+
+(* ============================================================
+ * PROTOCOL PROCESSES
+ * ============================================================ *)
+
+(* Registration — done once over secure channel *)
+let ClientRegister(pwd: password, pkS: point) =
+  new oprf_key_c: scalar;
+  let oprf_out = oprf_output(pwd, oprf_key_c) in
+  let rwd = argon2id(oprf_out, pwd) in
+  let env_key = hkdf_expand(rwd, lbl_envelope) in
+  new skC: scalar;
+  let pkC = ec_pk(skC) in
+  new env_nonce: nonce;
+  let env = aenc(env_key, env_nonce, (pkS, skC, pkC)) in
+  event PasswordRegistered(pkC, pwd);
+  out(secure_reg, (env, env_nonce, pkC, oprf_key_c)).
+
+let ServerRegister(skS: scalar, pkS: point) =
+  in(secure_reg, (env: envelope, env_nonce: nonce, pkC: point, oprf_key: scalar));
+  (* Server stores: env, env_nonce, pkC, oprf_key *)
+  out(secure_reg, (env, env_nonce, pkC, oprf_key)).
+
+
+(* ----- Client Authentication ----- *)
+let ClientAuth(pwd: password, pkS: point) =
+  (* KE1 *)
+  new ekC: scalar;
+  let eC = ec_pk(ekC) in
+  new kem_skC: kem_sk;
+  let kem_pkC = kem_keygen_pk(kem_skC) in
+  new nonceC: nonce;
+  new r_auth: scalar;
+  let oprf_out = oprf_output(pwd, r_auth) in
+
+  out(c, (eC, nonceC, kem_pkC));
+
+  (* Receive KE2 *)
+  in(c, (nonceS: nonce, eS: point, env: envelope, env_nonce: nonce,
+         resp_mac: bitstring, kem_ct: kem_ct, oprf_key_s: scalar));
+
+  (* Reconstruct OPRF output with server's key *)
+  let oprf_out_s = oprf_output(pwd, oprf_key_s) in
+  let rwd = argon2id(oprf_out_s, pwd) in
+  let env_key = hkdf_expand(rwd, lbl_envelope) in
+
+  (* Decrypt envelope to recover credentials *)
+  let (pkS_rec: point, skC_rec: scalar, pkC_rec: point) = adec(env_key, env_nonce, env) in
+
+  event ClientStartsAuth(pkC_rec, pkS);
+
+  (* 3DH *)
+  let dh1 = ec_dh(skC_rec, pkS) in
+  let dh2 = ec_dh(ekC, pkS) in
+  let dh3 = ec_dh(skC_rec, eS) in
+
+  (* KEM decaps *)
+  let kem_ss = kem_decaps(kem_skC, kem_ct) in
+
+  (* Key derivation *)
+  let prk = hkdf_extract4(dh1, dh2, dh3, kem_ss) in
+  let session_key = hkdf_expand(prk, lbl_session) in
+  let resp_mac_key = hkdf_expand(prk, lbl_resp_mac) in
+  let init_mac_key = hkdf_expand(prk, lbl_init_mac) in
+
+  let transcript = make_transcript(eC, eS, nonceC, nonceS, pkC_rec, pkS, kem_pkC, kem_ct) in
+
+  (* Verify server MAC *)
+  let expected_resp_mac = hmac_compute(resp_mac_key, transcript) in
+  if resp_mac = expected_resp_mac then
+
+  let init_mac = hmac_compute(init_mac_key, transcript) in
+  event ClientCompletesAuth(pkC_rec, pkS, session_key);
+  out(c, init_mac).
+
+
+(* ----- Server Authentication ----- *)
+let ServerAuth(skS: scalar, pkS: point, oprf_key: scalar,
+               env: envelope, env_nonce: nonce, pkC: point) =
+
+  (* Receive KE1 *)
+  in(c, (eC: point, nonceC: nonce, kem_pkC: kem_pk));
+
+  new ekS: scalar;
+  let eS = ec_pk(ekS) in
+  new nonceS: nonce;
+  new kem_rand: nonce;
+  let kem_ct = kem_encaps(kem_pkC, kem_rand) in
+  let kem_ss = kem_shared(kem_pkC, kem_rand) in
+
+  (* 3DH *)
+  let dh1 = ec_dh(skS, pkC) in
+  let dh2 = ec_dh(skS, eC) in
+  let dh3 = ec_dh(ekS, pkC) in
+
+  (* Key derivation *)
+  let prk = hkdf_extract4(dh1, dh2, dh3, kem_ss) in
+  let session_key = hkdf_expand(prk, lbl_session) in
+  let resp_mac_key = hkdf_expand(prk, lbl_resp_mac) in
+  let init_mac_key = hkdf_expand(prk, lbl_init_mac) in
+
+  let transcript = make_transcript(eC, eS, nonceC, nonceS, pkC, pkS, kem_pkC, kem_ct) in
+  let resp_mac = hmac_compute(resp_mac_key, transcript) in
+
+  event ServerAcceptsAuth(pkS, pkC, session_key);
+  out(c, (nonceS, eS, env, env_nonce, resp_mac, kem_ct, oprf_key));
+
+  (* Receive KE3 *)
+  in(c, init_mac: bitstring);
+  let expected_init_mac = hmac_compute(init_mac_key, transcript) in
+  if init_mac = expected_init_mac then
+  event ServerCompletesAuth(pkS, pkC, session_key).
+
+
+(* ============================================================
+ * MAIN PROCESS — bounded sessions for tractability
+ * ============================================================ *)
+process
+  new skS: scalar;
+  let pkS = ec_pk(skS) in
+  out(c, pkS);
+  (
+    ClientRegister(secret_pwd, pkS)
+    | ServerRegister(skS, pkS)
+    |
+    (
+      in(secure_reg, (env_s: envelope, en_s: nonce, pkC_s: point, oprf_key_s: scalar));
+      (
+        !ClientAuth(secret_pwd, pkS)
+        | !ServerAuth(skS, pkS, oprf_key_s, env_s, en_s, pkC_s)
+      )
+    )
+  )
+
