@@ -1,6 +1,7 @@
 # Ecliptix.Security.OPAQUE
 
 [![CI](https://github.com/oleksandrmelnychenko/ecliptix-opaque/actions/workflows/ci.yml/badge.svg)](https://github.com/oleksandrmelnychenko/ecliptix-opaque/actions/workflows/ci.yml)
+[![Benchmarks](https://github.com/oleksandrmelnychenko/ecliptix-opaque/actions/workflows/benchmarks.yml/badge.svg)](https://github.com/oleksandrmelnychenko/ecliptix-opaque/actions/workflows/benchmarks.yml)
 [![Security Scan](https://github.com/oleksandrmelnychenko/ecliptix-opaque/actions/workflows/security-scan.yml/badge.svg)](https://github.com/oleksandrmelnychenko/ecliptix-opaque/actions/workflows/security-scan.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 

@@ -324,3 +324,5 @@ All tests passed (702 assertions in 21 test cases)
 *Platform: Apple M1 Pro, 10 cores, 16GB RAM*
 *Compiler: AppleClang 17.0.0*
 *Optimization: Release (-O3)*
+
+**Порівняння платформ:** результати на Windows PC та таблиця порівняння з Apple M1 — [benchmark_comparison.md](benchmark_comparison.md).

@@ -79,11 +79,23 @@ cmake -B build \
   -DBUILD_STATIC_SODIUM=OFF
 ```
 
+## CI/CD Pipeline
+
+| Workflow | Trigger | Jobs |
+|----------|---------|------|
+| **CI** (`ci.yml`) | push/PR to `main`, `develop` | Build & Test (Linux, macOS, Windows), Lint, Docs |
+| **Benchmarks** (`benchmarks.yml`) | push to `main` (benchmarks/src), weekly Mon 06:00 UTC, manual | Benchmarks on Linux, macOS, Windows; combined report artifact |
+| **Security Scan** (`security-scan.yml`) | push/PR, weekly, manual | CodeQL, Dependency Review, SBOM, Secret Scan, License/Policy checks |
+| **Build & Publish** (`build-and-publish.yml`) | tags `v*`, manual | Native libs (macOS, Linux, Windows, Android, XCFramework), NuGet, GitHub Release |
+
+CI and Benchmarks both build with `BUILD_BENCHMARKS=ON`, run tests, then run benchmarks and upload logs as artifacts.
+
 ## Outputs
 
 - Client library: `libeop.agent` (macOS/Linux) or `eop.agent.dll` (Windows)
 - Server library: `libeop.relay` (macOS/Linux) or `eop.relay.dll` (Windows)
 - Tests: `tests/test_opaque_protocol`
+- Benchmarks: `bench_micro`, `bench_protocol`, `bench_throughput`, `bench_overhead` (when `BUILD_BENCHMARKS=ON`)
 
 ## Install
 
