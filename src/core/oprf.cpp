@@ -8,7 +8,7 @@ namespace ecliptix::security::opaque::oblivious_prf {
     constexpr uint8_t kFinalizeDomainSeparator = 0x01;
     constexpr size_t kContextLength = labels::kOprfContextLength;
 
-    Result hash_to_group(const uint8_t *input, size_t input_length, uint8_t *point) {
+    Result hash_to_group(const uint8_t *input, const size_t input_length, uint8_t *point) {
         if (!input || input_length == 0 || !point) [[unlikely]] {
             return Result::InvalidInput;
         }
@@ -29,7 +29,7 @@ namespace ecliptix::security::opaque::oblivious_prf {
         return Result::Success;
     }
 
-    Result blind(const uint8_t *input, size_t input_length,
+    Result blind(const uint8_t *input, const size_t input_length,
                  uint8_t *blinded_element, uint8_t *blind_scalar) {
         if (!input || input_length == 0 || !blinded_element || !blind_scalar) [[unlikely]] {
             return Result::InvalidInput;
@@ -64,7 +64,7 @@ namespace ecliptix::security::opaque::oblivious_prf {
         return Result::Success;
     }
 
-    Result finalize(const uint8_t *input, size_t input_length,
+    Result finalize(const uint8_t *input, const size_t input_length,
                     const uint8_t *blind_scalar,
                     const uint8_t *evaluated_element,
                     uint8_t *oprf_output) {
@@ -88,14 +88,14 @@ namespace ecliptix::security::opaque::oblivious_prf {
         secure_bytes hash_input(kContextLength + 1 + input_length + crypto_core_ristretto255_BYTES);
         size_t offset = 0;
         std::copy_n(reinterpret_cast<const uint8_t *>(labels::kOprfContext), kContextLength,
-                  hash_input.begin() + static_cast<std::ptrdiff_t>(offset));
+                    hash_input.begin() + static_cast<std::ptrdiff_t>(offset));
         offset += kContextLength;
         hash_input[offset] = kFinalizeDomainSeparator;
         offset += 1;
         std::copy_n(input, input_length, hash_input.begin() + static_cast<std::ptrdiff_t>(offset));
         offset += input_length;
         std::copy_n(unblinded_element, crypto_core_ristretto255_BYTES,
-                  hash_input.begin() + static_cast<std::ptrdiff_t>(offset));
+                    hash_input.begin() + static_cast<std::ptrdiff_t>(offset));
         crypto_hash_sha512(oprf_output, hash_input.data(), hash_input.size());
         sodium_memzero(blind_scalar_inv, sizeof(blind_scalar_inv));
         sodium_memzero(unblinded_element, sizeof(unblinded_element));

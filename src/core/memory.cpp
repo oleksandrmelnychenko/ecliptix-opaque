@@ -32,9 +32,9 @@ namespace {
 #endif
     }
 
-        void *secure_malloc(size_t size) {
+        void *secure_malloc(const size_t size) {
             if (size == 0) return nullptr;
-            size_t page_size = secure_page_size();
+            const size_t page_size = secure_page_size();
             size_t aligned_size = (size + page_size - 1) & ~(page_size - 1);
 #ifdef _WIN32
             void *ptr = VirtualAlloc(nullptr, aligned_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
@@ -51,9 +51,9 @@ namespace {
             return ptr;
         }
 
-        void secure_free(void *ptr, size_t size) {
+        void secure_free(void *ptr, const size_t size) {
             if (!ptr) return;
-            size_t page_size = secure_page_size();
+            const size_t page_size = secure_page_size();
             size_t aligned_size = (size + page_size - 1) & ~(page_size - 1);
             sodium_memzero(ptr, aligned_size);
 #ifdef _WIN32
@@ -67,7 +67,7 @@ namespace {
     }
 
     template<SecurelyAllocatable T>
-    T *SecureAllocator<T>::allocate(size_t n) {
+    T *SecureAllocator<T>::allocate(const size_t n) {
         if (n == 0) {
             return nullptr;
         }
@@ -82,7 +82,7 @@ namespace {
     }
 
     template<SecurelyAllocatable T>
-    void SecureAllocator<T>::deallocate(T *p, size_t n) {
+    void SecureAllocator<T>::deallocate(T *p, const size_t n) {
         if (p) [[likely]] {
             secure_free(p, n * sizeof(T));
         }
@@ -90,7 +90,7 @@ namespace {
 
     template class SecureAllocator<uint8_t>;
 
-    SecureBuffer::SecureBuffer(size_t size) : data_(nullptr), size_(size) {
+    SecureBuffer::SecureBuffer(const size_t size) : data_(nullptr), size_(size) {
         if (size == 0) {
             return;
         }
@@ -175,15 +175,15 @@ namespace {
     Envelope::Envelope() : nonce(NONCE_LENGTH), auth_tag(crypto_secretbox_MACBYTES) {
     }
 
-    Envelope::Envelope(size_t auth_tag_size) : nonce(NONCE_LENGTH), auth_tag(auth_tag_size) {
+    Envelope::Envelope(const size_t auth_tag_size) : nonce(NONCE_LENGTH), auth_tag(auth_tag_size) {
     }
 
     ResponderPublicKey::ResponderPublicKey() : key_data(PUBLIC_KEY_LENGTH) {
     }
 
-    ResponderPublicKey::ResponderPublicKey(const uint8_t *data, size_t size) : key_data(size) {
+    ResponderPublicKey::ResponderPublicKey(const uint8_t *data, const size_t size) : key_data(size) {
         if (data && size > 0) {
-            std::copy(data, data + size, key_data.begin());
+            std::copy_n(data, size, key_data.begin());
         }
     }
 

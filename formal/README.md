@@ -29,7 +29,14 @@ over execution traces and supports lemma-by-lemma verification.
 
 **Run:**
 ```bash
-tamarin-prover hybrid_pq_opaque.spthy --prove
+# Using the helper script (saves output to logs/)
+./run-tamarin.sh                    # Full verification (30–120 min)
+./run-tamarin.sh --lemma=protocol_completion   # Single lemma (faster)
+./run-tamarin.sh --background       # Run in background
+
+# Or directly:
+tamarin-prover hybrid_pq_opaque.spthy --prove -v
+tamarin-prover hybrid_pq_opaque.spthy --prove=protocol_completion -v
 ```
 
 **Interactive mode:**

@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <concepts>
+#include <sodium.h>
 
 namespace ecliptix::security::opaque {
 
@@ -185,21 +186,20 @@ namespace ecliptix::security::opaque {
     };
 
     namespace util {
+        /**
+         * Constant-time check if buffer is all zeros.
+         * Uses libsodium's sodium_is_zero() for guaranteed constant-time execution.
+         */
         template<size_t N>
         [[nodiscard]] inline bool is_all_zero(const uint8_t (&data)[N]) noexcept {
-            uint8_t accumulator = 0;
-            for (size_t i = 0; i < N; ++i) {
-                accumulator |= data[i];
-            }
-            return accumulator == 0;
+            return sodium_is_zero(data, N) == 1;
         }
 
         [[nodiscard]] inline bool is_all_zero(const uint8_t *data, size_t length) noexcept {
-            uint8_t accumulator = 0;
-            for (size_t i = 0; i < length; ++i) {
-                accumulator |= data[i];
+            if (!data || length == 0) [[unlikely]] {
+                return true;
             }
-            return accumulator == 0;
+            return sodium_is_zero(data, length) == 1;
         }
     }
 
