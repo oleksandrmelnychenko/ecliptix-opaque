@@ -29,7 +29,7 @@ namespace ecliptix::security::opaque::crypto {
         return init_success;
     }
 
-    Result random_bytes(uint8_t *buffer, size_t length) {
+    Result random_bytes(uint8_t *buffer, const size_t length) {
         if (!buffer || length == 0) [[unlikely]] {
             return Result::InvalidInput;
         }
@@ -40,7 +40,7 @@ namespace ecliptix::security::opaque::crypto {
         return Result::Success;
     }
 
-    Result derive_key_pair(const uint8_t *seed, size_t seed_length,
+    Result derive_key_pair(const uint8_t *seed, const size_t seed_length,
                            uint8_t *private_key, uint8_t *public_key) {
         if (!seed || seed_length == 0 || !private_key || !public_key) [[unlikely]] {
             return Result::InvalidInput;
@@ -75,7 +75,7 @@ namespace ecliptix::security::opaque::crypto {
         return Result::Success;
     }
 
-    Result validate_ristretto_point(const uint8_t *point, size_t length) {
+    Result validate_ristretto_point(const uint8_t *point, const size_t length) {
         if (!point || length != PUBLIC_KEY_LENGTH) [[unlikely]] {
             return Result::InvalidInput;
         }
@@ -89,7 +89,7 @@ namespace ecliptix::security::opaque::crypto {
         return Result::Success;
     }
 
-    Result validate_public_key(const uint8_t *key, size_t length) {
+    Result validate_public_key(const uint8_t *key, const size_t length) {
         if (!key || length != PUBLIC_KEY_LENGTH) [[unlikely]] {
             return Result::InvalidInput;
         }
@@ -117,7 +117,7 @@ namespace ecliptix::security::opaque::crypto {
         return Result::Success;
     }
 
-    Result hash_to_group(const uint8_t *input, size_t input_length, uint8_t *point) {
+    Result hash_to_group(const uint8_t *input, const size_t input_length, uint8_t *point) {
         if (!input || input_length == 0 || !point) [[unlikely]] {
             return Result::InvalidInput;
         }
@@ -181,7 +181,7 @@ namespace ecliptix::security::opaque::crypto {
         std::copy_n(reinterpret_cast<const uint8_t *>(labels::kOprfKeyInfo),
                     labels::kOprfKeyInfoLength, input.begin());
         std::copy_n(account_id, account_id_length,
-                    input.begin() + static_cast<std::ptrdiff_t>(labels::kOprfKeyInfoLength));
+                    input.begin() + labels::kOprfKeyInfoLength);
         uint8_t mac[crypto_auth_hmacsha512_BYTES];
         const size_t counter_offset = labels::kOprfKeyInfoLength + account_id_length;
         for (uint16_t counter = 0; counter < 255; ++counter) {
@@ -257,8 +257,8 @@ namespace ecliptix::security::opaque::crypto {
         return Result::Success;
     }
 
-    Result verify_hmac(const uint8_t *key, size_t key_length,
-                       const uint8_t *message, size_t message_length,
+    Result verify_hmac(const uint8_t *key, const size_t key_length,
+                       const uint8_t *message, const size_t message_length,
                        const uint8_t *mac) {
         if (!key || key_length == 0 || !message || message_length == 0 || !mac) [[unlikely]] {
             return Result::InvalidInput;
@@ -280,8 +280,8 @@ namespace ecliptix::security::opaque::crypto {
         return Result::Success;
     }
 
-    Result key_derivation_extract(const uint8_t *salt, size_t salt_length,
-                                  const uint8_t *ikm, size_t ikm_length,
+    Result key_derivation_extract(const uint8_t *salt, const size_t salt_length,
+                                  const uint8_t *ikm, const size_t ikm_length,
                                   uint8_t *prk) {
         if (!salt || salt_length == 0 || !ikm || ikm_length == 0 || !prk) [[unlikely]] {
             return Result::InvalidInput;
@@ -299,9 +299,8 @@ namespace ecliptix::security::opaque::crypto {
             return Result::InvalidInput;
         }
         constexpr size_t hash_length = crypto_auth_hmacsha512_BYTES;
-        constexpr size_t kHkdfMaxBlocks = 255;
         const size_t n = (okm_length + hash_length - 1) / hash_length;
-        if (n > kHkdfMaxBlocks) [[unlikely]] {
+        if (constexpr size_t kHkdfMaxBlocks = 255; n > kHkdfMaxBlocks) [[unlikely]] {
             return Result::InvalidInput;
         }
         secure_bytes t_prev(hash_length);
@@ -357,8 +356,8 @@ namespace ecliptix::security::opaque::crypto {
         return Result::Success;
     }
 
-    Result decrypt_envelope(const uint8_t *key, size_t key_length,
-                            const uint8_t *ciphertext, size_t ciphertext_length,
+    Result decrypt_envelope(const uint8_t *key, const size_t key_length,
+                            const uint8_t *ciphertext, const size_t ciphertext_length,
                             const uint8_t *nonce,
                             const uint8_t *auth_tag,
                             uint8_t *plaintext) {
@@ -372,7 +371,8 @@ namespace ecliptix::security::opaque::crypto {
         if (!init()) {
             return Result::CryptoError;
         }
-        if (crypto_secretbox_open_detached(plaintext, ciphertext, auth_tag, ciphertext_length, nonce, key) != 0) [[unlikely]] {
+        if (crypto_secretbox_open_detached(plaintext, ciphertext, auth_tag, ciphertext_length, nonce, key) != 0) [[
+            unlikely]] {
             return Result::AuthenticationError;
         }
         return Result::Success;

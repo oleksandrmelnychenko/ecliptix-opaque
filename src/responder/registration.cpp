@@ -34,7 +34,7 @@ namespace ecliptix::security::opaque::responder {
         log::hex("account_id", account_id, account_id_length);
 
         const uint8_t *blinded_element = registration_request;
-        if (Result point_result = crypto::validate_ristretto_point(blinded_element, REGISTRATION_REQUEST_LENGTH);
+        if (const Result point_result = crypto::validate_ristretto_point(blinded_element, REGISTRATION_REQUEST_LENGTH);
             point_result != Result::Success) {
             return Result::InvalidInput;
         }
@@ -67,8 +67,8 @@ namespace ecliptix::security::opaque::responder {
     Result build_credentials(const uint8_t *registration_record, size_t record_length,
                              ResponderCredentials &credentials) {
         log::section("RELAY: Build Credentials from Registration Record");
-        const size_t record_expected = REGISTRATION_RECORD_LENGTH;
-        if (!registration_record || record_length < record_expected) {
+        if (constexpr size_t record_expected = REGISTRATION_RECORD_LENGTH;
+            !registration_record || record_length < record_expected) {
             return Result::InvalidInput;
         }
         if (!crypto::init()) {

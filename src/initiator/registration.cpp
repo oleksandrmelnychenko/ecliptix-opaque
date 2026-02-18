@@ -1,6 +1,7 @@
 #include "opaque/initiator.h"
 #include "opaque/protocol.h"
 #include "opaque/pq.h"
+#include "opaque/secure_cleanup.h"
 #include "opaque/debug_log.h"
 #include <sodium.h>
 #include <algorithm>
@@ -38,7 +39,7 @@ namespace ecliptix::security::opaque::initiator {
         log::hex("initiator_public_key (EC)", state.initiator_public_key);
 
         state.secure_key.assign(secure_key, secure_key + secure_key_length);
-        auto result = oblivious_prf::blind(secure_key, secure_key_length, request.data.data(),
+        const auto result = oblivious_prf::blind(secure_key, secure_key_length, request.data.data(),
                                            state.oblivious_prf_blind_scalar.data());
         log::hex("oblivious_prf_blind_scalar", state.oblivious_prf_blind_scalar);
         log::hex("registration_request (blinded element)", request.data);
@@ -50,7 +51,7 @@ namespace ecliptix::security::opaque::initiator {
                                       InitiatorState &state, RegistrationRecord &record) {
         log::section("AGENT: Finalize Registration (PQ)");
         if (!registration_response || response_length != REGISTRATION_RESPONSE_LENGTH ||
-            !expected_responder_public_key || expected_key_length != PUBLIC_KEY_LENGTH) {
+            !expected_responder_public_key || expected_key_length != PUBLIC_KEY_LENGTH) [[unlikely]] {
             return Result::InvalidInput;
         }
         if (!crypto::init()) {
@@ -60,7 +61,7 @@ namespace ecliptix::security::opaque::initiator {
         log::hex("expected_responder_public_key", expected_responder_public_key, expected_key_length);
 
         protocol::RegistrationResponseView response_view{};
-        Result parse_result = protocol::parse_registration_response(registration_response, response_length,
+        const Result parse_result = protocol::parse_registration_response(registration_response, response_length,
                                                                     response_view);
         if (parse_result != Result::Success) {
             return parse_result;
@@ -70,7 +71,7 @@ namespace ecliptix::security::opaque::initiator {
         log::hex("evaluated_element (from response)", evaluated_element, crypto_core_ristretto255_BYTES);
         log::hex("responder_public_key (from response)", responder_public_key, PUBLIC_KEY_LENGTH);
 
-        if (Result key_result = crypto::validate_public_key(responder_public_key, PUBLIC_KEY_LENGTH);
+        if (const Result key_result = crypto::validate_public_key(responder_public_key, PUBLIC_KEY_LENGTH);
             key_result != Result::Success) {
             return key_result;
         }
@@ -78,36 +79,36 @@ namespace ecliptix::security::opaque::initiator {
             return Result::AuthenticationError;
         }
 
-        auto result = Result::Success;
-        uint8_t oblivious_prf_output[crypto_hash_sha512_BYTES] = {};
-        uint8_t randomized_pwd[crypto_hash_sha512_BYTES] = {};
+        SecureLocal<crypto_hash_sha512_BYTES> oblivious_prf_output;
+        SecureLocal<crypto_hash_sha512_BYTES> randomized_pwd;
         Envelope env;
-        size_t offset = 0;
 
-        result = oblivious_prf::finalize(state.secure_key.data(), state.secure_key.size(),
-                                         state.oblivious_prf_blind_scalar.data(),
-                                         evaluated_element, oblivious_prf_output);
-        if (result != Result::Success) {
-            goto cleanup;
-        }
-        log::hex("oblivious_prf_output", oblivious_prf_output, sizeof(oblivious_prf_output));
+        auto success_cleanup = make_cleanup([&] {
+            if (!state.secure_key.empty()) {
+                sodium_memzero(state.secure_key.data(), state.secure_key.size());
+                state.secure_key.clear();
+            }
+            if (!state.oblivious_prf_blind_scalar.empty()) {
+                sodium_memzero(state.oblivious_prf_blind_scalar.data(), state.oblivious_prf_blind_scalar.size());
+                state.oblivious_prf_blind_scalar.clear();
+            }
+        });
 
-        result = crypto::derive_randomized_password(oblivious_prf_output, sizeof(oblivious_prf_output),
-                                                    state.secure_key.data(), state.secure_key.size(),
-                                                    randomized_pwd, sizeof(randomized_pwd));
-        if (result != Result::Success) {
-            goto cleanup;
-        }
-        log::hex("randomized_pwd", randomized_pwd, sizeof(randomized_pwd));
+        OPAQUE_TRY(oblivious_prf::finalize(state.secure_key.data(), state.secure_key.size(),
+                                            state.oblivious_prf_blind_scalar.data(),
+                                            evaluated_element, oblivious_prf_output));
+        log::hex("oblivious_prf_output", oblivious_prf_output.data(), oblivious_prf_output.size());
 
-        result = envelope::seal(randomized_pwd, sizeof(randomized_pwd),
-                                responder_public_key,
-                                state.initiator_private_key.data(),
-                                state.initiator_public_key.data(),
-                                env);
-        if (result != Result::Success) {
-            goto cleanup;
-        }
+        OPAQUE_TRY(crypto::derive_randomized_password(oblivious_prf_output, oblivious_prf_output.size(),
+                                                       state.secure_key.data(), state.secure_key.size(),
+                                                       randomized_pwd, randomized_pwd.size()));
+        log::hex("randomized_pwd", randomized_pwd.data(), randomized_pwd.size());
+
+        OPAQUE_TRY(envelope::seal(randomized_pwd, randomized_pwd.size(),
+                                   responder_public_key,
+                                   state.initiator_private_key.data(),
+                                   state.initiator_public_key.data(),
+                                   env));
         log::hex("envelope.nonce", env.nonce);
         log::hex("envelope.ciphertext", env.ciphertext);
         log::hex("envelope.auth_tag", env.auth_tag);
@@ -116,7 +117,7 @@ namespace ecliptix::security::opaque::initiator {
                     state.responder_public_key.begin());
 
         record.envelope.resize(env.nonce.size() + env.ciphertext.size() + env.auth_tag.size());
-        offset = 0;
+        size_t offset = 0;
         std::ranges::copy(env.nonce, record.envelope.begin() + static_cast<std::ptrdiff_t>(offset));
         offset += env.nonce.size();
         std::ranges::copy(env.ciphertext,
@@ -130,21 +131,7 @@ namespace ecliptix::security::opaque::initiator {
 
         log::hex("registration_record.envelope", record.envelope);
         log::hex("registration_record.initiator_public_key (EC)", record.initiator_public_key);
-        result = Result::Success;
 
-    cleanup:
-        sodium_memzero(randomized_pwd, sizeof(randomized_pwd));
-        sodium_memzero(oblivious_prf_output, sizeof(oblivious_prf_output));
-        if (result == Result::Success) {
-            if (!state.secure_key.empty()) {
-                sodium_memzero(state.secure_key.data(), state.secure_key.size());
-                state.secure_key.clear();
-            }
-            if (!state.oblivious_prf_blind_scalar.empty()) {
-                sodium_memzero(state.oblivious_prf_blind_scalar.data(), state.oblivious_prf_blind_scalar.size());
-                state.oblivious_prf_blind_scalar.clear();
-            }
-        }
-        return result;
+        return Result::Success;
     }
 }

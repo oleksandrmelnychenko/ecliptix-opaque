@@ -1,0 +1,759 @@
+maude tool: 'maude'
+ checking version: 2.7.1. OK.
+ checking installation: OK.
+[Theory Hybrid_PQ_OPAQUE] Theory loaded
+[Theory Hybrid_PQ_OPAQUE] Theory translated
+[Theory Hybrid_PQ_OPAQUE] Derivation checks started
+  solved goal nr. 0 (directly): !Generated_0( ~skS.2 ) @ #0.1
+  solved goal nr. 0 (directly): !Generated_0( ~skS.2 ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 1 (precomputed): !KU( ~skS ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_1( ~pwd.4, ~r.3, pkS.2 ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_1( ~pwd.4, ~r.3, pkS.2 ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_1( ~pwd.4, ~r.3, pkS.2 ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 1 (precomputed): !KU( ~pwd ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_1( ~pwd.4, ~r.3, pkS.2 ) @ #0.1
+  solved goal nr. 1 (precomputed): !KU( ~r ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_1( ~pwd.4, ~r.3, pkS.2 ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_2( ~oprf_key.5, blinded.4, pkS.3, skS.2 ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_2( ~oprf_key.5, blinded.4, pkS.3, skS.2 ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_2( ~oprf_key.5, blinded.4, pkS.3, skS.2 ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 1 (precomputed): !KU( ~oprf_key ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_2( ~oprf_key.5, blinded.4, pkS.3, skS.2 ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_2( ~oprf_key.5, blinded.4, pkS.3, skS.2 ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.1 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_2( ~oprf_key.5, blinded.4, pkS.3, skS.2 ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.2 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_3( ~env_nonce.7, ~pwd.6, ~r.5, ~skC_fresh.4,
+                  evaluated.3, pkS.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_3( ~env_nonce.7, ~pwd.6, ~r.5, ~skC_fresh.4,
+                  evaluated.3, pkS.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_3( ~env_nonce.7, ~pwd.6, ~r.5, ~skC_fresh.4,
+                  evaluated.3, pkS.2
+    ) @ #0.1
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 1 (precomputed): !KU( ~env_nonce ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_3( ~env_nonce.7, ~pwd.6, ~r.5, ~skC_fresh.4,
+                  evaluated.3, pkS.2
+    ) @ #0.1
+  solved goal nr. 1 (precomputed): !KU( ~pwd ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_3( ~env_nonce.7, ~pwd.6, ~r.5, ~skC_fresh.4,
+                  evaluated.3, pkS.2
+    ) @ #0.1
+  solved goal nr. 1 (precomputed): !KU( ~r ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_3( ~env_nonce.7, ~pwd.6, ~r.5, ~skC_fresh.4,
+                  evaluated.3, pkS.2
+    ) @ #0.1
+  solved goal nr. 1 (precomputed): !KU( ~skC_fresh ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_3( ~env_nonce.7, ~pwd.6, ~r.5, ~skC_fresh.4,
+                  evaluated.3, pkS.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_3( ~env_nonce.7, ~pwd.6, ~r.5, ~skC_fresh.4,
+                  evaluated.3, pkS.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.1 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_4( ~ekC.9, ~kem_skC.8, ~nonceC.7, ~r_auth.6, pkC.5,
+                  pkS.4, pwd.3, skC.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_4( ~ekC.9, ~kem_skC.8, ~nonceC.7, ~r_auth.6, pkC.5,
+                  pkS.4, pwd.3, skC.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_4( ~ekC.9, ~kem_skC.8, ~nonceC.7, ~r_auth.6, pkC.5,
+                  pkS.4, pwd.3, skC.2
+    ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 1 (precomputed): !KU( ~ekC ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_4( ~ekC.9, ~kem_skC.8, ~nonceC.7, ~r_auth.6, pkC.5,
+                  pkS.4, pwd.3, skC.2
+    ) @ #0.1
+  solved goal nr. 1 (precomputed): !KU( ~kem_skC ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_4( ~ekC.9, ~kem_skC.8, ~nonceC.7, ~r_auth.6, pkC.5,
+                  pkS.4, pwd.3, skC.2
+    ) @ #0.1
+  solved goal nr. 1 (precomputed): !KU( ~nonceC ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_4( ~ekC.9, ~kem_skC.8, ~nonceC.7, ~r_auth.6, pkC.5,
+                  pkS.4, pwd.3, skC.2
+    ) @ #0.1
+  solved goal nr. 1 (precomputed): !KU( ~r_auth ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_4( ~ekC.9, ~kem_skC.8, ~nonceC.7, ~r_auth.6, pkC.5,
+                  pkS.4, pwd.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_4( ~ekC.9, ~kem_skC.8, ~nonceC.7, ~r_auth.6, pkC.5,
+                  pkS.4, pwd.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.1 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_4( ~ekC.9, ~kem_skC.8, ~nonceC.7, ~r_auth.6, pkC.5,
+                  pkS.4, pwd.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.2 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_4( ~ekC.9, ~kem_skC.8, ~nonceC.7, ~r_auth.6, pkC.5,
+                  pkS.4, pwd.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.3 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_5( ~ekS.10, ~kem_rand.9, ~nonceS.8, ke1.7, oprf_key.6,
+                  pkS.5, pwd_stored.4, record.3, skS.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_5( ~ekS.10, ~kem_rand.9, ~nonceS.8, ke1.7, oprf_key.6,
+                  pkS.5, pwd_stored.4, record.3, skS.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_5( ~ekS.10, ~kem_rand.9, ~nonceS.8, ke1.7, oprf_key.6,
+                  pkS.5, pwd_stored.4, record.3, skS.2
+    ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 1 (precomputed): !KU( ~ekS ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_5( ~ekS.10, ~kem_rand.9, ~nonceS.8, ke1.7, oprf_key.6,
+                  pkS.5, pwd_stored.4, record.3, skS.2
+    ) @ #0.1
+  solved goal nr. 1 (precomputed): !KU( ~kem_rand ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_5( ~ekS.10, ~kem_rand.9, ~nonceS.8, ke1.7, oprf_key.6,
+                  pkS.5, pwd_stored.4, record.3, skS.2
+    ) @ #0.1
+  solved goal nr. 1 (precomputed): !KU( ~nonceS ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_5( ~ekS.10, ~kem_rand.9, ~nonceS.8, ke1.7, oprf_key.6,
+                  pkS.5, pwd_stored.4, record.3, skS.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_5( ~ekS.10, ~kem_rand.9, ~nonceS.8, ke1.7, oprf_key.6,
+                  pkS.5, pwd_stored.4, record.3, skS.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.1 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_5( ~ekS.10, ~kem_rand.9, ~nonceS.8, ke1.7, oprf_key.6,
+                  pkS.5, pwd_stored.4, record.3, skS.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.2 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_5( ~ekS.10, ~kem_rand.9, ~nonceS.8, ke1.7, oprf_key.6,
+                  pkS.5, pwd_stored.4, record.3, skS.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.3 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_5( ~ekS.10, ~kem_rand.9, ~nonceS.8, ke1.7, oprf_key.6,
+                  pkS.5, pwd_stored.4, record.3, skS.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.4 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_5( ~ekS.10, ~kem_rand.9, ~nonceS.8, ke1.7, oprf_key.6,
+                  pkS.5, pwd_stored.4, record.3, skS.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.5 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.1 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.2 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.3 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.4 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.5 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.6 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.7 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.8 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.9 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_6( eC_stored.12, ekC.11, ke2.10, kem_pkC_stored.9,
+                  kem_skC.8, nonceC.7, pkC.6, pkS.5, pwd.4, r_auth.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.10 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_7( ekS.8, init_mac_key.7, ke3.6, kem_rand.5,
+                  master_key.4, session_key.3, transcript.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_7( ekS.8, init_mac_key.7, ke3.6, kem_rand.5,
+                  master_key.4, session_key.3, transcript.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_7( ekS.8, init_mac_key.7, ke3.6, kem_rand.5,
+                  master_key.4, session_key.3, transcript.2
+    ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_7( ekS.8, init_mac_key.7, ke3.6, kem_rand.5,
+                  master_key.4, session_key.3, transcript.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.1 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_7( ekS.8, init_mac_key.7, ke3.6, kem_rand.5,
+                  master_key.4, session_key.3, transcript.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.2 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_7( ekS.8, init_mac_key.7, ke3.6, kem_rand.5,
+                  master_key.4, session_key.3, transcript.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.3 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_7( ekS.8, init_mac_key.7, ke3.6, kem_rand.5,
+                  master_key.4, session_key.3, transcript.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.4 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_7( ekS.8, init_mac_key.7, ke3.6, kem_rand.5,
+                  master_key.4, session_key.3, transcript.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.5 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_7( ekS.8, init_mac_key.7, ke3.6, kem_rand.5,
+                  master_key.4, session_key.3, transcript.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.6 ) @ #1
+  solved goal nr. 0 (directly): !Generated_8( pkS.3, skS.2 ) @ #0.1
+  solved goal nr. 0 (directly): !Generated_8( pkS.3, skS.2 ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly): !Generated_8( pkS.3, skS.2 ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.1 ) @ #1
+  solved goal nr. 0 (directly): !Generated_9( pkC.3, skC.2 ) @ #0.1
+  solved goal nr. 0 (directly): !Generated_9( pkC.3, skC.2 ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly): !Generated_9( pkC.3, skC.2 ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.1 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_10( pwd.3, record.2 ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_10( pwd.3, record.2 ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_10( pwd.3, record.2 ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_10( pwd.3, record.2 ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.1 ) @ #1
+  solved goal nr. 0 (directly): !Generated_11( x.2 ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_12( eC.11, ekC.10, kemPK.9, kemSK.8, nC.7, pkC.6, pkS.5,
+                   pwd.4, r.3, skC.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_12( eC.11, ekC.10, kemPK.9, kemSK.8, nC.7, pkC.6, pkS.5,
+                   pwd.4, r.3, skC.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_12( eC.11, ekC.10, kemPK.9, kemSK.8, nC.7, pkC.6, pkS.5,
+                   pwd.4, r.3, skC.2
+    ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_12( eC.11, ekC.10, kemPK.9, kemSK.8, nC.7, pkC.6, pkS.5,
+                   pwd.4, r.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.1 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_12( eC.11, ekC.10, kemPK.9, kemSK.8, nC.7, pkC.6, pkS.5,
+                   pwd.4, r.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.2 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_12( eC.11, ekC.10, kemPK.9, kemSK.8, nC.7, pkC.6, pkS.5,
+                   pwd.4, r.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.3 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_12( eC.11, ekC.10, kemPK.9, kemSK.8, nC.7, pkC.6, pkS.5,
+                   pwd.4, r.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.4 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_12( eC.11, ekC.10, kemPK.9, kemSK.8, nC.7, pkC.6, pkS.5,
+                   pwd.4, r.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.5 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_12( eC.11, ekC.10, kemPK.9, kemSK.8, nC.7, pkC.6, pkS.5,
+                   pwd.4, r.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.6 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_12( eC.11, ekC.10, kemPK.9, kemSK.8, nC.7, pkC.6, pkS.5,
+                   pwd.4, r.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.7 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_12( eC.11, ekC.10, kemPK.9, kemSK.8, nC.7, pkC.6, pkS.5,
+                   pwd.4, r.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.8 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_12( eC.11, ekC.10, kemPK.9, kemSK.8, nC.7, pkC.6, pkS.5,
+                   pwd.4, r.3, skC.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.9 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_13( ekS.7, kem_rand.6, mac_key.5, mk.4, sk.3, tr.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_13( ekS.7, kem_rand.6, mac_key.5, mk.4, sk.3, tr.2
+    ) @ #0.1
+  solved goal nr. 0 (directly):
+    !Generated_13( ekS.7, kem_rand.6, mac_key.5, mk.4, sk.3, tr.2
+    ) @ #0.1
+  solved goal nr. 0 (directly): !KU( ~t.1 ) @ #i
+  solved goal nr. 0 (directly): !KU( adec(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( t.1^t.2 ) @ #i
+  solved goal nr. 0 (directly): !KU( fst(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( h(t.1) ) @ #i
+  solved goal nr. 0 (directly):
+    !KU( hkdf_expand(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( aenc(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat4(t.1, t.2, t.3, t.4) ) @ #i
+  solved goal nr. 0 (directly): !KU( cat3(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 0 (directly): !KU( argon2id(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( hkdf_extract(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( hmac(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_decaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_encaps(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( kem_ss(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_blind(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_eval(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( oprf_finalize(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( pk(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( sdec(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( senc(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( sign(t.1, t.2) ) @ #i
+  solved goal nr. 0 (directly): !KU( snd(t.1) ) @ #i
+  solved goal nr. 0 (directly): !KU( verify(t.1, t.2, t.3) ) @ #i
+  solved goal nr. 3 (precomputed): !KU( ~n ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_13( ekS.7, kem_rand.6, mac_key.5, mk.4, sk.3, tr.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.1 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_13( ekS.7, kem_rand.6, mac_key.5, mk.4, sk.3, tr.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.2 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_13( ekS.7, kem_rand.6, mac_key.5, mk.4, sk.3, tr.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.3 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_13( ekS.7, kem_rand.6, mac_key.5, mk.4, sk.3, tr.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.4 ) @ #1
+  solved goal nr. 0 (directly):
+    !Generated_13( ekS.7, kem_rand.6, mac_key.5, mk.4, sk.3, tr.2
+    ) @ #0.1
+  solved goal nr. 3 (precomputed): !KU( ~n.5 ) @ #1
+[Theory Hybrid_PQ_OPAQUE] Derivation checks ended
+[Theory Hybrid_PQ_OPAQUE] Theory closed

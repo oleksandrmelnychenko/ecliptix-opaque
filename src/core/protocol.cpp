@@ -2,7 +2,7 @@
 #include <cstring>
 
 namespace ecliptix::security::opaque::protocol {
-    Result parse_registration_response(const uint8_t *data, size_t length,
+    Result parse_registration_response(const uint8_t *data, const size_t length,
                                        RegistrationResponseView &view) {
         if (!data || length != REGISTRATION_RESPONSE_LENGTH) {
             return Result::InvalidInput;
@@ -12,7 +12,7 @@ namespace ecliptix::security::opaque::protocol {
         return Result::Success;
     }
 
-    Result parse_registration_record(const uint8_t *data, size_t length,
+    Result parse_registration_record(const uint8_t *data, const size_t length,
                                      RegistrationRecordView &view) {
         if (!data || length != REGISTRATION_RECORD_LENGTH) {
             return Result::InvalidInput;
@@ -22,7 +22,7 @@ namespace ecliptix::security::opaque::protocol {
         return Result::Success;
     }
 
-    Result parse_ke1(const uint8_t *data, size_t length, Ke1View &view) {
+    Result parse_ke1(const uint8_t *data, const size_t length, Ke1View &view) {
         if (!data || length != KE1_LENGTH) {
             return Result::InvalidInput;
         }
@@ -33,7 +33,7 @@ namespace ecliptix::security::opaque::protocol {
         return Result::Success;
     }
 
-    Result parse_ke2(const uint8_t *data, size_t length, Ke2View &view) {
+    Result parse_ke2(const uint8_t *data, const size_t length, Ke2View &view) {
         if (!data || length != KE2_LENGTH) {
             return Result::InvalidInput;
         }
@@ -45,7 +45,7 @@ namespace ecliptix::security::opaque::protocol {
         return Result::Success;
     }
 
-    Result parse_ke3(const uint8_t *data, size_t length, Ke3View &view) {
+    Result parse_ke3(const uint8_t *data, const size_t length, Ke3View &view) {
         if (!data || length != KE3_LENGTH) {
             return Result::InvalidInput;
         }
@@ -53,9 +53,9 @@ namespace ecliptix::security::opaque::protocol {
         return Result::Success;
     }
 
-    Result write_registration_record(const uint8_t *envelope, size_t envelope_length,
-                                     const uint8_t *initiator_public_key, size_t initiator_key_length,
-                                     uint8_t *out, size_t out_length) {
+    Result write_registration_record(const uint8_t *envelope, const size_t envelope_length,
+                                     const uint8_t *initiator_public_key, const size_t initiator_key_length,
+                                     uint8_t *out, const size_t out_length) {
         if (!envelope || !initiator_public_key || !out) {
             return Result::InvalidInput;
         }
@@ -70,11 +70,11 @@ namespace ecliptix::security::opaque::protocol {
         return Result::Success;
     }
 
-    Result write_ke1(const uint8_t *credential_request, size_t credential_request_length,
-                     const uint8_t *initiator_public_key, size_t initiator_key_length,
-                     const uint8_t *initiator_nonce, size_t initiator_nonce_length,
-                     const uint8_t *pq_ephemeral_public_key, size_t pq_public_key_length,
-                     uint8_t *out, size_t out_length) {
+    Result write_ke1(const uint8_t *credential_request, const size_t credential_request_length,
+                     const uint8_t *initiator_public_key, const size_t initiator_key_length,
+                     const uint8_t *initiator_nonce, const size_t initiator_nonce_length,
+                     const uint8_t *pq_ephemeral_public_key, const size_t pq_public_key_length,
+                     uint8_t *out, const size_t out_length) {
         if (!credential_request || !initiator_public_key || !initiator_nonce ||
             !pq_ephemeral_public_key || !out) {
             return Result::InvalidInput;
@@ -95,12 +95,12 @@ namespace ecliptix::security::opaque::protocol {
         return Result::Success;
     }
 
-    Result write_ke2(const uint8_t *responder_nonce, size_t responder_nonce_length,
-                     const uint8_t *responder_public_key, size_t responder_key_length,
-                     const uint8_t *credential_response, size_t credential_response_length,
-                     const uint8_t *responder_mac, size_t responder_mac_length,
-                     const uint8_t *kem_ciphertext, size_t kem_ciphertext_length,
-                     uint8_t *out, size_t out_length) {
+    Result write_ke2(const uint8_t *responder_nonce, const size_t responder_nonce_length,
+                     const uint8_t *responder_public_key, const size_t responder_key_length,
+                     const uint8_t *credential_response, const size_t credential_response_length,
+                     const uint8_t *responder_mac, const size_t responder_mac_length,
+                     const uint8_t *kem_ciphertext, const size_t kem_ciphertext_length,
+                     uint8_t *out, const size_t out_length) {
         if (!responder_nonce || !responder_public_key || !credential_response ||
             !responder_mac || !kem_ciphertext || !out) {
             return Result::InvalidInput;
@@ -123,8 +123,8 @@ namespace ecliptix::security::opaque::protocol {
         return Result::Success;
     }
 
-    Result write_ke3(const uint8_t *initiator_mac, size_t initiator_mac_length,
-                     uint8_t *out, size_t out_length) {
+    Result write_ke3(const uint8_t *initiator_mac, const size_t initiator_mac_length,
+                     uint8_t *out, const size_t out_length) {
         if (!initiator_mac || !out) {
             return Result::InvalidInput;
         }
