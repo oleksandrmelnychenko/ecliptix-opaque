@@ -1,162 +1,95 @@
-# Ecliptix.Security.OPAQUE
+# Ecliptix OPAQUE
 
 [![CI](https://github.com/oleksandrmelnychenko/ecliptix-opaque/actions/workflows/ci.yml/badge.svg)](https://github.com/oleksandrmelnychenko/ecliptix-opaque/actions/workflows/ci.yml)
 [![Benchmarks](https://github.com/oleksandrmelnychenko/ecliptix-opaque/actions/workflows/benchmarks.yml/badge.svg)](https://github.com/oleksandrmelnychenko/ecliptix-opaque/actions/workflows/benchmarks.yml)
-[![Security Scan](https://github.com/oleksandrmelnychenko/ecliptix-opaque/actions/workflows/security-scan.yml/badge.svg)](https://github.com/oleksandrmelnychenko/ecliptix-opaque/actions/workflows/security-scan.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A modern C++23 implementation of the **OPAQUE** password-authenticated key exchange (PAKE) protocol with integrated **post-quantum cryptographic protection** via ML-KEM-768.
+Hybrid post-quantum **OPAQUE** implementation in Rust combining **3DH Ristretto255** with **ML-KEM-768** for quantum-resistant password-authenticated key exchange.
 
-## Features
+## Security Properties
 
-- **Zero-knowledge authentication** - Passwords are never transmitted to the server
-- **Offline attack resistance** - Stored records don't permit dictionary attacks
-- **Mutual authentication** - Both client and server verify each other
-- **Forward secrecy** - Ephemeral keys protect past sessions
-- **Post-quantum security** - ML-KEM-768 hybrid key encapsulation
-- **Cross-platform** - macOS, Linux, Windows, iOS, Android
+All seven properties are formally verified (Tamarin 8/8 lemmas, ProVerif 5/5 queries) and validated by 39 Rust computational tests:
+
+| Property | Tamarin | ProVerif | Rust |
+|----------|---------|----------|------|
+| Session key secrecy | verified | verified | 4 |
+| Password secrecy | verified | verified | 7 |
+| Classical forward secrecy | verified | - | 3 |
+| Post-quantum forward secrecy | verified | - | 3 |
+| Mutual authentication | verified | verified | 8 |
+| AND-model hybrid security | verified | - | 4 |
+| Offline dictionary resistance | verified | verified | 6 |
 
 ## Cryptographic Primitives
 
-| Primitive | Algorithm | Library |
-|-----------|-----------|---------|
-| Elliptic Curve | Ristretto255 | libsodium |
-| Key Encapsulation | ML-KEM-768 | liboqs |
+| Primitive | Algorithm | Source |
+|-----------|-----------|--------|
+| Elliptic Curve DH | Ristretto255 (3DH) | libsodium |
+| Key Encapsulation | ML-KEM-768 | ml-kem (FIPS 203) |
 | Key Stretching | Argon2id | libsodium |
 | MAC | HMAC-SHA512 | libsodium |
-| AEAD | XChaCha20-Poly1305 | libsodium |
+| AEAD | XSalsa20-Poly1305 | libsodium |
+| OPRF | Ristretto255 | libsodium |
+| PQ Combiner | HKDF-SHA512 (AND-model) | libsodium |
 
-## Quick Start
+## Architecture
 
-### Prerequisites
+```
+rust/crates/
+  opaque-core/     Cryptographic primitives, OPRF, KEM, envelope
+  opaque-agent/    Agent (initiator) — registration & authentication
+  opaque-relay/    Relay (responder) — registration & authentication
+  opaque-ffi/      C FFI bindings (cdylib + staticlib)
+```
 
-- CMake 3.20+
-- C++23 compiler (GCC 13+, Clang 17+, MSVC 19.36+)
-- libsodium >= 1.0.20
-- liboqs >= 0.12.0
-
-### Build
+## Build
 
 ```bash
-# macOS (Homebrew)
-brew install libsodium liboqs cmake
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-
-# Linux (Ubuntu/Debian)
-sudo apt-get install build-essential cmake libsodium-dev
-# Install liboqs from source (see BUILD.md)
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
+cd rust
+cargo build --release
 ```
 
-See [BUILD.md](BUILD.md) for detailed build instructions.
+No system dependencies required. `libsodium-sys-stable` builds libsodium from source automatically.
 
-## Usage
+## Test
 
-### C++ API
-
-```cpp
-#include <opaque/initiator.h>
-#include <opaque/responder.h>
-
-using namespace ecliptix::security::opaque;
-
-// Server: Generate key pair
-auto keypair = ResponderKeyPair::generate();
-
-// Client: Create registration request
-auto [request, state] = OpaqueInitiator::create_registration_request(
-    password, password_len, keypair.public_key);
-
-// Server: Process registration
-auto response = OpaqueResponder::create_registration_response(
-    server, request, account_id);
-
-// Client: Finalize registration
-auto record = OpaqueInitiator::finalize_registration(
-    state, response, keypair.public_key);
-
-// Store record on server...
-
-// Authentication follows similar pattern with KE1, KE2, KE3 messages
+```bash
+cd rust
+cargo test --workspace
 ```
 
-### C API
+## Benchmarks
 
-```c
-// Create client with server's public key
-void* client;
-opaque_client_create(server_public_key, key_len, &client);
-
-// Registration and authentication functions available
-// See docs/security-review/API_SURFACE.md for full API
+```bash
+cd rust
+cargo bench --workspace
 ```
 
-### Platform SDKs
+Three Criterion benchmark suites:
+- **Micro** — Ristretto255 keygen/DH, ML-KEM-768, OPRF, Argon2id, HMAC, HKDF, AEAD
+- **Protocol** — registration and authentication phases end-to-end
+- **Throughput** — relay KE2 generation and finish operations per second
 
-| Platform | Package | Installation |
-|----------|---------|--------------|
-| .NET | NuGet | `dotnet add package Ecliptix.OPAQUE.Agent` |
-| iOS/macOS | Swift Package | Add XCFramework from releases |
-| Android | Maven/AAR | Add AAR to libs folder |
+## FFI
 
-## Documentation
+The `opaque-ffi` crate exports a C API via `cbindgen`. Swift bindings in `swift/` call the Rust FFI exports directly.
 
-| Document | Description |
-|----------|-------------|
-| [BUILD.md](BUILD.md) | Build instructions |
-| [SECURITY.md](SECURITY.md) | Security policy & vulnerability reporting |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contributor guidelines |
-| [CHANGELOG.md](CHANGELOG.md) | Version history |
-| [docs/security-review/](docs/security-review/) | External security review package |
-| [docs/isms/](docs/isms/) | ISO 27001 compliance documentation |
+| Platform | Package |
+|----------|---------|
+| .NET | `Ecliptix.OPAQUE.Agent` / `Ecliptix.OPAQUE.Relay` (NuGet) |
+| iOS/macOS | `EcliptixOPAQUE.xcframework` |
+| Android | AAR via GitHub Packages |
 
-## Security
+## Formal Verification
 
-This library implements security-critical cryptographic protocols. Please:
+Models and proof logs in `formal/`:
 
-- **Report vulnerabilities** via [SECURITY.md](SECURITY.md) - not public issues
-- **Keep dependencies updated** - monitor security advisories
-- **Never enable debug logging** in production builds
-- **Use TLS** for transport security
-
-### Security Features
-
-- Build hardening enabled by default (stack protection, FORTIFY_SOURCE, etc.)
-- Secure memory allocation with automatic zeroization
-- Memory locking to prevent swapping of secrets
-- Constant-time operations for side-channel resistance
-
-## Project Structure
-
-```
-├── include/opaque/     # Public headers
-├── src/
-│   ├── core/          # Cryptographic primitives
-│   ├── initiator/     # Client-side protocol
-│   ├── responder/     # Server-side protocol
-│   └── interop/       # C API exports
-├── tests/             # Unit tests
-├── docs/
-│   ├── security-review/   # External audit materials
-│   └── isms/              # ISO 27001 documentation
-├── nuget/             # .NET packages
-├── android/           # Android AAR
-└── swift/             # Swift package
-```
+- `hybrid_pq_opaque.spthy` — Tamarin model (8 lemmas, verified in 22.83s)
+- `hybrid_pq_opaque.pv` — ProVerif model (5 queries)
+- `logs/` — full verification transcripts and reports
 
 ## License
 
-This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE).
 
-## Acknowledgments
-
-- [libsodium](https://libsodium.org/) - Cryptographic primitives
-- [liboqs](https://openquantumsafe.org/) - Post-quantum algorithms
-- [OPAQUE](https://datatracker.ietf.org/doc/draft-irtf-cfrg-opaque/) - Protocol specification
-
----
-
-**Note**: This implementation is OPAQUE-like and has not been formally verified against the IETF OPAQUE standard. See [docs/security-review/LIMITATIONS.md](docs/security-review/LIMITATIONS.md) for known limitations.
+Copyright (c) 2026 Oleksandr Melnychenko, Ukraine

@@ -1,16 +1,3 @@
-//! Computational security property tests for Hybrid PQ-OPAQUE.
-//!
-//! These tests correspond to the 7 security lemmas from the Tamarin/ProVerif
-//! formal verification models (formal/hybrid_pq_opaque.spthy).
-//!
-//! P1: Session Key Secrecy
-//! P2: Password Secrecy
-//! P3: Classical Forward Secrecy
-//! P4: Post-Quantum Forward Secrecy
-//! P5: Mutual Authentication
-//! P6: AND-Model Hybrid Security
-//! P7: Offline Dictionary Attack Resistance
-
 #![allow(dead_code)]
 
 use opaque_agent::*;
@@ -21,9 +8,6 @@ use opaque_relay::*;
 const ACCOUNT_ID: &[u8] = b"alice@example.com";
 const PASSWORD: &[u8] = b"correct horse battery staple";
 
-// ---------------------------------------------------------------------------
-// Helper: full registration → serialized record
-// ---------------------------------------------------------------------------
 fn register(password: &[u8], responder: &OpaqueResponder) -> Vec<u8> {
     let initiator = OpaqueInitiator::new(responder.public_key()).unwrap();
     let mut state = InitiatorState::new();
@@ -46,9 +30,6 @@ fn register(password: &[u8], responder: &OpaqueResponder) -> Vec<u8> {
     record_bytes
 }
 
-// ---------------------------------------------------------------------------
-// Helper: full authentication → (c_sk, c_mk, s_sk, s_mk)
-// ---------------------------------------------------------------------------
 fn authenticate(
     password: &[u8],
     responder: &OpaqueResponder,
@@ -112,15 +93,10 @@ fn authenticate(
     (c_sk, c_mk, s_sk, s_mk)
 }
 
-// ---------------------------------------------------------------------------
-// Intercepted session — exposes all internal state for adversary simulation
-// ---------------------------------------------------------------------------
 struct InterceptedSession {
-    // Wire messages
     ke1_bytes: Vec<u8>,
     ke2_bytes: Vec<u8>,
     ke3_bytes: Vec<u8>,
-    // Client ephemeral keys (captured before zeroization)
     client_ephemeral_sk: [u8; PRIVATE_KEY_LENGTH],
     client_ephemeral_pk: [u8; PUBLIC_KEY_LENGTH],
     client_static_sk: [u8; PRIVATE_KEY_LENGTH],
@@ -129,17 +105,14 @@ struct InterceptedSession {
     client_kem_pk: Vec<u8>,
     client_kem_sk: Vec<u8>,
     client_kem_ss: Vec<u8>,
-    // Server ephemeral keys
     server_ephemeral_sk: [u8; PRIVATE_KEY_LENGTH],
     server_ephemeral_pk: [u8; PUBLIC_KEY_LENGTH],
     server_static_sk: [u8; PRIVATE_KEY_LENGTH],
     server_static_pk: [u8; PUBLIC_KEY_LENGTH],
     server_nonce: [u8; NONCE_LENGTH],
     server_kem_ss: Vec<u8>,
-    // KE2 message parts
     credential_response: [u8; CREDENTIAL_RESPONSE_LENGTH],
     kem_ciphertext: Vec<u8>,
-    // Final keys
     client_session_key: Vec<u8>,
     server_session_key: Vec<u8>,
 }
@@ -154,7 +127,6 @@ fn intercepted_authenticate(
     let mut ke1 = Ke1Message::new();
     generate_ke1(password, &mut ke1, &mut client_state).unwrap();
 
-    // Capture client ephemeral state BEFORE it gets consumed
     let client_ephemeral_sk = client_state.initiator_ephemeral_private_key;
     let client_ephemeral_pk = client_state.initiator_ephemeral_public_key;
     let client_nonce = client_state.initiator_nonce;
@@ -186,7 +158,6 @@ fn intercepted_authenticate(
     )
     .unwrap();
 
-    // Capture server ephemeral state
     let server_ephemeral_sk = server_state.responder_ephemeral_private_key;
     let server_ephemeral_pk = server_state.responder_ephemeral_public_key;
     let server_nonce = ke2.responder_nonce;
@@ -208,7 +179,6 @@ fn intercepted_authenticate(
     let mut ke3 = Ke3Message::new();
     generate_ke3(&initiator, &ke2_bytes, &mut client_state, &mut ke3).unwrap();
 
-    // Capture client static keys (recovered from envelope during generate_ke3)
     let client_static_sk = client_state.initiator_private_key;
     let client_static_pk = client_state.initiator_public_key;
     let client_kem_ss = client_state.pq_shared_secret.clone();
@@ -249,9 +219,6 @@ fn intercepted_authenticate(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Adversary helper: build transcript and derive session key from components
-// ---------------------------------------------------------------------------
 fn adversary_derive_session_key(
     dh1: &[u8; PUBLIC_KEY_LENGTH],
     dh2: &[u8; PUBLIC_KEY_LENGTH],
@@ -259,7 +226,6 @@ fn adversary_derive_session_key(
     kem_ss: &[u8],
     session: &InterceptedSession,
 ) -> Vec<u8> {
-    // Rebuild transcript (same order as authentication.rs)
     let mac_input_size = 2 * NONCE_LENGTH
         + 4 * PUBLIC_KEY_LENGTH
         + CREDENTIAL_RESPONSE_LENGTH
@@ -284,7 +250,6 @@ fn adversary_derive_session_key(
     let mut transcript_hash = [0u8; HASH_LENGTH];
     crypto::sha512_multi(&[labels::TRANSCRIPT_CONTEXT, &mac_input], &mut transcript_hash);
 
-    // Combine classical + PQ IKM
     let mut classical_ikm = [0u8; 3 * PUBLIC_KEY_LENGTH];
     classical_ikm[..PUBLIC_KEY_LENGTH].copy_from_slice(dh1);
     classical_ikm[PUBLIC_KEY_LENGTH..2 * PUBLIC_KEY_LENGTH].copy_from_slice(dh2);
@@ -307,10 +272,6 @@ fn setup() -> (OpaqueResponder, Vec<u8>) {
     (responder, record)
 }
 
-// ===========================================================================
-// P1: Session Key Secrecy
-// Tamarin lemma: session_key_secrecy
-// ===========================================================================
 mod p1_session_key_secrecy {
     use super::*;
 
@@ -331,8 +292,6 @@ mod p1_session_key_secrecy {
         let (responder, record) = setup();
         let session = intercepted_authenticate(PASSWORD, &responder, &record);
 
-        // Adversary has: ke1_bytes, ke2_bytes, ke3_bytes (all public)
-        // Try to derive session key using zero DH values and zero KEM ss
         let zero_dh = [0u8; PUBLIC_KEY_LENGTH];
         let zero_kem = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
         let derived = adversary_derive_session_key(
@@ -361,10 +320,6 @@ mod p1_session_key_secrecy {
     }
 }
 
-// ===========================================================================
-// P2: Password Secrecy
-// Tamarin lemma: password_secrecy
-// ===========================================================================
 mod p2_password_secrecy {
     use super::*;
 
@@ -423,7 +378,7 @@ mod p2_password_secrecy {
         .unwrap();
 
         assert!(!contains_subsequence(&ke1_bytes, PASSWORD));
-        let _ = record; // suppress unused warning
+        let _ = record;
     }
 
     #[test]
@@ -436,7 +391,6 @@ mod p2_password_secrecy {
 
     #[test]
     fn oprf_blinds_password_from_server() {
-        // The blinded element should look random, not related to password
         let mut blinded1 = [0u8; PUBLIC_KEY_LENGTH];
         let mut blind1 = [0u8; PRIVATE_KEY_LENGTH];
         let mut blinded2 = [0u8; PUBLIC_KEY_LENGTH];
@@ -445,9 +399,7 @@ mod p2_password_secrecy {
         oprf::blind(PASSWORD, &mut blinded1, &mut blind1).unwrap();
         oprf::blind(PASSWORD, &mut blinded2, &mut blind2).unwrap();
 
-        // Same password, different blinds → different blinded elements
         assert_ne!(blinded1, blinded2);
-        // Blinded elements are valid group elements, not password-related
         crypto::validate_ristretto_point(&blinded1).unwrap();
         crypto::validate_ristretto_point(&blinded2).unwrap();
     }
@@ -489,24 +441,18 @@ mod p2_password_secrecy {
             .map(|p| register(p, &responder))
             .collect();
 
-        // All records should be unique
         for i in 0..records.len() {
             for j in (i + 1)..records.len() {
                 assert_ne!(records[i], records[j], "records for different passwords must differ");
             }
         }
 
-        // No record should contain its password as a subsequence
         for (pwd, rec) in passwords.iter().zip(records.iter()) {
             assert!(!contains_subsequence(rec, pwd));
         }
     }
 }
 
-// ===========================================================================
-// P3: Classical Forward Secrecy
-// Tamarin lemma: forward_secrecy_classical
-// ===========================================================================
 mod p3_classical_forward_secrecy {
     use super::*;
 
@@ -515,19 +461,15 @@ mod p3_classical_forward_secrecy {
         let (responder, record) = setup();
         let session = intercepted_authenticate(PASSWORD, &responder, &record);
 
-        // Adversary steals server LTK post-session
         let server_sk = &session.server_static_sk;
         let client_static_pk = &session.client_static_pk;
         let client_eph_pk = &session.client_ephemeral_pk;
 
-        // Adversary can compute dh1 and dh2 (both use server_sk)
         let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];
         let mut dh2 = [0u8; PUBLIC_KEY_LENGTH];
         crypto::scalar_mult(server_sk, client_static_pk, &mut dh1).unwrap();
         crypto::scalar_mult(server_sk, client_eph_pk, &mut dh2).unwrap();
 
-        // But dh3 = scalar_mult(server_ephemeral_sk, client_static_pk)
-        // Server ephemeral sk was destroyed → adversary uses zero
         let fake_dh3 = [0u8; PUBLIC_KEY_LENGTH];
         let fake_kem_ss = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
 
@@ -542,20 +484,15 @@ mod p3_classical_forward_secrecy {
         let (responder, record) = setup();
         let session = intercepted_authenticate(PASSWORD, &responder, &record);
 
-        // Adversary has BOTH long-term keys
         let server_sk = &session.server_static_sk;
         let client_sk = &session.client_static_sk;
 
-        // dh1 = scalar_mult(client_sk, server_pk) — adversary can compute
         let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];
         crypto::scalar_mult(client_sk, &session.server_static_pk, &mut dh1).unwrap();
 
-        // dh2 = scalar_mult(client_eph_sk, server_pk) — needs client_eph_sk (destroyed)
-        // dh3 = scalar_mult(client_sk, server_eph_pk) — adversary CAN compute this
         let mut dh3 = [0u8; PUBLIC_KEY_LENGTH];
         crypto::scalar_mult(client_sk, &session.server_ephemeral_pk, &mut dh3).unwrap();
 
-        // But without client_eph_sk, dh2 is unknown
         let fake_dh2 = [0u8; PUBLIC_KEY_LENGTH];
         let fake_kem_ss = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
 
@@ -564,11 +501,8 @@ mod p3_classical_forward_secrecy {
         );
         assert_ne!(derived, session.client_session_key);
 
-        // Also try with server_sk computing dh2 from server side perspective:
-        // dh2_server = scalar_mult(server_sk, client_eph_pk)
         let mut dh2_server = [0u8; PUBLIC_KEY_LENGTH];
         crypto::scalar_mult(server_sk, &session.client_ephemeral_pk, &mut dh2_server).unwrap();
-        // But dh3_server = scalar_mult(server_eph_sk, client_static_pk) — needs server_eph_sk
         let fake_dh3 = [0u8; PUBLIC_KEY_LENGTH];
         let derived2 = adversary_derive_session_key(
             &dh1, &dh2_server, &fake_dh3, &fake_kem_ss, &session,
@@ -593,10 +527,6 @@ mod p3_classical_forward_secrecy {
     }
 }
 
-// ===========================================================================
-// P4: Post-Quantum Forward Secrecy
-// Tamarin lemma: pq_forward_secrecy
-// ===========================================================================
 mod p4_pq_forward_secrecy {
     use super::*;
 
@@ -605,8 +535,6 @@ mod p4_pq_forward_secrecy {
         let (responder, record) = setup();
         let session = intercepted_authenticate(PASSWORD, &responder, &record);
 
-        // Quantum adversary: has ALL 4 DH private keys
-        // Correctly compute all 3 DH shared secrets
         let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];
         let mut dh2 = [0u8; PUBLIC_KEY_LENGTH];
         let mut dh3 = [0u8; PUBLIC_KEY_LENGTH];
@@ -629,7 +557,6 @@ mod p4_pq_forward_secrecy {
         )
         .unwrap();
 
-        // BUT: adversary does NOT know KEM shared secret
         let fake_kem_ss = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
         let derived = adversary_derive_session_key(
             &dh1, &dh2, &dh3, &fake_kem_ss, &session,
@@ -639,7 +566,6 @@ mod p4_pq_forward_secrecy {
             "quantum DH break alone must NOT reveal session key"
         );
 
-        // Also try with random KEM ss
         let mut random_kem = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
         crypto::random_bytes(&mut random_kem).unwrap();
         let derived2 = adversary_derive_session_key(
@@ -653,7 +579,6 @@ mod p4_pq_forward_secrecy {
         let (responder, record) = setup();
         let session = intercepted_authenticate(PASSWORD, &responder, &record);
 
-        // KEM ciphertext does not reveal the shared secret
         fn contains_subsequence(haystack: &[u8], needle: &[u8]) -> bool {
             haystack.windows(needle.len()).any(|w| w == needle)
         }
@@ -662,13 +587,11 @@ mod p4_pq_forward_secrecy {
             &session.client_kem_ss
         ));
 
-        // Decapsulate with wrong key → different shared secret
         let mut wrong_pk = vec![0u8; pq::KEM_PUBLIC_KEY_LENGTH];
         let mut wrong_sk = vec![0u8; pq::KEM_SECRET_KEY_LENGTH];
         pq_kem::keypair_generate(&mut wrong_pk, &mut wrong_sk).unwrap();
 
         let mut wrong_ss = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
-        // ML-KEM uses implicit rejection: wrong key → pseudorandom SS
         pq_kem::decapsulate(&wrong_sk, &session.kem_ciphertext, &mut wrong_ss).unwrap();
         assert_ne!(&wrong_ss[..], &session.client_kem_ss[..]);
     }
@@ -678,7 +601,6 @@ mod p4_pq_forward_secrecy {
         let (responder, record) = setup();
         let session = intercepted_authenticate(PASSWORD, &responder, &record);
 
-        // Adversary has ALL DH private keys (quantum) + both LTKs
         let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];
         let mut dh2 = [0u8; PUBLIC_KEY_LENGTH];
         let mut dh3 = [0u8; PUBLIC_KEY_LENGTH];
@@ -701,7 +623,6 @@ mod p4_pq_forward_secrecy {
         )
         .unwrap();
 
-        // KEM ephemeral sk was destroyed, adversary guesses wrong
         let mut bad_kem_ss = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
         crypto::random_bytes(&mut bad_kem_ss).unwrap();
 
@@ -715,10 +636,6 @@ mod p4_pq_forward_secrecy {
     }
 }
 
-// ===========================================================================
-// P5: Mutual Authentication
-// Tamarin lemmas: mutual_auth_initiator, mutual_auth_responder
-// ===========================================================================
 mod p5_mutual_authentication {
     use super::*;
 
@@ -728,11 +645,9 @@ mod p5_mutual_authentication {
         let server_a = OpaqueResponder::new(kp_a).unwrap();
         let record = register(PASSWORD, &server_a);
 
-        // Server B (different keys)
         let kp_b = ResponderKeyPair::generate().unwrap();
         let server_b = OpaqueResponder::new(kp_b).unwrap();
 
-        // Client expects server A
         let initiator = OpaqueInitiator::new(server_a.public_key()).unwrap();
         let mut client_state = InitiatorState::new();
         let mut ke1 = Ke1Message::new();
@@ -748,7 +663,6 @@ mod p5_mutual_authentication {
         )
         .unwrap();
 
-        // Server B responds (MITM)
         let mut credentials = ResponderCredentials::new();
         build_credentials(&record, &mut credentials).unwrap();
 
@@ -775,7 +689,6 @@ mod p5_mutual_authentication {
         )
         .unwrap();
 
-        // Client should reject: envelope decryption fails or MAC mismatch
         let mut ke3 = Ke3Message::new();
         let result = generate_ke3(&initiator, &ke2_bytes, &mut client_state, &mut ke3);
         assert!(result.is_err(), "wrong server must be rejected");
@@ -810,7 +723,6 @@ mod p5_mutual_authentication {
         )
         .unwrap();
 
-        // Tamper the MAC
         ke2.responder_mac[0] ^= 0xFF;
 
         let mut ke2_bytes = vec![0u8; KE2_LENGTH];
@@ -861,7 +773,6 @@ mod p5_mutual_authentication {
         .unwrap();
 
         let mut ke2_bytes = vec![0u8; KE2_LENGTH];
-        // Tamper the nonce before serialization
         ke2.responder_nonce[0] ^= 0xFF;
         protocol::write_ke2(
             &ke2.responder_nonce,
@@ -909,7 +820,6 @@ mod p5_mutual_authentication {
         )
         .unwrap();
 
-        // Tamper KEM ciphertext
         ke2.kem_ciphertext[0] ^= 0xFF;
 
         let mut ke2_bytes = vec![0u8; KE2_LENGTH];
@@ -959,7 +869,6 @@ mod p5_mutual_authentication {
         )
         .unwrap();
 
-        // Forge random KE3
         let mut fake_ke3 = vec![0u8; KE3_LENGTH];
         crypto::random_bytes(&mut fake_ke3).unwrap();
 
@@ -1014,7 +923,6 @@ mod p5_mutual_authentication {
         let mut ke3 = Ke3Message::new();
         generate_ke3(&initiator, &ke2_bytes, &mut client_state, &mut ke3).unwrap();
 
-        // Tamper KE3 MAC
         ke3.initiator_mac[0] ^= 0xFF;
         let mut ke3_bytes = vec![0u8; KE3_LENGTH];
         protocol::write_ke3(&ke3.initiator_mac, &mut ke3_bytes).unwrap();
@@ -1031,7 +939,6 @@ mod p5_mutual_authentication {
     fn replay_ke2_from_different_session_fails() {
         let (responder, record) = setup();
 
-        // Session 1: capture KE2
         let initiator = OpaqueInitiator::new(responder.public_key()).unwrap();
         let mut cs1 = InitiatorState::new();
         let mut ke1_1 = Ke1Message::new();
@@ -1065,12 +972,10 @@ mod p5_mutual_authentication {
         )
         .unwrap();
 
-        // Session 2: different KE1, replay KE2 from session 1
         let mut cs2 = InitiatorState::new();
         let mut ke1_2 = Ke1Message::new();
         generate_ke1(PASSWORD, &mut ke1_2, &mut cs2).unwrap();
 
-        // Client 2 processes replayed KE2 from session 1
         let mut ke3 = Ke3Message::new();
         let result = generate_ke3(&initiator, &ke2_bytes_1, &mut cs2, &mut ke3);
         assert!(
@@ -1090,10 +995,6 @@ mod p5_mutual_authentication {
     }
 }
 
-// ===========================================================================
-// P6: AND-Model Hybrid Security
-// Tamarin lemma: and_model_security
-// ===========================================================================
 mod p6_and_model_hybrid_security {
     use super::*;
 
@@ -1102,7 +1003,6 @@ mod p6_and_model_hybrid_security {
         let (responder, record) = setup();
         let session = intercepted_authenticate(PASSWORD, &responder, &record);
 
-        // Adversary correctly computes all 3 DH shared secrets
         let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];
         let mut dh2 = [0u8; PUBLIC_KEY_LENGTH];
         let mut dh3 = [0u8; PUBLIC_KEY_LENGTH];
@@ -1110,7 +1010,6 @@ mod p6_and_model_hybrid_security {
         crypto::scalar_mult(&session.client_ephemeral_sk, &session.server_static_pk, &mut dh2).unwrap();
         crypto::scalar_mult(&session.client_static_sk, &session.server_ephemeral_pk, &mut dh3).unwrap();
 
-        // Without KEM ss → wrong session key
         let wrong_kem = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
         let derived = adversary_derive_session_key(&dh1, &dh2, &dh3, &wrong_kem, &session);
         assert_ne!(derived, session.client_session_key, "DH-only break insufficient");
@@ -1121,7 +1020,6 @@ mod p6_and_model_hybrid_security {
         let (responder, record) = setup();
         let session = intercepted_authenticate(PASSWORD, &responder, &record);
 
-        // Adversary has correct KEM ss but wrong DH values
         let wrong_dh = [0u8; PUBLIC_KEY_LENGTH];
         let derived = adversary_derive_session_key(
             &wrong_dh, &wrong_dh, &wrong_dh, &session.client_kem_ss, &session,
@@ -1134,7 +1032,6 @@ mod p6_and_model_hybrid_security {
         let (responder, record) = setup();
         let session = intercepted_authenticate(PASSWORD, &responder, &record);
 
-        // Adversary has ALL secrets: DH + KEM (positive control)
         let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];
         let mut dh2 = [0u8; PUBLIC_KEY_LENGTH];
         let mut dh3 = [0u8; PUBLIC_KEY_LENGTH];
@@ -1156,7 +1053,6 @@ mod p6_and_model_hybrid_security {
         let (responder, record) = setup();
         let session = intercepted_authenticate(PASSWORD, &responder, &record);
 
-        // Adversary has dh1, dh3 correct, but NOT dh2
         let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];
         let mut dh3 = [0u8; PUBLIC_KEY_LENGTH];
         crypto::scalar_mult(&session.client_static_sk, &session.server_static_pk, &mut dh1).unwrap();
@@ -1173,10 +1069,6 @@ mod p6_and_model_hybrid_security {
     }
 }
 
-// ===========================================================================
-// P7: Offline Dictionary Attack Resistance
-// Tamarin lemma: offline_dictionary_resistance
-// ===========================================================================
 mod p7_offline_dictionary_resistance {
     use super::*;
 
@@ -1186,7 +1078,6 @@ mod p7_offline_dictionary_resistance {
         let parsed = protocol::parse_registration_record(&record).unwrap();
         let envelope_data = parsed.envelope;
 
-        // Try to decrypt with random key
         let random_key = [0x42u8; SECRETBOX_KEY_LENGTH];
         let nonce: &[u8; NONCE_LENGTH] = envelope_data[..NONCE_LENGTH]
             .try_into()
@@ -1208,7 +1099,6 @@ mod p7_offline_dictionary_resistance {
         let responder = OpaqueResponder::new(kp).unwrap();
         let record = register(PASSWORD, &responder);
 
-        // Verify correct password authenticates successfully
         let (c_sk, _, s_sk, _) = authenticate(PASSWORD, &responder, &record);
         assert_eq!(c_sk, s_sk, "correct password must succeed");
     }
@@ -1308,13 +1198,9 @@ mod p7_offline_dictionary_resistance {
 
         let records: Vec<Vec<u8>> = passwords.iter().map(|p| register(p, &responder)).collect();
 
-        // Check that byte-level correlation across records is low
-        // For each byte position, collect values across all records
         for pos in 0..REGISTRATION_RECORD_LENGTH {
             let values: Vec<u8> = records.iter().map(|r| r[pos]).collect();
             let unique: std::collections::HashSet<u8> = values.iter().copied().collect();
-            // With 10 random records, each byte position should have variety
-            // Allow up to 3 collisions (7+ unique values expected for random data)
             assert!(
                 unique.len() >= 3,
                 "byte position {} has too little variance: only {} unique values",

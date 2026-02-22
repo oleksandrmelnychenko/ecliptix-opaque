@@ -1,3 +1,6 @@
+# Hybrid PQ-OPAQUE Rust CI
+# Author: Oleksandr Melnychenko
+
 name: CI
 
 on:
@@ -9,278 +12,43 @@ on:
 permissions:
   contents: read
 
-env:
-  BUILD_TYPE: Release
-
 jobs:
-  # ==========================================================================
-  # Build and Test (Linux)
-  # ==========================================================================
-  build-linux:
-    name: Build & Test (Linux)
+  test-linux:
+    name: Test (Linux)
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --workspace
+        working-directory: rust
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsodium-dev cmake build-essential
-
-          # Install liboqs from source
-          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git
-          cd liboqs
-          mkdir build && cd build
-          cmake -DCMAKE_INSTALL_PREFIX=/usr/local \
-                -DBUILD_SHARED_LIBS=ON \
-                -DOQS_BUILD_ONLY_LIB=ON \
-                ..
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-
-      - name: Configure CMake
-        run: |
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DBUILD_CLIENT=ON \
-            -DBUILD_SERVER=ON \
-            -DBUILD_TESTS=ON \
-            -DBUILD_BENCHMARKS=ON \
-            -DENABLE_HARDENING=ON
-
-      - name: Build
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} -j$(nproc)
-
-      - name: Run Tests
-        run: |
-          cd build
-          ctest --output-on-failure --verbose
-
-      - name: Run Benchmarks
-        run: |
-          cd build
-          cmake --build . --config ${{ env.BUILD_TYPE }} --target run_benchmarks 2>&1 | tee benchmark_linux.log || true
-
-      - name: Upload benchmark log (Linux)
-        uses: actions/upload-artifact@v4
-        if: success() || failure()
-        continue-on-error: true
-        with:
-          name: benchmark-linux
-          path: build/benchmark_linux.log
-
-  # ==========================================================================
-  # Build and Test (macOS)
-  # ==========================================================================
-  build-macos:
-    name: Build & Test (macOS)
+  test-macos:
+    name: Test (macOS)
     runs-on: macos-14
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --workspace
+        working-directory: rust
 
-      - name: Install dependencies
-        run: |
-          brew install libsodium liboqs cmake
-
-      - name: Configure CMake
-        run: |
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DBUILD_CLIENT=ON \
-            -DBUILD_SERVER=ON \
-            -DBUILD_TESTS=ON \
-            -DBUILD_BENCHMARKS=ON \
-            -DENABLE_HARDENING=ON
-
-      - name: Build
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
-
-      - name: Run Tests
-        run: |
-          cd build
-          ctest --output-on-failure --verbose
-
-      - name: Run Benchmarks
-        run: |
-          cd build
-          cmake --build . --config ${{ env.BUILD_TYPE }} --target run_benchmarks 2>&1 | tee benchmark_macos.log || true
-
-      - name: Upload benchmark log (macOS)
-        uses: actions/upload-artifact@v4
-        if: success() || failure()
-        continue-on-error: true
-        with:
-          name: benchmark-macos
-          path: build/benchmark_macos.log
-
-  # ==========================================================================
-  # Build and Test (Windows)
-  # ==========================================================================
-  build-windows:
-    name: Build & Test (Windows)
+  test-windows:
+    name: Test (Windows)
     runs-on: windows-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --workspace
+        working-directory: rust
 
-      - name: Install vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: 'master'
-          runVcpkgInstall: 'false'
-
-      - name: Configure CMake
-        run: |
-          cmake -B build `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-            -DBUILD_CLIENT=ON `
-            -DBUILD_SERVER=ON `
-            -DBUILD_TESTS=ON `
-            -DBUILD_BENCHMARKS=ON `
-            -DENABLE_HARDENING=ON
-
-      - name: Build
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
-
-      - name: Run Tests
-        run: |
-          cd build
-          ctest --output-on-failure -C ${{ env.BUILD_TYPE }} --verbose
-
-      - name: Run Benchmarks
-        run: |
-          cd build
-          cmake --build . --config ${{ env.BUILD_TYPE }} --target run_benchmarks 2>&1 | Tee-Object -FilePath benchmark_windows.log
-        shell: pwsh
-
-      - name: Upload benchmark log (Windows)
-        uses: actions/upload-artifact@v4
-        if: success() || failure()
-        continue-on-error: true
-        with:
-          name: benchmark-windows
-          path: build/benchmark_windows.log
-
-  # ==========================================================================
-  # Lint and Format Check
-  # ==========================================================================
   lint:
-    name: Lint & Format
+    name: Lint
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check for TODO/FIXME in security-critical code
-        run: |
-          echo "=== Checking for TODO/FIXME in security-critical files ==="
-          if grep -rn "TODO\|FIXME\|XXX\|HACK" src/core/ include/opaque/; then
-            echo ""
-            echo "WARNING: Found TODO/FIXME comments in security-critical code"
-            echo "Please review and address these before release"
-          else
-            echo "No TODO/FIXME found in security-critical code"
-          fi
-
-      - name: Verify no debug logging enabled
-        run: |
-          echo "=== Checking debug logging is disabled ==="
-
-          # Ensure OPAQUE_DEBUG_LOGGING is not defined anywhere except in guards
-          if grep -rn "define OPAQUE_DEBUG_LOGGING" --include="*.cpp" --include="*.h" src/ include/; then
-            echo "ERROR: OPAQUE_DEBUG_LOGGING is defined in source files"
-            exit 1
-          fi
-
-          echo "Debug logging properly disabled"
-
-      - name: Check for hardcoded secrets
-        run: |
-          echo "=== Checking for potential hardcoded secrets ==="
-
-          # Look for potential secret patterns (this is a basic check)
-          patterns=(
-            "password.*=.*[\"']"
-            "secret.*=.*[\"']"
-            "api_key.*=.*[\"']"
-            "private_key.*=.*[\"']"
-          )
-
-          found=0
-          for pattern in "${patterns[@]}"; do
-            if grep -rni "$pattern" src/ include/ --include="*.cpp" --include="*.h" 2>/dev/null | grep -v "test" | grep -v "example"; then
-              found=1
-            fi
-          done
-
-          if [ $found -eq 1 ]; then
-            echo ""
-            echo "WARNING: Potential hardcoded secrets found - please review"
-          else
-            echo "No obvious hardcoded secrets found"
-          fi
-
-  # ==========================================================================
-  # Documentation Check
-  # ==========================================================================
-  docs:
-    name: Documentation Check
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Verify required documentation exists
-        run: |
-          required_files=(
-            "README.md"
-            "LICENSE"
-            "SECURITY.md"
-            "CHANGELOG.md"
-            "CONTRIBUTING.md"
-            "BUILD.md"
-            "docs/isms/README.md"
-            "docs/security-review/README.md"
-          )
-
-          missing=0
-          for file in "${required_files[@]}"; do
-            if [ -f "$file" ]; then
-              echo "✓ $file"
-            else
-              echo "✗ $file (MISSING)"
-              missing=$((missing + 1))
-            fi
-          done
-
-          if [ $missing -gt 0 ]; then
-            echo ""
-            echo "ERROR: $missing required documentation file(s) missing"
-            exit 1
-          fi
-
-      - name: Check version consistency
-        run: |
-          echo "=== Checking version consistency ==="
-
-          # Extract versions from different files
-          cmake_version=$(grep "project.*VERSION" CMakeLists.txt | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-          vcpkg_version=$(grep '"version"' vcpkg.json | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-
-          echo "CMakeLists.txt version: $cmake_version"
-          echo "vcpkg.json version: $vcpkg_version"
-
-          if [ "$cmake_version" != "$vcpkg_version" ]; then
-            echo "WARNING: Version mismatch between CMakeLists.txt and vcpkg.json"
-          else
-            echo "Versions are consistent"
-          fi
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+        working-directory: rust
+      - run: cargo clippy --workspace -- -D warnings
+        working-directory: rust

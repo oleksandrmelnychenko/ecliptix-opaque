@@ -53,7 +53,6 @@ fn scalar_mult_base_and_scalar_mult_consistent() {
     let scalar = crypto::random_nonzero_scalar();
     let base_result = crypto::scalarmult_base(&scalar);
 
-    // Derive using derive_key_pair with a known seed and compare the pattern
     crypto::validate_ristretto_point(&base_result).unwrap();
     assert!(!base_result.iter().all(|&b| b == 0));
 }
@@ -231,7 +230,6 @@ fn encrypt_decrypt_envelope_roundtrip() {
     let mut tag = [0u8; SECRETBOX_MAC_LENGTH];
     crypto::encrypt_envelope(&key, plaintext, &nonce, &mut ciphertext, &mut tag).unwrap();
 
-    // Ciphertext should differ from plaintext
     assert_ne!(&ciphertext[..], &plaintext[..]);
 
     let mut decrypted = vec![0u8; ciphertext.len()];

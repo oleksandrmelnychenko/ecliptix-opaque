@@ -12,154 +12,61 @@ on:
 
 permissions:
   contents: read
-  security-events: write
-  actions: read
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   # ==========================================================================
-  # CodeQL Static Analysis (C++)
+  # Cargo Audit - Known Vulnerability Checking
   # ==========================================================================
-  codeql-analysis:
-    name: CodeQL Analysis
+  cargo-audit:
+    name: Cargo Audit
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsodium-dev cmake build-essential
-          # Install liboqs
-          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git
-          cd liboqs
-          mkdir build && cd build
-          cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON ..
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: cpp
-          queries: security-extended,security-and-quality
-          config: |
-            paths-ignore:
-              - '.deps/**'
-              - 'build*/**'
-              - 'cmake-build-*/**'
-              - '**/catch2-src/**'
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
 
-      - name: Build for analysis
-        run: |
-          mkdir -p build-codeql && cd build-codeql
-          cmake .. \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DBUILD_CLIENT=ON \
-            -DBUILD_SERVER=ON \
-            -DBUILD_TESTS=OFF \
-            -DENABLE_HARDENING=ON
-          cmake --build . -j$(nproc)
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:cpp"
+      - name: Run cargo audit
+        working-directory: rust
+        run: cargo audit
 
   # ==========================================================================
-  # Dependency Review (on PRs)
-  # Requires: Settings > Security > Dependency graph enabled
+  # Cargo Deny - License & Advisory Checking
   # ==========================================================================
-  dependency-review:
-    name: Dependency Review
+  cargo-deny:
+    name: Cargo Deny
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    continue-on-error: true  # Don't fail if Dependency Graph is not enabled
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
-          deny-licenses: GPL-3.0, AGPL-3.0
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-  # ==========================================================================
-  # SBOM Generation
-  # ==========================================================================
-  sbom-generation:
-    name: Generate SBOM
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Install cargo-deny
+        run: cargo install cargo-deny
 
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Generate SBOM (CycloneDX)
-        uses: CycloneDX/gh-dotnet-generate-sbom@v1
-        with:
-          path: ./nuget
-          github-bearer-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate C++ dependency list
+      - name: Run cargo deny check
+        working-directory: rust
         run: |
-          mkdir -p sbom
-          cat > sbom/dependencies.json << 'EOF'
-          {
-            "bomFormat": "CycloneDX",
-            "specVersion": "1.5",
-            "version": 1,
-            "metadata": {
-              "component": {
-                "name": "Ecliptix.Security.OPAQUE",
-                "version": "1.0.3",
-                "type": "library"
-              }
-            },
-            "components": [
-              {
-                "name": "libsodium",
-                "version": "1.0.20",
-                "type": "library",
-                "purl": "pkg:github/jedisct1/libsodium@1.0.20",
-                "licenses": [{"license": {"id": "ISC"}}]
-              },
-              {
-                "name": "liboqs",
-                "version": "0.12.0",
-                "type": "library",
-                "purl": "pkg:github/open-quantum-safe/liboqs@0.12.0",
-                "licenses": [{"license": {"id": "MIT"}}]
-              },
-              {
-                "name": "Catch2",
-                "version": "3.4.0",
-                "type": "library",
-                "purl": "pkg:github/catchorg/Catch2@v3.4.0",
-                "licenses": [{"license": {"id": "BSL-1.0"}}],
-                "scope": "optional"
-              }
-            ]
-          }
-          EOF
-
-      - name: Upload SBOM
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: sbom/
-          retention-days: 90
+          if [ -f deny.toml ]; then
+            cargo deny check
+          else
+            echo "No deny.toml found, skipping cargo-deny checks."
+            echo "Consider adding a deny.toml to enforce license and advisory policies."
+          fi
 
   # ==========================================================================
-  # Secret Scanning Check
+  # Secret Scanning
   # ==========================================================================
   secret-scan:
     name: Secret Scanning
@@ -198,128 +105,48 @@ jobs:
           echo "LICENSE file found"
           head -5 LICENSE
 
-      - name: Verify dependency licenses
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check Rust dependency licenses
+        working-directory: rust
         run: |
-          echo "=== Checking dependency licenses ==="
-          echo "libsodium: ISC (permissive)"
-          echo "liboqs: MIT (permissive)"
-          echo "Catch2: BSL-1.0 (permissive, test only)"
-          echo ""
-          echo "All dependencies use permissive licenses compatible with MIT."
+          echo "=== Checking Rust dependency license metadata ==="
 
-  # ==========================================================================
-  # Security Policy Check
-  # ==========================================================================
-  security-policy-check:
-    name: Security Policy Verification
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Verify security documentation
-        run: |
-          echo "=== Checking required security documentation ==="
-
-          files=(
-            "SECURITY.md"
-            "LICENSE"
-            "CONTRIBUTING.md"
-            "docs/isms/INFORMATION_SECURITY_POLICY.md"
-            "docs/isms/RISK_ASSESSMENT_REGISTER.md"
-            "docs/security-review/THREAT_MODEL.md"
-          )
-
-          missing=0
-          for file in "${files[@]}"; do
-            if [ -f "$file" ]; then
-              echo "✓ Found: $file"
-            else
-              echo "✗ Missing: $file"
-              missing=$((missing + 1))
-            fi
-          done
-
-          if [ $missing -gt 0 ]; then
-            echo ""
-            echo "ERROR: $missing required security file(s) missing"
-            exit 1
-          fi
+          # Collect license info from Cargo metadata
+          cargo metadata --format-version 1 --no-deps \
+            | python3 -c "
+          import json, sys
+          meta = json.load(sys.stdin)
+          for pkg in meta['packages']:
+              name = pkg['name']
+              license = pkg.get('license', 'UNKNOWN')
+              print(f'  {name}: {license}')
+          "
 
           echo ""
-          echo "All required security documentation present."
+          echo "=== Checking all workspace dependency licenses ==="
 
-      - name: Check debug logging disabled
-        run: |
-          echo "=== Verifying debug logging is guarded ==="
-          errors=0
+          # List all transitive dependency licenses and flag problematic ones
+          cargo metadata --format-version 1 \
+            | python3 -c "
+          import json, sys
+          meta = json.load(sys.stdin)
 
-          # Check that debug_log.h has the guard
-          if grep -q "ifdef OPAQUE_DEBUG_LOGGING" include/opaque/debug_log.h; then
-            echo "✓ Debug logging properly guarded in debug_log.h"
-          else
-            echo "✗ ERROR: Debug logging not properly guarded in debug_log.h"
-            errors=$((errors + 1))
-          fi
+          denied = ['GPL-3.0-only', 'GPL-3.0-or-later', 'AGPL-3.0-only', 'AGPL-3.0-or-later']
+          errors = 0
 
-          # Check that interop logging has guards
-          if grep -q "ifdef OPAQUE_INTEROP_LOGGING" src/interop/initiator_exports.cpp; then
-            echo "✓ Interop logging properly guarded in initiator_exports.cpp"
-          else
-            echo "✗ ERROR: Interop logging not properly guarded in initiator_exports.cpp"
-            errors=$((errors + 1))
-          fi
+          for pkg in meta['packages']:
+              name = pkg['name']
+              license = pkg.get('license', 'UNKNOWN')
+              for d in denied:
+                  if license and d in license:
+                      print(f'ERROR: {name} uses denied license: {license}')
+                      errors += 1
 
-          if grep -q "ifdef OPAQUE_INTEROP_LOGGING" src/interop/responder_exports.cpp; then
-            echo "✓ Interop logging properly guarded in responder_exports.cpp"
-          else
-            echo "✗ ERROR: Interop logging not properly guarded in responder_exports.cpp"
-            errors=$((errors + 1))
-          fi
-
-          # Check that debug logging flags are not enabled in CMakeLists.txt
-          if grep -qE "(OPAQUE_DEBUG_LOGGING|OPAQUE_INTEROP_LOGGING)" CMakeLists.txt; then
-            echo "✗ ERROR: Debug logging flag found enabled in CMakeLists.txt"
-            grep -E "(OPAQUE_DEBUG_LOGGING|OPAQUE_INTEROP_LOGGING)" CMakeLists.txt
-            errors=$((errors + 1))
-          else
-            echo "✓ No debug logging flags enabled in CMakeLists.txt"
-          fi
-
-          # Verify sensitive data is not logged via LOG_HEX (which dumps actual key bytes)
-          echo ""
-          echo "=== Checking for sensitive data logging ==="
-
-          # Check for session_key hex logging (actual key bytes, not size parameters)
-          if grep -n 'LOG_HEX.*"session_key"' src/interop/*.cpp; then
-            echo "✗ ERROR: session_key bytes are being logged in interop exports"
-            errors=$((errors + 1))
-          else
-            echo "✓ session_key bytes are not logged"
-          fi
-
-          # Check for master_key hex logging (actual key bytes, not size parameters)
-          if grep -n 'LOG_HEX.*"master_key"' src/interop/*.cpp; then
-            echo "✗ ERROR: master_key bytes are being logged in interop exports"
-            errors=$((errors + 1))
-          else
-            echo "✓ master_key bytes are not logged"
-          fi
-
-          # Check for private_key hex logging (actual key bytes, not size parameters)
-          if grep -n 'LOG_HEX.*"private_key"' src/interop/*.cpp; then
-            echo "✗ ERROR: private_key bytes are being logged in interop exports"
-            errors=$((errors + 1))
-          else
-            echo "✓ private_key bytes are not logged"
-          fi
-
-          if [ $errors -gt 0 ]; then
-            echo ""
-            echo "ERROR: $errors security check(s) failed"
-            exit 1
-          fi
-
-          echo ""
-          echo "All logging security checks passed."
+          if errors > 0:
+              print(f'\n{errors} dependency(ies) with denied licenses found.')
+              sys.exit(1)
+          else:
+              print('All dependency licenses are compatible.')
+          "

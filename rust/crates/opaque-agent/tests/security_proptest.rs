@@ -1,7 +1,3 @@
-//! Randomized property-based security tests for Hybrid PQ-OPAQUE.
-//!
-//! Uses proptest to verify security invariants hold across random inputs.
-
 use opaque_agent::*;
 use opaque_core::types::*;
 use opaque_core::protocol;
@@ -217,7 +213,6 @@ fn try_responder_finish(
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(8))]
 
-    // P1: Session keys always match for any valid password
     #[test]
     fn prop_session_keys_always_match(password in prop::collection::vec(1u8..=255, 1..=128)) {
         let kp = ResponderKeyPair::generate().unwrap();
@@ -230,7 +225,6 @@ proptest! {
         prop_assert!(!c_sk.iter().all(|&b| b == 0));
     }
 
-    // P2+P7: Wrong password always fails authentication
     #[test]
     fn prop_wrong_password_always_fails(
         password in prop::collection::vec(1u8..=255, 1..=64),
@@ -244,7 +238,6 @@ proptest! {
         prop_assert!(result.is_err(), "wrong password must fail authentication");
     }
 
-    // P1: Different sessions always produce different keys (session key freshness)
     #[test]
     fn prop_different_sessions_different_keys(password in prop::collection::vec(1u8..=255, 1..=64)) {
         let kp = ResponderKeyPair::generate().unwrap();
@@ -255,7 +248,6 @@ proptest! {
         prop_assert_ne!(sk1, sk2, "different sessions must produce different session keys");
     }
 
-    // P5: Tampered KE2 always detected (mutual authentication - client side)
     #[test]
     fn prop_tampered_ke2_always_detected(
         tamper_offset in 0usize..KE2_LENGTH,
@@ -272,7 +264,6 @@ proptest! {
         prop_assert!(result.is_err(), "tampered KE2 at offset {} must be detected", tamper_offset);
     }
 
-    // P5: Tampered KE3 always detected (mutual authentication - server side)
     #[test]
     fn prop_tampered_ke3_always_detected(
         tamper_offset in 0usize..KE3_LENGTH,

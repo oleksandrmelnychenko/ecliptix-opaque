@@ -1,4 +1,4 @@
-name: Build, Obfuscate & Publish
+name: Build & Publish
 
 on:
   push:
@@ -10,511 +10,177 @@ on:
         required: false
         type: string
 
-# Workflow-level permissions
 permissions:
-  contents: write  # For GitHub Releases
+  contents: write
   packages: write
 
-env:
-  DOTNET_VERSION: '9.0.x'
-
 jobs:
-  # ==========================================================================
-  # macOS Build (Native Clang with obfuscation)
-  # ==========================================================================
-  build-macos:
-    runs-on: macos-14  # Apple Silicon
+  build-native:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        arch: [arm64]  # Can add x64 for Intel Macs
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: linux-x64
+            lib: libopaque_ffi.so
+          - os: macos-14
+            target: aarch64-apple-darwin
+            artifact: osx-arm64
+            lib: libopaque_ffi.dylib
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: win-x64
+            lib: opaque_ffi.dll
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Swift
-        uses: swift-actions/setup-swift@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Build FFI library
+        working-directory: rust
+        run: cargo build --release --package opaque-ffi --target ${{ matrix.target }}
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          mkdir -p artifacts/${{ matrix.artifact }}
+          find rust/target/${{ matrix.target }}/release -maxdepth 1 \
+            \( -name "*.so" -o -name "*.dylib" -o -name "*.dll" \) \
+            -exec cp {} artifacts/${{ matrix.artifact }}/ \;
+          ls -la artifacts/${{ matrix.artifact }}/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.artifact }}
+          path: artifacts/${{ matrix.artifact }}/
+          retention-days: 7
+
+  build-apple-xcframework:
+    name: Build XCFramework
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+
+      - uses: swift-actions/setup-swift@v2
         with:
           swift-version: '6.0.2'
 
-      - name: Install dependencies
+      - name: Build Rust FFI for all Apple targets
+        working-directory: rust
         run: |
-          brew install libsodium liboqs cmake autoconf automake libtool
-          echo "=== Validating ML-KEM-768 in Homebrew liboqs ==="
-          # macOS nm adds underscore prefix to symbols, check .a (static lib)
-          if nm /opt/homebrew/lib/liboqs.a 2>/dev/null | grep -q "_OQS_KEM_ml_kem_768_new"; then
-            echo "✓ ML-KEM-768 symbols found in liboqs.a"
-          else
-            echo "✗ ERROR: ML-KEM-768 symbols NOT found"
-            echo "Available KEM symbols:"
-            nm /opt/homebrew/lib/liboqs.a 2>/dev/null | grep "OQS_KEM.*_new" | head -10
-            exit 1
-          fi
+          cargo build --release --package opaque-ffi --target aarch64-apple-darwin
+          cargo build --release --package opaque-ffi --target aarch64-apple-ios
+          cargo build --release --package opaque-ffi --target aarch64-apple-ios-sim
+          cargo build --release --package opaque-ffi --target x86_64-apple-ios
 
-      - name: Build Client (macOS ${{ matrix.arch }})
+      - name: Create XCFramework
         run: |
-          mkdir -p build-client && cd build-client
-          cmake .. \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_CLIENT=ON \
-            -DBUILD_SERVER=OFF \
-            -DBUILD_SHARED_LIBS=ON \
-            -DBUILD_DOTNET_INTEROP=ON \
-            -DENABLE_HARDENING=ON \
-            -DBUILD_TESTS=OFF
-          cmake --build . --config Release -j$(sysctl -n hw.ncpu)
+          mkdir -p dist/apple
+          xcodebuild -create-xcframework \
+            -library rust/target/aarch64-apple-darwin/release/libopaque_ffi.a -headers rust/target/opaque_ffi.h \
+            -library rust/target/aarch64-apple-ios/release/libopaque_ffi.a -headers rust/target/opaque_ffi.h \
+            -output dist/apple/EcliptixOPAQUE.xcframework
+          cd dist/apple && zip -r EcliptixOPAQUE.xcframework.zip EcliptixOPAQUE.xcframework
+          shasum -a 256 EcliptixOPAQUE.xcframework.zip > EcliptixOPAQUE.xcframework.zip.sha256
 
-      - name: Build Server (macOS ${{ matrix.arch }})
-        run: |
-          mkdir -p build-server && cd build-server
-          cmake .. \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_CLIENT=OFF \
-            -DBUILD_SERVER=ON \
-            -DBUILD_SHARED_LIBS=ON \
-            -DBUILD_DOTNET_INTEROP=ON \
-            -DENABLE_HARDENING=ON \
-            -DBUILD_TESTS=OFF
-          cmake --build . --config Release -j$(sysctl -n hw.ncpu)
-
-      - name: Strip symbols
-        run: |
-          strip -x build-client/cmake/client/libeop.agent.dylib || true
-          strip -x build-server/cmake/server/libeop.relay.dylib || true
-
-      - name: Prepare artifacts
-        run: |
-          mkdir -p artifacts/osx-${{ matrix.arch }}
-          cp build-client/cmake/client/libeop.agent.dylib artifacts/osx-${{ matrix.arch }}/
-          cp build-server/cmake/server/libeop.relay.dylib artifacts/osx-${{ matrix.arch }}/
-
-      - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: native-osx-${{ matrix.arch }}
-          path: artifacts/osx-${{ matrix.arch }}/
-          retention-days: 1
+          name: apple-xcframework
+          path: dist/apple/
+          retention-days: 30
 
-  # ==========================================================================
-  # Linux Build (Docker)
-  # ==========================================================================
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build Client (Linux x64)
-        run: |
-          docker build -f Dockerfile.linux \
-            --build-arg BUILD_TARGET=client \
-            --build-arg RUN_TESTS=ON \
-            -t opaque-linux-client .
-          docker run --rm -v ${{ github.workspace }}/dist:/workspace/dist opaque-linux-client
-
-      - name: Build Server (Linux x64)
-        run: |
-          docker build -f Dockerfile.linux \
-            --build-arg BUILD_TARGET=server \
-            --build-arg RUN_TESTS=ON \
-            -t opaque-linux-server .
-          docker run --rm -v ${{ github.workspace }}/dist:/workspace/dist opaque-linux-server
-
-      - name: Prepare artifacts
-        run: |
-          echo "=== Debug: Show dist directory structure ==="
-          find dist -type f 2>/dev/null || echo "dist directory not found or empty"
-          echo "=== Copying artifacts ==="
-          mkdir -p artifacts/linux-x64
-          cp dist/client/linux/lib/libeop.agent.so artifacts/linux-x64/ || true
-          cp dist/server/linux/lib/libeop.relay.so artifacts/linux-x64/ || true
-          # Handle versioned library names
-          find dist -name "libeop.agent.so*" -exec cp {} artifacts/linux-x64/libeop.agent.so \; 2>/dev/null || true
-          find dist -name "libeop.relay.so*" -exec cp {} artifacts/linux-x64/libeop.relay.so \; 2>/dev/null || true
-          echo "=== Final artifacts ==="
-          ls -la artifacts/linux-x64/
-
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: native-linux-x64
-          path: artifacts/linux-x64/
-          retention-days: 1
-
-  # ==========================================================================
-  # Android Build (Docker with NDK)
-  # ==========================================================================
   build-android:
+    name: Build Android (${{ matrix.abi }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        abi: [arm64-v8a, armeabi-v7a, x86_64]
+        include:
+          - abi: arm64-v8a
+            target: aarch64-linux-android
+          - abi: armeabi-v7a
+            target: armv7-linux-androideabi
+          - abi: x86_64
+            target: x86_64-linux-android
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Client (Android ${{ matrix.abi }})
-        run: |
-          docker build -f Dockerfile.android \
-            --build-arg ABI=${{ matrix.abi }} \
-            --build-arg BUILD_TYPE=Release \
-            -t opaque-android-${{ matrix.abi }} .
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-          # Create a temporary container and copy artifacts
-          docker create --name extract-${{ matrix.abi }} opaque-android-${{ matrix.abi }}
-          mkdir -p dist/android/${{ matrix.abi }}/lib
-          docker cp extract-${{ matrix.abi }}:/workspace/dist/android/${{ matrix.abi }}/lib/. dist/android/${{ matrix.abi }}/lib/
-          docker rm extract-${{ matrix.abi }}
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - name: Build
+        working-directory: rust
+        run: cargo ndk -t ${{ matrix.abi }} build --release --package opaque-ffi
 
       - name: Prepare artifacts
         run: |
           mkdir -p artifacts/android-${{ matrix.abi }}
-          cp dist/android/${{ matrix.abi }}/lib/libeop.agent.so artifacts/android-${{ matrix.abi }}/
-          echo "=== Android ${{ matrix.abi }} artifacts ==="
-          ls -la artifacts/android-${{ matrix.abi }}/
-          file artifacts/android-${{ matrix.abi }}/libeop.agent.so
+          find rust/target/${{ matrix.target }}/release -maxdepth 1 -name "*.so" \
+            -exec cp {} artifacts/android-${{ matrix.abi }}/ \;
 
-      - name: Upload Android artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: native-android-${{ matrix.abi }}
           path: artifacts/android-${{ matrix.abi }}/
-          retention-days: 1
+          retention-days: 7
 
-  # ==========================================================================
-  # Apple XCFramework Build (iOS + macOS)
-  # ==========================================================================
-  build-apple-xcframework:
-    runs-on: macos-14  # Apple Silicon
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Swift
-        uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: '6.0.2'
-
-      - name: Install dependencies
-        run: |
-          brew install libsodium liboqs cmake autoconf automake libtool
-          echo "=== Validating ML-KEM-768 in Homebrew liboqs ==="
-          if nm /opt/homebrew/lib/liboqs.a 2>/dev/null | grep -q "_OQS_KEM_ml_kem_768_new"; then
-            echo "ML-KEM-768 symbols found"
-          else
-            echo "ERROR: ML-KEM-768 symbols NOT found"
-            exit 1
-          fi
-
-      - name: Build XCFramework (iOS + macOS)
-        run: |
-          chmod +x build-xcframework.sh
-          chmod +x scripts/build-ios-deps.sh
-          ./build-xcframework.sh Release
-
-      - name: Prepare XCFramework artifacts
-        run: |
-          mkdir -p artifacts/apple
-          cp -r dist/apple/EcliptixOPAQUE.xcframework artifacts/apple/
-          cp dist/apple/EcliptixOPAQUE.xcframework.zip artifacts/apple/
-          cp dist/apple/EcliptixOPAQUE.xcframework.zip.sha256 artifacts/apple/
-          echo "=== XCFramework contents ==="
-          ls -laR artifacts/apple/
-
-      - name: Upload XCFramework artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: apple-xcframework
-          path: artifacts/apple/
-          retention-days: 30
-
-  # ==========================================================================
-  # Windows Build (Docker with MinGW cross-compile)
-  # ==========================================================================
-  build-windows:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build Client (Windows x64)
-        run: |
-          docker build -f Dockerfile.windows \
-            --build-arg BUILD_TARGET=client \
-            -t opaque-windows-client .
-          docker run --rm -v ${{ github.workspace }}/dist:/workspace/dist opaque-windows-client
-
-      - name: Build Server (Windows x64)
-        run: |
-          docker build -f Dockerfile.windows \
-            --build-arg BUILD_TARGET=server \
-            -t opaque-windows-server .
-          docker run --rm -v ${{ github.workspace }}/dist:/workspace/dist opaque-windows-server
-
-      - name: Prepare artifacts
-        run: |
-          echo "=== Debug: Show dist directory structure ==="
-          find dist -type f 2>/dev/null || echo "dist directory not found or empty"
-          echo "=== Copying artifacts ==="
-          mkdir -p artifacts/win-x64
-          cp dist/client/windows/bin/eop.agent.dll artifacts/win-x64/ 2>/dev/null || true
-          cp dist/client/windows/lib/eop.agent.dll artifacts/win-x64/ 2>/dev/null || true
-          cp dist/server/windows/bin/eop.relay.dll artifacts/win-x64/ 2>/dev/null || true
-          cp dist/server/windows/lib/eop.relay.dll artifacts/win-x64/ 2>/dev/null || true
-          echo "=== Final artifacts ==="
-          ls -la artifacts/win-x64/ || echo "No Windows artifacts found"
-
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: native-win-x64
-          path: artifacts/win-x64/
-          retention-days: 1
-
-  # ==========================================================================
-  # Package Android AAR
-  # ==========================================================================
-  package-android:
-    needs: [build-android]
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.4'
-
-      - name: Download Android artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: native-android-*
-          path: android-libs
-
-      - name: Prepare Android native libraries
-        run: |
-          mkdir -p dist/android
-          for abi_dir in android-libs/native-android-*/; do
-            abi=$(basename "$abi_dir" | sed 's/native-android-//')
-            mkdir -p "dist/android/${abi}/lib"
-            cp "${abi_dir}"/*.so "dist/android/${abi}/lib/" || true
-          done
-          echo "=== Android native libraries ==="
-          find dist/android -name "*.so" -exec ls -la {} \;
-
-      - name: Copy native libs to jniLibs for AAR
-        run: |
-          for abi in arm64-v8a armeabi-v7a x86_64; do
-            if [ -d "dist/android/${abi}/lib" ]; then
-              mkdir -p "android/lib/src/main/jniLibs/${abi}"
-              cp dist/android/${abi}/lib/*.so android/lib/src/main/jniLibs/${abi}/ || true
-              echo "Copied native libs for ${abi}:"
-              ls -la android/lib/src/main/jniLibs/${abi}/
-            fi
-          done
-
-      - name: Determine version
-        id: version
-        run: |
-          if [[ "${{ github.event.inputs.version }}" != "" ]]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION="${{ github.ref_name }}"
-            VERSION="${VERSION#v}"
-          else
-            VERSION="1.0.3"
-          fi
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building Android version: $VERSION"
-
-      - name: Build Android AAR
-        working-directory: android
-        run: |
-          gradle :lib:assembleRelease -PVERSION_NAME=${{ steps.version.outputs.VERSION }}
-
-      - name: Publish to GitHub Packages (Maven)
-        working-directory: android
-        run: |
-          gradle :lib:publish -PVERSION_NAME=${{ steps.version.outputs.VERSION }}
-        env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload AAR artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-aar
-          path: android/lib/build/outputs/aar/*.aar
-          retention-days: 30
-
-  # ==========================================================================
-  # Publish to GitHub Releases (XCFramework + Android AAR)
-  # ==========================================================================
   publish-release:
-    needs: [build-apple-xcframework, package-android]
+    name: GitHub Release
+    needs: [build-native, build-apple-xcframework, build-android]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download XCFramework
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: apple-xcframework
-          path: xcframework
-
-      - name: Download Android AAR
-        uses: actions/download-artifact@v4
-        with:
-          name: android-aar
-          path: android-aar
+          path: artifacts
 
       - name: Determine version
         id: version
         run: |
           VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=${VERSION#v}" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
+      - name: Create release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            xcframework/EcliptixOPAQUE.xcframework.zip
-            xcframework/EcliptixOPAQUE.xcframework.zip.sha256
-            android-aar/*.aar
+            artifacts/apple-xcframework/EcliptixOPAQUE.xcframework.zip
+            artifacts/apple-xcframework/EcliptixOPAQUE.xcframework.zip.sha256
           body: |
             ## Ecliptix OPAQUE v${{ steps.version.outputs.VERSION }}
 
             ### Swift Package Manager
-            Add to your `Package.swift`:
             ```swift
             .binaryTarget(
                 name: "EcliptixOPAQUEBinary",
                 url: "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/EcliptixOPAQUE.xcframework.zip",
-                checksum: "$(cat xcframework/EcliptixOPAQUE.xcframework.zip.sha256)"
+                checksum: "$(cat artifacts/apple-xcframework/EcliptixOPAQUE.xcframework.zip.sha256 | cut -d' ' -f1)"
             )
             ```
 
-            ### Android (Gradle)
-            Download `lib-release.aar` and place in `app/libs/`:
-            ```kotlin
-            implementation(files("libs/lib-release.aar"))
-            ```
-
             ### Platforms
-            - iOS Device (arm64)
-            - iOS Simulator (arm64, x86_64)
-            - macOS (arm64, x86_64)
+            - Linux x64
+            - macOS arm64
+            - Windows x64
+            - iOS (arm64, simulator)
             - Android (arm64-v8a, armeabi-v7a, x86_64)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ==========================================================================
-  # Package and Publish NuGet
-  # ==========================================================================
-  package-publish:
-    needs: [build-macos, build-linux, build-windows]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-          source-url: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
-        env:
-          NUGET_AUTH_TOKEN: ${{ secrets.NUGET_PUBLISH_TOKEN }}
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: native-libs
-
-      - name: Display downloaded artifacts
-        run: |
-          echo "=== Downloaded artifacts ==="
-          find native-libs -type f -name "*.dll" -o -name "*.so" -o -name "*.dylib" | head -20
-          ls -laR native-libs/
-
-      - name: Determine version
-        id: version
-        run: |
-          if [[ "${{ github.event.inputs.version }}" != "" ]]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION="${{ github.ref_name }}"
-            VERSION="${VERSION#v}"  # Remove 'v' prefix
-          else
-            VERSION="1.0.3"
-          fi
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
-
-      - name: Copy native libs to NuGet structure
-        run: |
-          # Agent package (client)
-          mkdir -p nuget/Ecliptix.OPAQUE.Agent/runtimes/osx-arm64/native
-          mkdir -p nuget/Ecliptix.OPAQUE.Agent/runtimes/linux-x64/native
-          mkdir -p nuget/Ecliptix.OPAQUE.Agent/runtimes/win-x64/native
-
-          cp native-libs/native-osx-arm64/libeop.agent.dylib nuget/Ecliptix.OPAQUE.Agent/runtimes/osx-arm64/native/ || true
-          cp native-libs/native-linux-x64/libeop.agent.so nuget/Ecliptix.OPAQUE.Agent/runtimes/linux-x64/native/ || true
-          cp native-libs/native-win-x64/eop.agent.dll nuget/Ecliptix.OPAQUE.Agent/runtimes/win-x64/native/ || true
-
-          # Relay package (server)
-          mkdir -p nuget/Ecliptix.OPAQUE.Relay/runtimes/osx-arm64/native
-          mkdir -p nuget/Ecliptix.OPAQUE.Relay/runtimes/linux-x64/native
-          mkdir -p nuget/Ecliptix.OPAQUE.Relay/runtimes/win-x64/native
-
-          cp native-libs/native-osx-arm64/libeop.relay.dylib nuget/Ecliptix.OPAQUE.Relay/runtimes/osx-arm64/native/ || true
-          cp native-libs/native-linux-x64/libeop.relay.so nuget/Ecliptix.OPAQUE.Relay/runtimes/linux-x64/native/ || true
-          cp native-libs/native-win-x64/eop.relay.dll nuget/Ecliptix.OPAQUE.Relay/runtimes/win-x64/native/ || true
-
-          echo "=== Agent package contents ==="
-          find nuget/Ecliptix.OPAQUE.Agent/runtimes -type f || echo "No Agent artifacts"
-          echo "=== Relay package contents ==="
-          find nuget/Ecliptix.OPAQUE.Relay/runtimes -type f || echo "No Relay artifacts"
-
-      - name: Build NuGet packages
-        run: |
-          cd nuget
-          dotnet pack Ecliptix.OPAQUE.Agent/Ecliptix.OPAQUE.Agent.csproj \
-            -c Release \
-            -o output \
-            /p:Version=${{ steps.version.outputs.VERSION }}
-
-          dotnet pack Ecliptix.OPAQUE.Relay/Ecliptix.OPAQUE.Relay.csproj \
-            -c Release \
-            -o output \
-            /p:Version=${{ steps.version.outputs.VERSION }}
-
-          ls -la output/
-
-      - name: Publish to GitHub Packages
-        run: |
-          cd nuget/output
-          for pkg in *.nupkg; do
-            echo "Publishing $pkg..."
-            dotnet nuget push "$pkg" \
-              --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
-              --api-key ${{ secrets.NUGET_PUBLISH_TOKEN }} \
-              --skip-duplicate
-          done
-        env:
-          NUGET_AUTH_TOKEN: ${{ secrets.NUGET_PUBLISH_TOKEN }}
-
-      - name: Upload NuGet packages as artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: nuget-packages
-          path: nuget/output/*.nupkg
-          retention-days: 30
