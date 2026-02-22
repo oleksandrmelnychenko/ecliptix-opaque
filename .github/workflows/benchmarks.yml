@@ -1,0 +1,168 @@
+# Full pipeline: build + tests + benchmarks on Linux, macOS, Windows.
+# Benchmarks run in CI (ci.yml). This workflow runs benchmarks on demand or weekly
+# and publishes combined artifact for comparison.
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'  # Mondays 06:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - 'benchmarks/**'
+      - 'src/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+      - 'vcpkg.json'
+      - '.github/workflows/benchmarks.yml'
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  bench-linux:
+    name: Benchmarks (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev cmake build-essential
+          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git
+          cd liboqs && mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON -DOQS_BUILD_ONLY_LIB=ON ..
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_CLIENT=ON -DBUILD_SERVER=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} -j$(nproc)
+
+      - name: Run tests
+        run: cd build && ctest --output-on-failure -V
+
+      - name: Run benchmarks
+        run: |
+          cd build
+          cmake --build . --config ${{ env.BUILD_TYPE }} --target run_benchmarks 2>&1 | tee ../benchmark_linux.txt
+
+      - name: Upload benchmark log
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-linux
+          path: benchmark_linux.txt
+
+  bench-macos:
+    name: Benchmarks (macOS)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install libsodium liboqs cmake
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_CLIENT=ON -DBUILD_SERVER=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
+
+      - name: Run tests
+        run: cd build && ctest --output-on-failure -V
+
+      - name: Run benchmarks
+        run: |
+          cd build
+          cmake --build . --config ${{ env.BUILD_TYPE }} --target run_benchmarks 2>&1 | tee ../benchmark_macos.txt
+
+      - name: Upload benchmark log
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-macos
+          path: benchmark_macos.txt
+
+  bench-windows:
+    name: Benchmarks (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 'master'
+          runVcpkgInstall: 'false'
+
+      - name: Configure
+        run: |
+          cmake -B build `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DBUILD_CLIENT=ON -DBUILD_SERVER=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Run tests
+        run: cd build; ctest --output-on-failure -C ${{ env.BUILD_TYPE }} -V
+
+      - name: Run benchmarks
+        shell: pwsh
+        run: |
+          Set-Location build
+          cmake --build . --config ${{ env.BUILD_TYPE }} --target run_benchmarks 2>&1 | Tee-Object -FilePath ..\benchmark_windows.txt
+
+      - name: Upload benchmark log
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-windows
+          path: benchmark_windows.txt
+
+  # Combine benchmark logs into one artifact for easy download
+  benchmark-report:
+    name: Benchmark report
+    needs: [bench-linux, bench-macos, bench-windows]
+    runs-on: ubuntu-latest
+    if: always() && (needs.bench-linux.result == 'success' || needs.bench-macos.result == 'success' || needs.bench-windows.result == 'success')
+    steps:
+      - name: Download all benchmark logs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: benchmark-*
+          path: bench-logs
+          merge-multiple: true
+
+      - name: Create combined report
+        run: |
+          echo "# Benchmark results — ${{ github.sha }} ($(date -u +%Y-%m-%dT%H:%MZ))" > benchmark_report.md
+          echo "" >> benchmark_report.md
+          find bench-logs -name "*.txt" -type f | while read -r f; do
+            name=$(basename "$f" .txt | sed 's/benchmark_//')
+            echo "## $name" >> benchmark_report.md
+          echo '```' >> benchmark_report.md
+          cat "$f" >> benchmark_report.md
+          echo '```' >> benchmark_report.md
+          echo "" >> benchmark_report.md
+          done
+          cat benchmark_report.md
+
+      - name: Upload combined report
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-report
+          path: benchmark_report.md

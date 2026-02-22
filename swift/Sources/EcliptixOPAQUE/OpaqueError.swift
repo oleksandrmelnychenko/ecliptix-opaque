@@ -1,5 +1,7 @@
 /**
- Errors thrown by OPAQUE protocol operations
+ Errors thrown by OPAQUE protocol operations.
+
+ Error codes match the Rust FFI `OpaqueError::to_c_int()` mapping.
  */
 
 import Foundation
@@ -9,25 +11,25 @@ public enum OpaqueError: Error, LocalizedError {
     /// The library has not been initialized
     case notInitialized
 
-    /// Invalid input parameters
+    /// Invalid input parameters (FFI code: -1)
     case invalidInput(String)
 
-    /// Cryptographic operation failed
+    /// Cryptographic operation failed (FFI code: -2)
     case cryptoError(String)
 
-    /// Memory allocation failed
+    /// Memory allocation failed (FFI code: -3)
     case memoryError
 
-    /// Validation failed (e.g., invalid state)
+    /// Validation failed (FFI code: -4)
     case validationError
 
-    /// Authentication failed (wrong password or tampering detected)
+    /// Authentication failed — wrong password or tampering detected (FFI code: -5)
     case authenticationError
 
-    /// Invalid public key format
+    /// Invalid public key format (FFI code: -6)
     case invalidPublicKey
 
-    /// The agent or state has been invalidated
+    /// The agent or state handle has been invalidated
     case invalidState
 
     /// Unknown error with code
@@ -46,21 +48,21 @@ public enum OpaqueError: Error, LocalizedError {
         case .validationError:
             return "Validation failed"
         case .authenticationError:
-            return "Authentication failed - wrong password or message tampering detected"
+            return "Authentication failed — wrong password or message tampering detected"
         case .invalidPublicKey:
             return "Invalid public key format"
         case .invalidState:
-            return "Invalid agent or state - may have been destroyed"
+            return "Invalid handle — may have been destroyed"
         case .unknown(let code):
             return "Unknown error (code: \(code))"
         }
     }
 
-    /// Create an error from a native error code
+    /// Create an error from a Rust FFI error code
     internal static func fromCode(_ code: Int32) -> OpaqueError {
         switch code {
         case 0:
-            return .invalidState // Should not happen, but handle gracefully
+            return .invalidState
         case -1:
             return .invalidInput("Invalid parameters")
         case -2:

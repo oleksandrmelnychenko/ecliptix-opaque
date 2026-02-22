@@ -1,0 +1,99 @@
+use opaque_core::crypto;
+use opaque_core::types::*;
+use opaque_relay::*;
+
+#[test]
+fn responder_keypair_generate_valid() {
+    let kp = ResponderKeyPair::generate().unwrap();
+    crypto::validate_public_key(&kp.public_key).unwrap();
+    assert!(!kp.private_key.iter().all(|&b| b == 0));
+}
+
+#[test]
+fn responder_keypair_from_keys_valid() {
+    let kp = ResponderKeyPair::generate().unwrap();
+    let kp2 = ResponderKeyPair::from_keys(&kp.private_key, &kp.public_key).unwrap();
+    assert_eq!(kp.private_key, kp2.private_key);
+    assert_eq!(kp.public_key, kp2.public_key);
+}
+
+#[test]
+fn responder_keypair_from_keys_mismatched_fails() {
+    let kp1 = ResponderKeyPair::generate().unwrap();
+    let kp2 = ResponderKeyPair::generate().unwrap();
+    assert!(ResponderKeyPair::from_keys(&kp1.private_key, &kp2.public_key).is_err());
+}
+
+#[test]
+fn responder_keypair_from_keys_wrong_length_fails() {
+    let short = [0u8; 16];
+    let pk = [0u8; PUBLIC_KEY_LENGTH];
+    assert!(ResponderKeyPair::from_keys(&short, &pk).is_err());
+}
+
+#[test]
+fn opaque_responder_new_validates_key() {
+    let kp = ResponderKeyPair::generate().unwrap();
+    let responder = OpaqueResponder::new(kp.clone()).unwrap();
+    assert_eq!(responder.public_key(), &kp.public_key);
+}
+
+#[test]
+fn responder_state_new_zeroed() {
+    let state = ResponderState::new();
+    assert_eq!(state.responder_private_key, [0u8; PRIVATE_KEY_LENGTH]);
+    assert!(state.session_key.is_empty());
+    assert!(!state.handshake_complete);
+}
+
+#[test]
+fn responder_credentials_new_default() {
+    let creds = ResponderCredentials::new();
+    assert_eq!(creds.envelope.len(), ENVELOPE_LENGTH);
+    assert_eq!(creds.initiator_public_key, [0u8; PUBLIC_KEY_LENGTH]);
+}
+
+#[test]
+fn registration_response_correct_size() {
+    let resp = RegistrationResponse::new();
+    assert_eq!(resp.data.len(), REGISTRATION_RESPONSE_LENGTH);
+}
+
+#[test]
+fn ke2_message_correct_sizes() {
+    let ke2 = Ke2Message::new();
+    assert_eq!(ke2.responder_nonce.len(), NONCE_LENGTH);
+    assert_eq!(ke2.responder_public_key.len(), PUBLIC_KEY_LENGTH);
+    assert_eq!(ke2.credential_response.len(), CREDENTIAL_RESPONSE_LENGTH);
+    assert_eq!(ke2.responder_mac.len(), MAC_LENGTH);
+    assert_eq!(ke2.kem_ciphertext.len(), pq::KEM_CIPHERTEXT_LENGTH);
+}
+
+#[test]
+fn build_credentials_invalid_record_fails() {
+    let mut creds = ResponderCredentials::new();
+    let short = vec![0u8; 10];
+    assert!(build_credentials(&short, &mut creds).is_err());
+}
+
+#[test]
+fn create_registration_response_invalid_request_length_fails() {
+    let kp = ResponderKeyPair::generate().unwrap();
+    let responder = OpaqueResponder::new(kp).unwrap();
+    let mut resp = RegistrationResponse::new();
+
+    let bad_req = [0u8; 64];
+    assert!(create_registration_response(&responder, &bad_req, b"alice", &mut resp).is_err());
+}
+
+#[test]
+fn create_registration_response_empty_account_fails() {
+    let kp = ResponderKeyPair::generate().unwrap();
+    let responder = OpaqueResponder::new(kp).unwrap();
+    let mut resp = RegistrationResponse::new();
+
+    let scalar = crypto::random_nonzero_scalar();
+    let point = crypto::scalarmult_base(&scalar);
+
+    assert!(create_registration_response(&responder, &point, b"", &mut resp).is_err());
+}

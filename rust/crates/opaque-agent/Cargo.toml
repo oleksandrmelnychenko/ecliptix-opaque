@@ -1,0 +1,23 @@
+[package]
+name = "opaque-agent"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+opaque-core = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+opaque-relay = { workspace = true }
+opaque-core = { workspace = true }
+criterion = { workspace = true }
+proptest = { workspace = true }
+
+[[bench]]
+name = "bench_protocol"
+harness = false
+
+[[bench]]
+name = "bench_throughput"
+harness = false

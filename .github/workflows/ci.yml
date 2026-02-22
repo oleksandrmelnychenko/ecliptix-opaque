@@ -48,6 +48,7 @@ jobs:
             -DBUILD_CLIENT=ON \
             -DBUILD_SERVER=ON \
             -DBUILD_TESTS=ON \
+            -DBUILD_BENCHMARKS=ON \
             -DENABLE_HARDENING=ON
 
       - name: Build
@@ -57,6 +58,19 @@ jobs:
         run: |
           cd build
           ctest --output-on-failure --verbose
+
+      - name: Run Benchmarks
+        run: |
+          cd build
+          cmake --build . --config ${{ env.BUILD_TYPE }} --target run_benchmarks 2>&1 | tee benchmark_linux.log || true
+
+      - name: Upload benchmark log (Linux)
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        continue-on-error: true
+        with:
+          name: benchmark-linux
+          path: build/benchmark_linux.log
 
   # ==========================================================================
   # Build and Test (macOS)
@@ -80,6 +94,7 @@ jobs:
             -DBUILD_CLIENT=ON \
             -DBUILD_SERVER=ON \
             -DBUILD_TESTS=ON \
+            -DBUILD_BENCHMARKS=ON \
             -DENABLE_HARDENING=ON
 
       - name: Build
@@ -89,6 +104,69 @@ jobs:
         run: |
           cd build
           ctest --output-on-failure --verbose
+
+      - name: Run Benchmarks
+        run: |
+          cd build
+          cmake --build . --config ${{ env.BUILD_TYPE }} --target run_benchmarks 2>&1 | tee benchmark_macos.log || true
+
+      - name: Upload benchmark log (macOS)
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        continue-on-error: true
+        with:
+          name: benchmark-macos
+          path: build/benchmark_macos.log
+
+  # ==========================================================================
+  # Build and Test (Windows)
+  # ==========================================================================
+  build-windows:
+    name: Build & Test (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 'master'
+          runVcpkgInstall: 'false'
+
+      - name: Configure CMake
+        run: |
+          cmake -B build `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DBUILD_CLIENT=ON `
+            -DBUILD_SERVER=ON `
+            -DBUILD_TESTS=ON `
+            -DBUILD_BENCHMARKS=ON `
+            -DENABLE_HARDENING=ON
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Run Tests
+        run: |
+          cd build
+          ctest --output-on-failure -C ${{ env.BUILD_TYPE }} --verbose
+
+      - name: Run Benchmarks
+        run: |
+          cd build
+          cmake --build . --config ${{ env.BUILD_TYPE }} --target run_benchmarks 2>&1 | Tee-Object -FilePath benchmark_windows.log
+        shell: pwsh
+
+      - name: Upload benchmark log (Windows)
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        continue-on-error: true
+        with:
+          name: benchmark-windows
+          path: build/benchmark_windows.log
 
   # ==========================================================================
   # Lint and Format Check

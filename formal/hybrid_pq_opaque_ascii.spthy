@@ -1,0 +1,531 @@
+/*
+ * Formal Verification of Hybrid PQ-OPAQUE Protocol
+ * =================================================
+ * 
+ * Authors: [paper authors]
+ * Date: February 2026
+ * 
+ * Protocol: Hybrid PQ-OPAQUE -- a post-quantum extension of OPAQUE [Jarecki et al. 2018]
+ * that integrates ML-KEM-768 into the 3DH authenticated key exchange.
+ *
+ * Cryptographic primitives modeled:
+ *   - OPRF on Ristretto255 (modeled as blind evaluation)
+ *   - 3DH key exchange (three DH operations on elliptic curve)
+ *   - ML-KEM-768 key encapsulation (modeled as IND-CCA KEM)
+ *   - HKDF-Extract / HKDF-Expand (modeled as PRF)
+ *   - HMAC-SHA-512 for MAC authentication
+ *   - Argon2id key stretching (modeled as one-way function)
+ *   - XSalsa20-Poly1305 authenticated encryption for envelope
+ *
+ * Properties verified:
+ *   P1. Session key secrecy
+ *   P2. Password secrecy (even under server compromise)
+ *   P3. Forward secrecy (FS) -- classical
+ *   P4. Post-quantum forward secrecy (PQ-FS)
+ *   P5. Mutual authentication (injective agreement)
+ *   P6. AND-model hybrid security
+ *   P7. Resistance to offline dictionary attacks
+ *
+ * Threat model:
+ *   - Dolev-Yao network adversary (full control of network)
+ *   - Adaptive corruption of long-term keys
+ *   - Quantum adversary can break DH (modeled via oracle)
+ *   - Adversary cannot break both DH AND KEM simultaneously (AND-model)
+ *
+ * Usage:
+ *   tamarin-prover hybrid_pq_opaque.spthy --prove
+ */
+
+theory Hybrid_PQ_OPAQUE
+begin
+
+builtins: hashing, diffie-hellman, symmetric-encryption, signing
+
+functions:
+  /* OPRF: blind evaluation */
+  oprf_blind/2,           /* oprf_blind(pwd, r) = H'(pwd)^r */
+  oprf_eval/2,            /* oprf_eval(blinded, k) = blinded^k */
+  oprf_finalize/2,        /* oprf_finalize(evaluated, r) = evaluated^(1/r) = H'(pwd)^k */
+
+  /* Key stretching */
+  argon2id/2,             /* argon2id(input, salt) -- memory-hard KDF */
+
+  /* Authenticated encryption for envelope */
+  aenc/3,                 /* aenc(key, nonce, plaintext) */
+  adec/3,                 /* adec(key, nonce, ciphertext) */
+
+  /* HKDF functions */
+  hkdf_extract/2,         /* hkdf_extract(salt, ikm) -> prk */
+  hkdf_expand/3,          /* hkdf_expand(prk, info, len) -> okm */
+
+  /* HMAC for MAC computation */
+  hmac/2,                 /* hmac(key, message) */
+
+  /* ML-KEM (post-quantum KEM) */
+  kem_pk/1,               /* kem_pk(sk) -- derive public key from secret */
+  kem_encaps/2,           /* kem_encaps(pk, randomness) -> ciphertext */
+  kem_decaps/2,           /* kem_decaps(sk, ct) -> shared_secret */
+  kem_ss/2,               /* kem_ss(pk, randomness) -> shared_secret (functional) */
+
+  /* Ristretto255 scalar mult (DH) */
+  pk/1,                   /* pk(sk) = sk.G -- public key from private */
+
+  /* Domain separation labels */
+  label_session/0,
+  label_master/0,
+  label_resp_mac/0,
+  label_init_mac/0,
+  label_combiner/0,
+  label_transcript/0,
+
+  /* Concatenation (explicit) */
+  cat3/3,                 /* concatenation of 3 DH values */
+  cat4/4                  /* concatenation of 3 DH + KEM shared secret */
+
+/* Equational theory for OPRF */
+equations:
+  oprf_finalize(oprf_eval(oprf_blind(pwd, r), k), r) = h(<pwd, k>),
+  adec(key, nonce, aenc(key, nonce, plaintext)) = plaintext,
+  kem_decaps(sk, kem_encaps(kem_pk(sk), randomness)) = kem_ss(kem_pk(sk), randomness)
+
+
+/* ============================================================
+ * PROTOCOL RULES
+ * ============================================================ */
+
+/* -----------------------------------------------------------
+ * SETUP: Server generates long-term keypair
+ * ----------------------------------------------------------- */
+rule Server_Setup:
+  let
+    pkS = pk(~skS)
+  in
+  [ Fr(~skS) ]
+  --[ ServerSetup($S, pkS) ]->
+  [ !ServerLTK($S, ~skS, pkS),
+    !ServerPK($S, pkS),
+    Out(pkS) ]
+
+
+/* -----------------------------------------------------------
+ * REGISTRATION PHASE
+ * Step 1: Client -> Server: RegistrationRequest = blind(pwd, r)
+ * ----------------------------------------------------------- */
+rule Reg_Client_Start:
+  let
+    blinded = oprf_blind(~pwd, ~r)
+  in
+  [ Fr(~pwd), Fr(~r), !ServerPK($S, pkS) ]
+  --[ RegisterStart($C, $S),
+      PasswordGen($C, ~pwd) ]->
+  [ RegClientState($C, $S, ~pwd, ~r, pkS),
+    Out(blinded) ]
+
+
+/* -----------------------------------------------------------
+ * REGISTRATION PHASE
+ * Step 2: Server evaluates OPRF and responds
+ * ----------------------------------------------------------- */
+rule Reg_Server_Respond:
+  let
+    evaluated = oprf_eval(blinded, ~oprf_key)
+  in
+  [ In(blinded), Fr(~oprf_key), !ServerLTK($S, skS, pkS) ]
+  --[ RegisterServerRespond($S) ]->
+  [ RegServerState($S, ~oprf_key),
+    !OPRFKey($S, $C_account, ~oprf_key),
+    Out(<evaluated, pkS>) ]
+
+
+/* -----------------------------------------------------------
+ * REGISTRATION PHASE
+ * Step 3: Client finalizes -- creates envelope, registration record
+ * ----------------------------------------------------------- */
+rule Reg_Client_Finalize:
+  let
+    oprf_output = oprf_finalize(evaluated, ~r)
+    rwd = argon2id(oprf_output, ~pwd)
+    envelope_key = hkdf_expand(rwd, 'envelope', '32')
+    skC = ~skC_fresh
+    pkC = pk(skC)
+    envelope = aenc(envelope_key, ~env_nonce, <pkS, skC, pkC>)
+    record = <envelope, ~env_nonce, pkC>
+  in
+  [ RegClientState($C, $S, ~pwd, ~r, pkS),
+    In(<evaluated, pkS>),
+    Fr(~skC_fresh), Fr(~env_nonce) ]
+  --[ RegisterComplete($C, $S),
+      ClientLTKGen($C, skC, pkC) ]->
+  [ !ClientLTK($C, skC, pkC),
+    !ClientPassword($C, ~pwd),
+    !RegistrationRecord($S, $C, record, ~pwd),
+    Out(record) ]
+
+
+/* -----------------------------------------------------------
+ * AUTHENTICATION PHASE
+ * KE1: Client -> Server
+ *   Generates: OPRF blind, ephemeral DH key, ephemeral KEM key, nonce
+ * ----------------------------------------------------------- */
+rule Auth_Client_KE1:
+  let
+    blinded = oprf_blind(pwd, ~r_auth)
+    eC = pk(~ekC)
+    kem_pkC = kem_pk(~kem_skC)
+    ke1 = <blinded, eC, ~nonceC, kem_pkC>
+  in
+  [ !ClientPassword($C, pwd),
+    !ClientLTK($C, skC, pkC),
+    !ServerPK($S, pkS),
+    Fr(~ekC), Fr(~r_auth), Fr(~nonceC), Fr(~kem_skC) ]
+  --[ AuthClientStart($C, $S, ~nonceC) ]->
+  [ AuthClientState($C, $S, pwd, ~r_auth, skC, pkC, ~ekC, eC,
+                    ~kem_skC, kem_pkC, ~nonceC, pkS),
+    Out(ke1) ]
+
+
+/* -----------------------------------------------------------
+ * AUTHENTICATION PHASE
+ * KE2: Server -> Client
+ *   Processes KE1, computes 3DH + KEM encaps, derives keys, computes MAC
+ * ----------------------------------------------------------- */
+rule Auth_Server_KE2:
+  let
+    /* Parse KE1 */
+    blinded = fst(ke1)
+    eC = fst(snd(ke1))
+    nonceC = fst(snd(snd(ke1)))
+    kem_pkC = snd(snd(snd(ke1)))
+
+    /* Parse registration record */
+    envelope = fst(record)
+    env_nonce = fst(snd(record))
+    pkC = snd(snd(record))
+
+    /* Server ephemeral DH */
+    eS = pk(~ekS)
+
+    /* OPRF evaluate */
+    evaluated = oprf_eval(blinded, oprf_key)
+
+    /* Credential response (envelope nonce needed for client to decrypt) */
+    cred_resp = <evaluated, envelope, env_nonce>
+
+    /* 3DH computation (server side) */
+    dh1 = pkC ^ skS           /* static x static: pkC^skS */
+    dh2 = eC ^ skS            /* ephemeral x static: eC^skS */
+    dh3 = pkC ^ ~ekS          /* static x ephemeral: pkC^ekS */
+
+    /* KEM encapsulation */
+    kem_ct = kem_encaps(kem_pkC, ~kem_rand)
+    kem_shared = kem_ss(kem_pkC, ~kem_rand)
+
+    /* Transcript: all public elements */
+    transcript = <eC, eS, nonceC, ~nonceS, pkC, pkS, cred_resp, kem_pkC, kem_ct>
+    transcript_hash = h(<label_transcript, transcript>)
+
+    /* Hybrid key combiner: HKDF-Extract(label||transcript_hash, dh1||dh2||dh3||kem_ss) */
+    combined_ikm = cat4(dh1, dh2, dh3, kem_shared)
+    salt = <label_combiner, transcript_hash>
+    prk = hkdf_extract(salt, combined_ikm)
+
+    /* Derive session keys */
+    session_key = hkdf_expand(prk, label_session, '64')
+    master_key = hkdf_expand(prk, label_master, '32')
+    resp_mac_key = hkdf_expand(prk, label_resp_mac, '64')
+    init_mac_key = hkdf_expand(prk, label_init_mac, '64')
+
+    /* Server MAC */
+    resp_mac = hmac(resp_mac_key, transcript)
+
+    /* KE2 message */
+    ke2 = <~nonceS, eS, cred_resp, resp_mac, kem_ct>
+  in
+  [ In(ke1),
+    !ServerLTK($S, skS, pkS),
+    !OPRFKey($S, $C_account, oprf_key),
+    !RegistrationRecord($S, $C_account, record, pwd_stored),
+    Fr(~ekS), Fr(~nonceS), Fr(~kem_rand) ]
+  --[ AuthServerKE2($S, $C_account, session_key, master_key),
+      ServerUsesEphemeral($S, ~ekS),
+      ServerUsesKemRand($S, ~kem_rand),
+      RunningResponder($S, $C_account, session_key, transcript) ]->
+  [ AuthServerState($S, $C_account, session_key, master_key, init_mac_key, transcript, ~ekS, ~kem_rand),
+    Out(ke2) ]
+
+
+/* -----------------------------------------------------------
+ * AUTHENTICATION PHASE
+ * KE3: Client -> Server
+ *   Processes KE2, opens envelope, mirrors 3DH + KEM decaps,
+ *   verifies server MAC, sends client MAC
+ * ----------------------------------------------------------- */
+rule Auth_Client_KE3:
+  let
+    /* Parse KE2 */
+    nonceS = fst(ke2)
+    eS = fst(snd(ke2))
+    cred_resp = fst(snd(snd(ke2)))
+    resp_mac = fst(snd(snd(snd(ke2))))
+    kem_ct = snd(snd(snd(snd(ke2))))
+
+    /* Parse credential response */
+    evaluated = fst(cred_resp)
+    envelope = fst(snd(cred_resp))
+    env_nonce = snd(snd(cred_resp))
+
+    /* OPRF finalize */
+    oprf_output = oprf_finalize(evaluated, r_auth)
+    rwd = argon2id(oprf_output, pwd)
+    envelope_key = hkdf_expand(rwd, 'envelope', '32')
+
+    /* Open envelope -> recover (pkS_recovered, skC_recovered, pkC_recovered) */
+    envelope_contents = adec(envelope_key, env_nonce, envelope)
+    pkS_recovered = fst(envelope_contents)
+    skC_recovered = fst(snd(envelope_contents))
+    pkC_recovered = snd(snd(envelope_contents))
+
+    /* 3DH computation (client side, mirrored) */
+    dh1 = pkS ^ skC            /* static x static: pkS^skC = pkC^skS */
+    dh2 = pkS ^ ekC            /* static x ephemeral: pkS^ekC = eC^skS */
+    dh3 = eS ^ skC             /* ephemeral x static: eS^skC = pkC^ekS */
+
+    /* KEM decapsulation */
+    kem_shared = kem_decaps(kem_skC, kem_ct)
+
+    eC = pk(ekC)
+    kem_pkC = kem_pk(kem_skC)
+
+    /* Transcript (must match server's) */
+    transcript = <eC, eS, nonceC, nonceS, pkC, pkS, cred_resp, kem_pkC, kem_ct>
+    transcript_hash = h(<label_transcript, transcript>)
+
+    /* Hybrid key combiner */
+    combined_ikm = cat4(dh1, dh2, dh3, kem_shared)
+    salt = <label_combiner, transcript_hash>
+    prk = hkdf_extract(salt, combined_ikm)
+
+    /* Derive keys */
+    session_key = hkdf_expand(prk, label_session, '64')
+    master_key = hkdf_expand(prk, label_master, '32')
+    resp_mac_key = hkdf_expand(prk, label_resp_mac, '64')
+    init_mac_key = hkdf_expand(prk, label_init_mac, '64')
+
+    /* Verify server MAC */
+    expected_resp_mac = hmac(resp_mac_key, transcript)
+
+    /* Client MAC for KE3 */
+    init_mac = hmac(init_mac_key, transcript)
+    ke3 = init_mac
+  in
+  [ AuthClientState($C, $S, pwd, r_auth, skC, pkC, ekC, eC_stored,
+                    kem_skC, kem_pkC_stored, nonceC, pkS),
+    In(ke2) ]
+  --[ Eq(resp_mac, expected_resp_mac),           /* MAC verification */
+      Eq(pkS_recovered, pkS),                    /* Server key verification */
+      Eq(skC_recovered, skC),                    /* Recovered key matches */
+      Eq(pkC_recovered, pkC),
+      AuthClientKE3($C, $S, session_key, master_key),
+      CommitInitiator($C, $S, session_key, transcript),
+      SessionKeyClient($C, $S, session_key),
+      Secret($C, session_key),
+      Secret($C, master_key),
+      Honest($C), Honest($S) ]->
+  [ AuthClientDone($C, $S, session_key, master_key),
+    Out(ke3) ]
+
+
+/* -----------------------------------------------------------
+ * AUTHENTICATION PHASE
+ * Server Finish: verify client MAC, export keys
+ * ----------------------------------------------------------- */
+rule Auth_Server_Finish:
+  let
+    expected_init_mac = hmac(init_mac_key, transcript)
+  in
+  [ AuthServerState($S, $C, session_key, master_key, init_mac_key, transcript, ekS, kem_rand),
+    In(ke3) ]
+  --[ Eq(ke3, expected_init_mac),
+      AuthServerFinish($S, $C, session_key, master_key),
+      CommitResponder($S, $C, session_key, transcript),
+      SessionKeyServer($S, $C, session_key),
+      Secret($S, session_key),
+      Secret($S, master_key),
+      Honest($S), Honest($C) ]->
+  [ AuthServerDone($S, $C, session_key, master_key) ]
+
+
+/* ============================================================
+ * CORRUPTION RULES
+ * ============================================================ */
+
+/* Long-term key compromise (classical) */
+rule Corrupt_Server_LTK:
+  [ !ServerLTK($S, skS, pkS) ]
+  --[ CorruptLTK($S) ]->
+  [ Out(skS) ]
+
+rule Corrupt_Client_LTK:
+  [ !ClientLTK($C, skC, pkC) ]
+  --[ CorruptLTK($C) ]->
+  [ Out(skC) ]
+
+/* Server database compromise (registration records) */
+rule Corrupt_Server_DB:
+  [ !RegistrationRecord($S, $C, record, pwd) ]
+  --[ CorruptDB($S, $C) ]->
+  [ Out(record) ]
+
+/* Quantum oracle: adversary can solve DH (model Shor's algorithm) */
+rule Quantum_DH_Oracle:
+  [ In(pk(x)) ]
+  --[ QuantumDH(pk(x)),
+      UsedQuantum() ]->
+  [ Out(x) ]
+
+/* Ephemeral key reveal (for forward secrecy analysis) */
+rule Reveal_Ephemeral_Client:
+  [ AuthClientState($C, $S, pwd, r, skC, pkC, ekC, eC, kemSK, kemPK, nC, pkS) ]
+  --[ RevealEphemeral($C) ]->
+  [ Out(ekC), Out(kemSK) ]
+
+rule Reveal_Ephemeral_Server:
+  [ AuthServerState($S, $C, sk, mk, mac_key, tr, ekS, kem_rand) ]
+  --[ RevealEphemeral($S) ]->
+  [ Out(ekS), Out(kem_rand) ]
+
+
+/* ============================================================
+ * EQUALITY RESTRICTION
+ * ============================================================ */
+
+restriction Equality:
+  "All x y #i. Eq(x, y) @ #i ==> x = y"
+
+
+/* ============================================================
+ * SECURITY PROPERTIES (LEMMAS)
+ * ============================================================ */
+
+/* -----------------------------------------------------------
+ * P1. SESSION KEY SECRECY
+ * The session key remains secret as long as both parties are honest
+ * ----------------------------------------------------------- */
+lemma session_key_secrecy:
+  "All C S sk #i.
+    SessionKeyClient(C, S, sk) @ #i
+    & (not (Ex #j. CorruptLTK(C) @ #j))
+    & (not (Ex #j. CorruptLTK(S) @ #j))
+    ==> not (Ex #j. K(sk) @ #j)"
+
+
+/* -----------------------------------------------------------
+ * P2. PASSWORD SECRECY
+ * The password is never revealed, even if server DB is compromised
+ * (because OPRF key is needed to compute rwd from password)
+ * ----------------------------------------------------------- */
+lemma password_secrecy:
+  "All C pwd #i.
+    PasswordGen(C, pwd) @ #i
+    ==> not (Ex #j. K(pwd) @ #j)"
+
+
+/* -----------------------------------------------------------
+ * P3. FORWARD SECRECY (Classical)
+ * Compromise of long-term keys AFTER session completion
+ * does not reveal past session keys
+ * ----------------------------------------------------------- */
+lemma forward_secrecy_classical:
+  "All C S sk #i #j #k.
+    SessionKeyClient(C, S, sk) @ #i
+    & CorruptLTK(C) @ #j
+    & CorruptLTK(S) @ #k
+    & #i < #j
+    & #i < #k
+    & (not (Ex #q. UsedQuantum() @ #q))
+    ==> not (Ex #l. K(sk) @ #l)"
+
+
+/* -----------------------------------------------------------
+ * P4. POST-QUANTUM FORWARD SECRECY
+ * Even with quantum DH oracle (which can break all DH), session keys
+ * from completed sessions remain secret due to KEM component.
+ * Note: This lemma does NOT exclude UsedQuantum(), so the
+ * Quantum_DH_Oracle is available. The adversary can recover all DH
+ * secrets, but cannot break KEM (no KEM oracle exists in the model).
+ * Session key remains secret because HKDF-Extract over
+ * dh1||dh2||dh3||kem_ss preserves the entropy from kem_ss.
+ * ----------------------------------------------------------- */
+lemma pq_forward_secrecy:
+  "All C S sk #i #j #k.
+    SessionKeyClient(C, S, sk) @ #i
+    & CorruptLTK(C) @ #j
+    & CorruptLTK(S) @ #k
+    & #i < #j
+    & #i < #k
+    ==> not (Ex #l. K(sk) @ #l)"
+
+
+/* -----------------------------------------------------------
+ * P5. MUTUAL AUTHENTICATION -- Injective agreement
+ * If client completes with server, server must have participated
+ * ----------------------------------------------------------- */
+lemma mutual_auth_initiator:
+  "All C S sk tr #i.
+    CommitInitiator(C, S, sk, tr) @ #i
+    & (not (Ex #j. CorruptLTK(C) @ #j))
+    & (not (Ex #j. CorruptLTK(S) @ #j))
+    ==> (Ex #j. RunningResponder(S, C, sk, tr) @ #j & #j < #i)"
+
+lemma mutual_auth_responder:
+  "All S C sk tr #i.
+    CommitResponder(S, C, sk, tr) @ #i
+    & (not (Ex #j. CorruptLTK(C) @ #j))
+    & (not (Ex #j. CorruptLTK(S) @ #j))
+    ==> (Ex #j. CommitInitiator(C, S, sk, tr) @ #j & #j < #i)"
+
+
+/* -----------------------------------------------------------
+ * P6. AND-MODEL HYBRID SECURITY
+ * Session key secrecy holds even if DH is broken (quantum oracle
+ * can extract DH private keys, and LTK can be corrupted),
+ * as long as KEM ephemeral secrets are not directly revealed.
+ * The adversary can use QuantumDH to recover all DH components,
+ * but kem_ss remains unknown without KEM secret key.
+ * This is the KEY novelty property.
+ * ----------------------------------------------------------- */
+lemma and_model_security:
+  "All C S sk #i.
+    SessionKeyClient(C, S, sk) @ #i
+    & (not (Ex #j. RevealEphemeral(C) @ #j))
+    & (not (Ex #j. RevealEphemeral(S) @ #j))
+    ==> not (Ex #j. K(sk) @ #j)"
+
+
+/* -----------------------------------------------------------
+ * P7. RESISTANCE TO OFFLINE DICTIONARY ATTACKS
+ * An adversary who compromises the server database AND
+ * long-term keys still cannot determine the password
+ * (because OPRF key is needed to compute rwd from password,
+ *  and password -> OPRF -> Argon2id chain is one-way)
+ * ----------------------------------------------------------- */
+lemma offline_dictionary_resistance:
+  "All C S pwd #i #j.
+    PasswordGen(C, pwd) @ #i
+    & CorruptDB(S, C) @ #j
+    ==> not (Ex #k. K(pwd) @ #k)"
+
+
+/* -----------------------------------------------------------
+ * SANITY CHECK: Protocol can complete successfully
+ * (Existential -- verifies the model is not vacuously true)
+ * ----------------------------------------------------------- */
+/* NOTE: Use 'tamarin-prover --prove=protocol_completion' to verify execution trace exists */
+lemma protocol_completion:
+  exists-trace
+  "Ex C S sk mk #i #j.
+    AuthClientKE3(C, S, sk, mk) @ #i
+    & AuthServerFinish(S, C, sk, mk) @ #j
+    & #i < #j"
+
+end

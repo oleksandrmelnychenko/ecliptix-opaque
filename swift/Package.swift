@@ -1,40 +1,37 @@
 // swift-tools-version: 5.9
-// The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
     name: "EcliptixOPAQUE",
     platforms: [
-        .iOS(.v17),
-        .macOS(.v11)
+        .iOS(.v15),
+        .macOS(.v12)
     ],
     products: [
-        // Swift wrapper library
         .library(
             name: "EcliptixOPAQUE",
             targets: ["EcliptixOPAQUE"]
         )
     ],
     targets: [
-        // Swift wrapper providing a Swift-native API
         .target(
             name: "EcliptixOPAQUE",
             dependencies: ["EcliptixOPAQUEBinary"],
             path: "Sources/EcliptixOPAQUE"
         ),
 
-        // Binary target - XCFramework with all dependencies bundled
-        // For local development, use path:
+        // Binary target — XCFramework built from Rust via cargo-lipo / cargo-xcode
+        // For local development:
         .binaryTarget(
             name: "EcliptixOPAQUEBinary",
             path: "../dist/apple/EcliptixOPAQUE.xcframework"
         )
 
-        // For release distribution via GitHub Releases, use:
+        // For release distribution via GitHub Releases:
         // .binaryTarget(
         //     name: "EcliptixOPAQUEBinary",
-        //     url: "https://github.com/oleksandrmelnychenko/ecliptix-opaque/releases/download/v1.x.x/EcliptixOPAQUE.xcframework.zip",
+        //     url: "https://github.com/oleksandrmelnychenko/ecliptix-opaque/releases/download/vX.Y.Z/EcliptixOPAQUE.xcframework.zip",
         //     checksum: "<SHA256_CHECKSUM>"
         // )
     ]

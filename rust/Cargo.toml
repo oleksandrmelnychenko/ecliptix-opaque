@@ -1,0 +1,36 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/opaque-core",
+    "crates/opaque-agent",
+    "crates/opaque-relay",
+    "crates/opaque-ffi",
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+license = "MIT"
+authors = ["Oleksandr Melnychenko <oleksandrmelnychenko@users.noreply.github.com>"]
+description = "Hybrid PQ-OPAQUE: Post-Quantum Password-Authenticated Key Exchange (3DH Ristretto255 + ML-KEM-768)"
+repository = "https://github.com/oleksandrmelnychenko/ecliptix-opaque"
+
+[workspace.dependencies]
+libsodium-sys-stable = { version = "1.22", features = ["fetch-latest"] }
+ml-kem = "0.2"
+zeroize = { version = "1", features = ["derive"] }
+rand = "0.8"
+rand_core = "0.6"
+thiserror = "2"
+
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1"
+
+opaque-core = { path = "crates/opaque-core" }
+opaque-agent = { path = "crates/opaque-agent" }
+opaque-relay = { path = "crates/opaque-relay" }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = "symbols"

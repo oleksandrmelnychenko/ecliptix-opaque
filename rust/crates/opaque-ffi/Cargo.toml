@@ -1,0 +1,17 @@
+[package]
+name = "opaque-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+opaque-core = { workspace = true }
+opaque-agent = { workspace = true }
+opaque-relay = { workspace = true }
+libsodium-sys-stable = { workspace = true }
+
+[build-dependencies]
+cbindgen = "0.27"

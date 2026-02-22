@@ -2,6 +2,8 @@
 build*/
 cmake-build-*/
 dist/
+dist-newstyle/
+rust/target/
 
 # .NET
 bin/

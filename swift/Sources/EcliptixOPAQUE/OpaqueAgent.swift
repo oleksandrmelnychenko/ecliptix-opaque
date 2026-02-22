@@ -1,31 +1,28 @@
 /**
- OPAQUE Protocol Agent for iOS/macOS
+ OPAQUE Protocol Agent (Client) for iOS/macOS
 
  Provides password-authenticated key exchange (PAKE) with post-quantum security.
- This is the main entry point for using the Ecliptix OPAQUE implementation.
+ Uses Ristretto255 + ML-KEM-768 hybrid key exchange.
 
  ## Usage
 
  ```swift
- // Initialize once at app startup
- try OpaqueAgent.initialize()
-
  // Create an agent with relay's public key
  let agent = try OpaqueAgent(relayPublicKey: relayKey)
 
  // Registration flow
  let state = try agent.createState()
  let request = try agent.createRegistrationRequest(password: password, state: state)
- // Send to relay, receive response
+ // Send request to relay, receive response
  let record = try agent.finalizeRegistration(response: response, state: state)
- // Send to relay for storage
+ // Send record to relay for storage
 
  // Authentication flow
  let authState = try agent.createState()
  let ke1 = try agent.generateKE1(password: password, state: authState)
- // Send to relay, receive ke2
+ // Send ke1 to relay, receive ke2
  let ke3 = try agent.generateKE3(ke2: ke2, state: authState)
- // Send to relay for verification
+ // Send ke3 to relay for verification
  let keys = try agent.finish(state: authState)
  // Use keys.sessionKey and keys.masterKey
  ```
@@ -33,14 +30,39 @@
 
 import Foundation
 
-/// OPAQUE protocol agent for password-authenticated key exchange
-public final class OpaqueAgent {
+/// OPAQUE protocol agent (client) for password-authenticated key exchange
+public final class OpaqueAgent: @unchecked Sendable {
 
     private var handle: OpaquePointer?
     private let lock = NSLock()
 
     /// Create an OPAQUE agent with the relay's public key
-    /// - Parameter relayPublicKey: The relay's public key (32 bytes)
+    // MARK: - Initialization
+
+    private static var isInitialized = false
+    private static let initLock = NSLock()
+
+    /// Initialize the OPAQUE library (libsodium).
+    ///
+    /// Must be called once before creating any `OpaqueAgent` or `OpaqueRelay` instances.
+    /// Safe to call multiple times.
+    public static func initialize() throws {
+        initLock.lock()
+        defer { initLock.unlock() }
+
+        if isInitialized { return }
+
+        let result = opaque_init()
+        guard result >= 0 else {
+            throw OpaqueError.cryptoError("Failed to initialize cryptographic library")
+        }
+
+        isInitialized = true
+    }
+
+    // MARK: - Init
+
+    /// - Parameter relayPublicKey: The relay's Ristretto255 public key (32 bytes)
     /// - Throws: `OpaqueError` if the key is invalid or initialization fails
     public init(relayPublicKey: Data) throws {
         guard Self.isInitialized else {
@@ -85,7 +107,7 @@ public final class OpaqueAgent {
     /// - Parameters:
     ///   - password: The user's password
     ///   - state: Session state from `createState()`
-    /// - Returns: Registration request to send to relay
+    /// - Returns: Registration request bytes to send to relay
     public func createRegistrationRequest(password: Data, state: AgentState) throws -> Data {
         guard let handle = handle else {
             throw OpaqueError.invalidState
@@ -251,37 +273,6 @@ public final class OpaqueAgent {
 
         return AuthenticationKeys(sessionKey: sessionKey, masterKey: masterKey)
     }
-
-    // MARK: - Static Methods
-
-    private static var isInitialized = false
-    private static let initLock = NSLock()
-
-    /// Initialize the OPAQUE library
-    ///
-    /// Must be called once before creating any `OpaqueAgent` instances.
-    /// Safe to call multiple times.
-    public static func initialize() throws {
-        initLock.lock()
-        defer { initLock.unlock() }
-
-        if isInitialized { return }
-
-        // Initialize sodium/crypto
-        guard sodium_init() >= 0 else {
-            throw OpaqueError.cryptoError("Failed to initialize cryptographic library")
-        }
-
-        isInitialized = true
-    }
-
-    /// Get the library version
-    public static var version: String {
-        guard let cString = opaque_agent_get_version() else {
-            return "unknown"
-        }
-        return String(cString: cString)
-    }
 }
 
 // MARK: - Session State
@@ -314,24 +305,17 @@ extension OpaqueAgent {
 
 /// Keys derived from successful OPAQUE authentication
 public struct AuthenticationKeys {
-    /// Session key for this authentication session (64 bytes)
+    /// Session key for this authentication session (64 bytes, HMAC-SHA512)
     public let sessionKey: Data
 
     /// Master key derived from authentication (32 bytes)
     public let masterKey: Data
-
-    /// Securely clear the keys from memory
-    public mutating func clear() {
-        // Note: In Swift, we can't reliably zero Data in place
-        // The best we can do is replace with zeros
-        // For true secure memory, consider using Security framework
-    }
 }
 
 // MARK: - Constants
 
 extension OpaqueAgent {
-    /// Protocol constants
+    /// Protocol constants matching the Rust implementation
     public enum Constants {
         public static let publicKeyLength = 32
         public static let privateKeyLength = 32
@@ -343,5 +327,7 @@ extension OpaqueAgent {
         public static let ke1Length = 1272
         public static let ke2Length = 1376
         public static let ke3Length = 64
+        public static let kemPublicKeyLength = 1184
+        public static let kemCiphertextLength = 1088
     }
 }

@@ -1,0 +1,12 @@
+[package]
+name = "opaque-relay"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+opaque-core = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+opaque-agent = { workspace = true }
