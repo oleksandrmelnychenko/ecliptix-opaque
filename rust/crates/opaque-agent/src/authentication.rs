@@ -118,10 +118,13 @@ pub fn generate_ke3(
     let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];
     let mut dh2 = [0u8; PUBLIC_KEY_LENGTH];
     let mut dh3 = [0u8; PUBLIC_KEY_LENGTH];
+    // 4th DH: init_eph × resp_eph — provides unknown key share (UKS) resistance
+    let mut dh4 = [0u8; PUBLIC_KEY_LENGTH];
 
     crypto::scalar_mult(&recovered_isk, &recovered_rpk, &mut dh1)?;
     crypto::scalar_mult(&state.initiator_ephemeral_private_key, &recovered_rpk, &mut dh2)?;
     crypto::scalar_mult(&recovered_isk, resp_eph_pk, &mut dh3)?;
+    crypto::scalar_mult(&state.initiator_ephemeral_private_key, resp_eph_pk, &mut dh4)?;
 
     let mut kem_ss = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
     pq_kem::decapsulate(
@@ -133,10 +136,11 @@ pub fn generate_ke3(
     state.pq_ephemeral_secret_key.zeroize();
     state.pq_shared_secret = kem_ss.to_vec();
 
-    let mut classical_ikm = [0u8; 3 * PUBLIC_KEY_LENGTH];
+    let mut classical_ikm = [0u8; 4 * PUBLIC_KEY_LENGTH];
     classical_ikm[..PUBLIC_KEY_LENGTH].copy_from_slice(&dh1);
     classical_ikm[PUBLIC_KEY_LENGTH..2 * PUBLIC_KEY_LENGTH].copy_from_slice(&dh2);
-    classical_ikm[2 * PUBLIC_KEY_LENGTH..].copy_from_slice(&dh3);
+    classical_ikm[2 * PUBLIC_KEY_LENGTH..3 * PUBLIC_KEY_LENGTH].copy_from_slice(&dh3);
+    classical_ikm[3 * PUBLIC_KEY_LENGTH..].copy_from_slice(&dh4);
 
     let mac_input_size = 2 * NONCE_LENGTH
         + 4 * PUBLIC_KEY_LENGTH
@@ -198,6 +202,7 @@ pub fn generate_ke3(
     dh1.zeroize();
     dh2.zeroize();
     dh3.zeroize();
+    dh4.zeroize();
     kem_ss.zeroize();
     oprf_output.zeroize();
     randomized_pwd.zeroize();

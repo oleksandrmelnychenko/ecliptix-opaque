@@ -26,7 +26,7 @@ pub fn create_registration_response(
 
     let mut oprf_key = [0u8; PRIVATE_KEY_LENGTH];
     crypto::derive_oprf_key(
-        &responder.keypair().private_key,
+        responder.oprf_seed(),
         account_id,
         &mut oprf_key,
     )?;
@@ -48,6 +48,10 @@ pub fn build_credentials(
     registration_record: &[u8],
     credentials: &mut ResponderCredentials,
 ) -> OpaqueResult<()> {
+    if credentials.registered {
+        return Err(OpaqueError::AlreadyRegistered);
+    }
+
     let view = protocol::parse_registration_record(registration_record)?;
 
     crypto::validate_public_key(view.initiator_public_key)?;
@@ -56,6 +60,7 @@ pub fn build_credentials(
     credentials
         .initiator_public_key
         .copy_from_slice(view.initiator_public_key);
+    credentials.registered = true;
 
     Ok(())
 }

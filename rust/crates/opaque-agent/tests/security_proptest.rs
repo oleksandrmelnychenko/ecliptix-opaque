@@ -215,8 +215,7 @@ proptest! {
 
     #[test]
     fn prop_session_keys_always_match(password in prop::collection::vec(1u8..=255, 1..=128)) {
-        let kp = ResponderKeyPair::generate().unwrap();
-        let responder = OpaqueResponder::new(kp).unwrap();
+        let responder = OpaqueResponder::generate().unwrap();
         let record = register(&password, &responder);
         let (c_sk, c_mk, s_sk, s_mk) = authenticate(&password, &responder, &record).unwrap();
         prop_assert_eq!(&c_sk, &s_sk, "session keys must match");
@@ -231,8 +230,7 @@ proptest! {
         wrong_password in prop::collection::vec(1u8..=255, 1..=64),
     ) {
         prop_assume!(password != wrong_password);
-        let kp = ResponderKeyPair::generate().unwrap();
-        let responder = OpaqueResponder::new(kp).unwrap();
+        let responder = OpaqueResponder::generate().unwrap();
         let record = register(&password, &responder);
         let result = authenticate(&wrong_password, &responder, &record);
         prop_assert!(result.is_err(), "wrong password must fail authentication");
@@ -240,8 +238,7 @@ proptest! {
 
     #[test]
     fn prop_different_sessions_different_keys(password in prop::collection::vec(1u8..=255, 1..=64)) {
-        let kp = ResponderKeyPair::generate().unwrap();
-        let responder = OpaqueResponder::new(kp).unwrap();
+        let responder = OpaqueResponder::generate().unwrap();
         let record = register(&password, &responder);
         let (sk1, _, _, _) = authenticate(&password, &responder, &record).unwrap();
         let (sk2, _, _, _) = authenticate(&password, &responder, &record).unwrap();
@@ -254,8 +251,7 @@ proptest! {
         tamper_xor in 1u8..=255u8,
     ) {
         let password = b"proptest password";
-        let kp = ResponderKeyPair::generate().unwrap();
-        let responder = OpaqueResponder::new(kp).unwrap();
+        let responder = OpaqueResponder::generate().unwrap();
         let record = register(password, &responder);
 
         let result = try_generate_ke3(password, &responder, &record, |ke2_bytes| {
@@ -270,8 +266,7 @@ proptest! {
         tamper_xor in 1u8..=255u8,
     ) {
         let password = b"proptest password";
-        let kp = ResponderKeyPair::generate().unwrap();
-        let responder = OpaqueResponder::new(kp).unwrap();
+        let responder = OpaqueResponder::generate().unwrap();
         let record = register(password, &responder);
 
         let result = try_responder_finish(password, &responder, &record, |ke3_bytes| {

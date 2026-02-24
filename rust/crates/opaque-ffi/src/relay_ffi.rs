@@ -7,8 +7,9 @@ use std::ptr;
 use opaque_core::protocol;
 use opaque_core::types::{
     pq, OpaqueError, OpaqueResult, HASH_LENGTH, KE1_LENGTH, KE2_LENGTH, KE3_LENGTH,
-    MASTER_KEY_LENGTH, PRIVATE_KEY_LENGTH, PUBLIC_KEY_LENGTH, REGISTRATION_RECORD_LENGTH,
-    REGISTRATION_REQUEST_LENGTH, REGISTRATION_RESPONSE_LENGTH, RESPONDER_CREDENTIALS_LENGTH,
+    MASTER_KEY_LENGTH, OPRF_SEED_LENGTH, PRIVATE_KEY_LENGTH, PUBLIC_KEY_LENGTH,
+    REGISTRATION_RECORD_LENGTH, REGISTRATION_REQUEST_LENGTH, REGISTRATION_RESPONSE_LENGTH,
+    RESPONDER_CREDENTIALS_LENGTH,
 };
 use opaque_relay::{
     build_credentials, create_registration_response, generate_ke2, responder_finish,
@@ -26,6 +27,7 @@ struct RelayStateHandle {
 
 struct RelayKeypairHandle {
     keypair: ResponderKeyPair,
+    oprf_seed: [u8; OPRF_SEED_LENGTH],
 }
 
 fn result_to_int(r: OpaqueResult<()>) -> i32 {
@@ -45,7 +47,8 @@ pub unsafe extern "C" fn opaque_relay_keypair_generate(
     let Ok(keypair) = ResponderKeyPair::generate() else {
         return OpaqueError::CryptoError.to_c_int();
     };
-    let boxed = Box::new(RelayKeypairHandle { keypair });
+    let oprf_seed = opaque_core::crypto::random_nonzero_scalar();
+    let boxed = Box::new(RelayKeypairHandle { keypair, oprf_seed });
     *handle = Box::into_raw(boxed) as *mut std::ffi::c_void;
     0
 }
@@ -57,6 +60,23 @@ pub unsafe extern "C" fn opaque_relay_keypair_destroy(handle: *mut std::ffi::c_v
     }
 }
 
+/// Retrieve the OPRF seed generated alongside the keypair.
+/// **Must be persisted to stable storage** along with the private key.
+/// Losing the seed makes all registered accounts unrecoverable.
+#[no_mangle]
+pub unsafe extern "C" fn opaque_relay_keypair_get_oprf_seed(
+    handle: *mut std::ffi::c_void,
+    oprf_seed: *mut u8,
+    seed_buffer_size: usize,
+) -> i32 {
+    if handle.is_null() || oprf_seed.is_null() || seed_buffer_size < OPRF_SEED_LENGTH {
+        return OpaqueError::InvalidInput.to_c_int();
+    }
+    let RelayKeypairHandle { oprf_seed: seed, .. } = &*(handle as *mut RelayKeypairHandle);
+    ptr::copy_nonoverlapping(seed.as_ptr(), oprf_seed, OPRF_SEED_LENGTH);
+    0
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_keypair_get_public_key(
     handle: *mut std::ffi::c_void,
@@ -66,7 +86,7 @@ pub unsafe extern "C" fn opaque_relay_keypair_get_public_key(
     if handle.is_null() || public_key.is_null() || key_buffer_size < PUBLIC_KEY_LENGTH {
         return OpaqueError::InvalidInput.to_c_int();
     }
-    let RelayKeypairHandle { keypair } = &*(handle as *mut RelayKeypairHandle);
+    let RelayKeypairHandle { keypair, .. } = &*(handle as *mut RelayKeypairHandle);
     ptr::copy_nonoverlapping(keypair.public_key.as_ptr(), public_key, PUBLIC_KEY_LENGTH);
     0
 }
@@ -79,8 +99,8 @@ pub unsafe extern "C" fn opaque_relay_create(
     if keypair_handle.is_null() || handle.is_null() {
         return OpaqueError::InvalidInput.to_c_int();
     }
-    let RelayKeypairHandle { keypair } = &*(keypair_handle as *mut RelayKeypairHandle);
-    let Ok(responder) = OpaqueResponder::new(keypair.clone()) else {
+    let RelayKeypairHandle { keypair, oprf_seed } = &*(keypair_handle as *mut RelayKeypairHandle);
+    let Ok(responder) = OpaqueResponder::new(keypair.clone(), *oprf_seed) else {
         return OpaqueError::InvalidInput.to_c_int();
     };
     let boxed = Box::new(RelayHandle { responder });
@@ -287,12 +307,16 @@ pub unsafe extern "C" fn opaque_relay_create_with_keys(
     private_key_len: usize,
     public_key: *const u8,
     public_key_len: usize,
+    oprf_seed_ptr: *const u8,
+    oprf_seed_len: usize,
     handle: *mut *mut std::ffi::c_void,
 ) -> i32 {
     if private_key.is_null()
         || private_key_len != PRIVATE_KEY_LENGTH
         || public_key.is_null()
         || public_key_len != PUBLIC_KEY_LENGTH
+        || oprf_seed_ptr.is_null()
+        || oprf_seed_len != OPRF_SEED_LENGTH
         || handle.is_null()
     {
         return OpaqueError::InvalidInput.to_c_int();
@@ -300,11 +324,14 @@ pub unsafe extern "C" fn opaque_relay_create_with_keys(
 
     let sk = std::slice::from_raw_parts(private_key, private_key_len);
     let pk = std::slice::from_raw_parts(public_key, public_key_len);
+    let seed_slice = std::slice::from_raw_parts(oprf_seed_ptr, OPRF_SEED_LENGTH);
+    let mut oprf_seed = [0u8; OPRF_SEED_LENGTH];
+    oprf_seed.copy_from_slice(seed_slice);
 
     let Ok(keypair) = ResponderKeyPair::from_keys(sk, pk) else {
         return OpaqueError::InvalidInput.to_c_int();
     };
-    let Ok(responder) = OpaqueResponder::new(keypair) else {
+    let Ok(responder) = OpaqueResponder::new(keypair, oprf_seed) else {
         return OpaqueError::InvalidInput.to_c_int();
     };
     let boxed = Box::new(RelayHandle { responder });
@@ -330,4 +357,9 @@ pub extern "C" fn opaque_relay_get_credentials_length() -> usize {
 #[no_mangle]
 pub extern "C" fn opaque_relay_get_kem_ciphertext_length() -> usize {
     pq::KEM_CIPHERTEXT_LENGTH
+}
+
+#[no_mangle]
+pub extern "C" fn opaque_relay_get_oprf_seed_length() -> usize {
+    OPRF_SEED_LENGTH
 }

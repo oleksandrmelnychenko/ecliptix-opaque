@@ -12,8 +12,7 @@ const ACCOUNT_ID: &[u8] = b"bench@example.com";
 const PASSWORD: &[u8] = b"benchmark password for protocol";
 
 fn setup_registered() -> (OpaqueResponder, Vec<u8>) {
-    let kp = ResponderKeyPair::generate().unwrap();
-    let responder = OpaqueResponder::new(kp).unwrap();
+    let responder = OpaqueResponder::generate().unwrap();
 
     let initiator = OpaqueInitiator::new(responder.public_key()).unwrap();
     let mut state = InitiatorState::new();
@@ -50,8 +49,7 @@ fn bench_registration_request(c: &mut Criterion) {
 }
 
 fn bench_registration_response(c: &mut Criterion) {
-    let kp = ResponderKeyPair::generate().unwrap();
-    let responder = OpaqueResponder::new(kp).unwrap();
+    let responder = OpaqueResponder::generate().unwrap();
 
     let mut state = InitiatorState::new();
     let mut req = RegistrationRequest::new();
@@ -68,8 +66,7 @@ fn bench_registration_response(c: &mut Criterion) {
 }
 
 fn bench_registration_finalize(c: &mut Criterion) {
-    let kp = ResponderKeyPair::generate().unwrap();
-    let responder = OpaqueResponder::new(kp).unwrap();
+    let responder = OpaqueResponder::generate().unwrap();
     let initiator = OpaqueInitiator::new(responder.public_key()).unwrap();
 
     let mut state = InitiatorState::new();

@@ -111,8 +111,7 @@ fn authenticate(
 fn full_registration_and_authentication() {
     let password = b"correct horse battery staple";
 
-    let kp = ResponderKeyPair::generate().unwrap();
-    let responder = OpaqueResponder::new(kp).unwrap();
+    let responder = OpaqueResponder::generate().unwrap();
 
     let record_bytes = register(password, &responder);
     assert_eq!(record_bytes.len(), REGISTRATION_RECORD_LENGTH);
@@ -133,8 +132,7 @@ fn wrong_password_fails_authentication() {
     let password = b"correct horse battery staple";
     let wrong_password = b"wrong password";
 
-    let kp = ResponderKeyPair::generate().unwrap();
-    let responder = OpaqueResponder::new(kp).unwrap();
+    let responder = OpaqueResponder::generate().unwrap();
 
     let record_bytes = register(password, &responder);
 
@@ -192,8 +190,7 @@ fn wrong_password_fails_authentication() {
 fn multiple_registrations_produce_different_records() {
     let password = b"test password";
 
-    let kp = ResponderKeyPair::generate().unwrap();
-    let responder = OpaqueResponder::new(kp).unwrap();
+    let responder = OpaqueResponder::generate().unwrap();
 
     let record1 = register(password, &responder);
     let record2 = register(password, &responder);
@@ -208,8 +205,7 @@ fn multiple_registrations_produce_different_records() {
 fn different_sessions_produce_different_keys() {
     let password = b"test password";
 
-    let kp = ResponderKeyPair::generate().unwrap();
-    let responder = OpaqueResponder::new(kp).unwrap();
+    let responder = OpaqueResponder::generate().unwrap();
 
     let record = register(password, &responder);
 
@@ -224,8 +220,7 @@ fn different_sessions_produce_different_keys() {
 fn tampered_ke2_fails_authentication() {
     let password = b"test password";
 
-    let kp = ResponderKeyPair::generate().unwrap();
-    let responder = OpaqueResponder::new(kp).unwrap();
+    let responder = OpaqueResponder::generate().unwrap();
     let record = register(password, &responder);
 
     let initiator = OpaqueInitiator::new(responder.public_key()).unwrap();

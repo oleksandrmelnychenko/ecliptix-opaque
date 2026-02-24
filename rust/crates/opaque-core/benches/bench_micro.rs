@@ -232,7 +232,7 @@ fn bench_argon2id(c: &mut Criterion) {
 }
 
 fn bench_pq_combiner(c: &mut Criterion) {
-    let classical_ikm = [0x42u8; 96];
+    let classical_ikm = [0x42u8; 128]; // 4DH × 32B
     let pq_ss = [0x43u8; pq::KEM_SHARED_SECRET_LENGTH];
     let transcript_hash = [0x44u8; HASH_LENGTH];
 

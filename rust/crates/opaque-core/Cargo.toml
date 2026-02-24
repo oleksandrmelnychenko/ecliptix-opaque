@@ -19,3 +19,7 @@ criterion = { workspace = true }
 [[bench]]
 name = "bench_micro"
 harness = false
+
+[[bench]]
+name = "bench_pq_overhead"
+harness = false

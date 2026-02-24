@@ -34,8 +34,23 @@ fn responder_keypair_from_keys_wrong_length_fails() {
 #[test]
 fn opaque_responder_new_validates_key() {
     let kp = ResponderKeyPair::generate().unwrap();
-    let responder = OpaqueResponder::new(kp.clone()).unwrap();
+    let seed = [42u8; OPRF_SEED_LENGTH];
+    let responder = OpaqueResponder::new(kp.clone(), seed).unwrap();
     assert_eq!(responder.public_key(), &kp.public_key);
+}
+
+#[test]
+fn opaque_responder_new_rejects_zero_seed() {
+    let kp = ResponderKeyPair::generate().unwrap();
+    let zero_seed = [0u8; OPRF_SEED_LENGTH];
+    assert!(OpaqueResponder::new(kp, zero_seed).is_err());
+}
+
+#[test]
+fn opaque_responder_generate_produces_valid_responder() {
+    let responder = OpaqueResponder::generate().unwrap();
+    crypto::validate_public_key(responder.public_key()).unwrap();
+    assert!(!responder.oprf_seed().iter().all(|&b| b == 0));
 }
 
 #[test]
@@ -51,6 +66,7 @@ fn responder_credentials_new_default() {
     let creds = ResponderCredentials::new();
     assert_eq!(creds.envelope.len(), ENVELOPE_LENGTH);
     assert_eq!(creds.initiator_public_key, [0u8; PUBLIC_KEY_LENGTH]);
+    assert!(!creds.registered);
 }
 
 #[test]
@@ -77,9 +93,16 @@ fn build_credentials_invalid_record_fails() {
 }
 
 #[test]
+fn build_credentials_already_registered_fails() {
+    let mut creds = ResponderCredentials::new();
+    creds.registered = true;
+    let record = vec![0u8; REGISTRATION_RECORD_LENGTH];
+    assert!(build_credentials(&record, &mut creds).is_err());
+}
+
+#[test]
 fn create_registration_response_invalid_request_length_fails() {
-    let kp = ResponderKeyPair::generate().unwrap();
-    let responder = OpaqueResponder::new(kp).unwrap();
+    let responder = OpaqueResponder::generate().unwrap();
     let mut resp = RegistrationResponse::new();
 
     let bad_req = [0u8; 64];
@@ -88,8 +111,7 @@ fn create_registration_response_invalid_request_length_fails() {
 
 #[test]
 fn create_registration_response_empty_account_fails() {
-    let kp = ResponderKeyPair::generate().unwrap();
-    let responder = OpaqueResponder::new(kp).unwrap();
+    let responder = OpaqueResponder::generate().unwrap();
     let mut resp = RegistrationResponse::new();
 
     let scalar = crypto::random_nonzero_scalar();

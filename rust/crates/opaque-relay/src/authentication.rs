@@ -53,7 +53,7 @@ pub fn generate_ke2(
     ke2.responder_public_key = state.responder_ephemeral_public_key;
 
     let mut oprf_key = [0u8; PRIVATE_KEY_LENGTH];
-    crypto::derive_oprf_key(&kp.private_key, account_id, &mut oprf_key)?;
+    crypto::derive_oprf_key(responder.oprf_seed(), account_id, &mut oprf_key)?;
 
     let cred_req: &[u8; PUBLIC_KEY_LENGTH] = ke1.credential_request
         .try_into().map_err(|_| OpaqueError::InvalidInput)?;
@@ -67,19 +67,23 @@ pub fn generate_ke2(
     let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];
     let mut dh2 = [0u8; PUBLIC_KEY_LENGTH];
     let mut dh3 = [0u8; PUBLIC_KEY_LENGTH];
+    // 4th DH: resp_eph × init_eph — provides unknown key share (UKS) resistance
+    let mut dh4 = [0u8; PUBLIC_KEY_LENGTH];
 
     crypto::scalar_mult(&kp.private_key, init_static_pk, &mut dh1)?;
     crypto::scalar_mult(&kp.private_key, init_eph_pk, &mut dh2)?;
     crypto::scalar_mult(&state.responder_ephemeral_private_key, init_static_pk, &mut dh3)?;
+    crypto::scalar_mult(&state.responder_ephemeral_private_key, init_eph_pk, &mut dh4)?;
 
     let mut kem_ss = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
     pq_kem::encapsulate(ke1.pq_ephemeral_public_key, &mut ke2.kem_ciphertext, &mut kem_ss)?;
     state.pq_shared_secret = kem_ss.to_vec();
 
-    let mut classical_ikm = [0u8; 3 * PUBLIC_KEY_LENGTH];
+    let mut classical_ikm = [0u8; 4 * PUBLIC_KEY_LENGTH];
     classical_ikm[..PUBLIC_KEY_LENGTH].copy_from_slice(&dh1);
     classical_ikm[PUBLIC_KEY_LENGTH..2 * PUBLIC_KEY_LENGTH].copy_from_slice(&dh2);
-    classical_ikm[2 * PUBLIC_KEY_LENGTH..].copy_from_slice(&dh3);
+    classical_ikm[2 * PUBLIC_KEY_LENGTH..3 * PUBLIC_KEY_LENGTH].copy_from_slice(&dh3);
+    classical_ikm[3 * PUBLIC_KEY_LENGTH..].copy_from_slice(&dh4);
 
     let mac_input_size = 2 * NONCE_LENGTH
         + 4 * PUBLIC_KEY_LENGTH
@@ -129,6 +133,7 @@ pub fn generate_ke2(
     dh1.zeroize();
     dh2.zeroize();
     dh3.zeroize();
+    dh4.zeroize();
     kem_ss.zeroize();
     resp_mac_key.zeroize();
     init_mac_key.zeroize();

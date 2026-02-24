@@ -223,6 +223,7 @@ fn adversary_derive_session_key(
     dh1: &[u8; PUBLIC_KEY_LENGTH],
     dh2: &[u8; PUBLIC_KEY_LENGTH],
     dh3: &[u8; PUBLIC_KEY_LENGTH],
+    dh4: &[u8; PUBLIC_KEY_LENGTH],
     kem_ss: &[u8],
     session: &InterceptedSession,
 ) -> Vec<u8> {
@@ -250,10 +251,11 @@ fn adversary_derive_session_key(
     let mut transcript_hash = [0u8; HASH_LENGTH];
     crypto::sha512_multi(&[labels::TRANSCRIPT_CONTEXT, &mac_input], &mut transcript_hash);
 
-    let mut classical_ikm = [0u8; 3 * PUBLIC_KEY_LENGTH];
+    let mut classical_ikm = [0u8; 4 * PUBLIC_KEY_LENGTH];
     classical_ikm[..PUBLIC_KEY_LENGTH].copy_from_slice(dh1);
     classical_ikm[PUBLIC_KEY_LENGTH..2 * PUBLIC_KEY_LENGTH].copy_from_slice(dh2);
-    classical_ikm[2 * PUBLIC_KEY_LENGTH..].copy_from_slice(dh3);
+    classical_ikm[2 * PUBLIC_KEY_LENGTH..3 * PUBLIC_KEY_LENGTH].copy_from_slice(dh3);
+    classical_ikm[3 * PUBLIC_KEY_LENGTH..].copy_from_slice(dh4);
 
     let mut prk = [0u8; HASH_LENGTH];
     pq_kem::combine_key_material(&classical_ikm, kem_ss, &transcript_hash, &mut prk).unwrap();
@@ -266,8 +268,7 @@ fn adversary_derive_session_key(
 }
 
 fn setup() -> (OpaqueResponder, Vec<u8>) {
-    let kp = ResponderKeyPair::generate().unwrap();
-    let responder = OpaqueResponder::new(kp).unwrap();
+    let responder = OpaqueResponder::generate().unwrap();
     let record = register(PASSWORD, &responder);
     (responder, record)
 }
@@ -295,7 +296,7 @@ mod p1_session_key_secrecy {
         let zero_dh = [0u8; PUBLIC_KEY_LENGTH];
         let zero_kem = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
         let derived = adversary_derive_session_key(
-            &zero_dh, &zero_dh, &zero_dh, &zero_kem, &session,
+            &zero_dh, &zero_dh, &zero_dh, &zero_dh, &zero_kem, &session,
         );
         assert_ne!(derived, session.client_session_key);
     }
@@ -332,8 +333,7 @@ mod p2_password_secrecy {
 
     #[test]
     fn password_not_in_registration_messages() {
-        let kp = ResponderKeyPair::generate().unwrap();
-        let responder = OpaqueResponder::new(kp).unwrap();
+        let responder = OpaqueResponder::generate().unwrap();
         let initiator = OpaqueInitiator::new(responder.public_key()).unwrap();
 
         let mut state = InitiatorState::new();
@@ -428,8 +428,7 @@ mod p2_password_secrecy {
 
     #[test]
     fn record_reveals_no_password_material() {
-        let kp = ResponderKeyPair::generate().unwrap();
-        let responder = OpaqueResponder::new(kp).unwrap();
+        let responder = OpaqueResponder::generate().unwrap();
 
         let passwords: Vec<&[u8]> = vec![
             b"alpha", b"bravo", b"charlie", b"delta", b"echo",
@@ -471,10 +470,11 @@ mod p3_classical_forward_secrecy {
         crypto::scalar_mult(server_sk, client_eph_pk, &mut dh2).unwrap();
 
         let fake_dh3 = [0u8; PUBLIC_KEY_LENGTH];
+        let fake_dh4 = [0u8; PUBLIC_KEY_LENGTH];
         let fake_kem_ss = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
 
         let derived = adversary_derive_session_key(
-            &dh1, &dh2, &fake_dh3, &fake_kem_ss, &session,
+            &dh1, &dh2, &fake_dh3, &fake_dh4, &fake_kem_ss, &session,
         );
         assert_ne!(derived, session.client_session_key);
     }
@@ -493,11 +493,13 @@ mod p3_classical_forward_secrecy {
         let mut dh3 = [0u8; PUBLIC_KEY_LENGTH];
         crypto::scalar_mult(client_sk, &session.server_ephemeral_pk, &mut dh3).unwrap();
 
+        // With 4DH, even with both static LTKs, adversary lacks ephemeral secret keys for dh4
         let fake_dh2 = [0u8; PUBLIC_KEY_LENGTH];
+        let fake_dh4 = [0u8; PUBLIC_KEY_LENGTH];
         let fake_kem_ss = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
 
         let derived = adversary_derive_session_key(
-            &dh1, &fake_dh2, &dh3, &fake_kem_ss, &session,
+            &dh1, &fake_dh2, &dh3, &fake_dh4, &fake_kem_ss, &session,
         );
         assert_ne!(derived, session.client_session_key);
 
@@ -505,7 +507,7 @@ mod p3_classical_forward_secrecy {
         crypto::scalar_mult(server_sk, &session.client_ephemeral_pk, &mut dh2_server).unwrap();
         let fake_dh3 = [0u8; PUBLIC_KEY_LENGTH];
         let derived2 = adversary_derive_session_key(
-            &dh1, &dh2_server, &fake_dh3, &fake_kem_ss, &session,
+            &dh1, &dh2_server, &fake_dh3, &fake_dh4, &fake_kem_ss, &session,
         );
         assert_ne!(derived2, session.client_session_key);
     }
@@ -556,10 +558,18 @@ mod p4_pq_forward_secrecy {
             &mut dh3,
         )
         .unwrap();
+        // dh4 = init_eph × resp_eph (adversary has client_eph_sk + server_eph_pk from transcript)
+        let mut dh4 = [0u8; PUBLIC_KEY_LENGTH];
+        crypto::scalar_mult(
+            &session.client_ephemeral_sk,
+            &session.server_ephemeral_pk,
+            &mut dh4,
+        )
+        .unwrap();
 
         let fake_kem_ss = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
         let derived = adversary_derive_session_key(
-            &dh1, &dh2, &dh3, &fake_kem_ss, &session,
+            &dh1, &dh2, &dh3, &dh4, &fake_kem_ss, &session,
         );
         assert_ne!(
             derived, session.client_session_key,
@@ -569,7 +579,7 @@ mod p4_pq_forward_secrecy {
         let mut random_kem = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
         crypto::random_bytes(&mut random_kem).unwrap();
         let derived2 = adversary_derive_session_key(
-            &dh1, &dh2, &dh3, &random_kem, &session,
+            &dh1, &dh2, &dh3, &dh4, &random_kem, &session,
         );
         assert_ne!(derived2, session.client_session_key);
     }
@@ -622,12 +632,20 @@ mod p4_pq_forward_secrecy {
             &mut dh3,
         )
         .unwrap();
+        // dh4 = resp_eph × init_eph (adversary has server_eph_sk + client_eph_pk from transcript)
+        let mut dh4 = [0u8; PUBLIC_KEY_LENGTH];
+        crypto::scalar_mult(
+            &session.server_ephemeral_sk,
+            &session.client_ephemeral_pk,
+            &mut dh4,
+        )
+        .unwrap();
 
         let mut bad_kem_ss = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
         crypto::random_bytes(&mut bad_kem_ss).unwrap();
 
         let derived = adversary_derive_session_key(
-            &dh1, &dh2, &dh3, &bad_kem_ss, &session,
+            &dh1, &dh2, &dh3, &dh4, &bad_kem_ss, &session,
         );
         assert_ne!(
             derived, session.client_session_key,
@@ -641,12 +659,10 @@ mod p5_mutual_authentication {
 
     #[test]
     fn client_rejects_forged_ke2_wrong_server() {
-        let kp_a = ResponderKeyPair::generate().unwrap();
-        let server_a = OpaqueResponder::new(kp_a).unwrap();
+        let server_a = OpaqueResponder::generate().unwrap();
         let record = register(PASSWORD, &server_a);
 
-        let kp_b = ResponderKeyPair::generate().unwrap();
-        let server_b = OpaqueResponder::new(kp_b).unwrap();
+        let server_b = OpaqueResponder::generate().unwrap();
 
         let initiator = OpaqueInitiator::new(server_a.public_key()).unwrap();
         let mut client_state = InitiatorState::new();
@@ -1009,9 +1025,11 @@ mod p6_and_model_hybrid_security {
         crypto::scalar_mult(&session.client_static_sk, &session.server_static_pk, &mut dh1).unwrap();
         crypto::scalar_mult(&session.client_ephemeral_sk, &session.server_static_pk, &mut dh2).unwrap();
         crypto::scalar_mult(&session.client_static_sk, &session.server_ephemeral_pk, &mut dh3).unwrap();
+        let mut dh4 = [0u8; PUBLIC_KEY_LENGTH];
+        crypto::scalar_mult(&session.client_ephemeral_sk, &session.server_ephemeral_pk, &mut dh4).unwrap();
 
         let wrong_kem = [0u8; pq::KEM_SHARED_SECRET_LENGTH];
-        let derived = adversary_derive_session_key(&dh1, &dh2, &dh3, &wrong_kem, &session);
+        let derived = adversary_derive_session_key(&dh1, &dh2, &dh3, &dh4, &wrong_kem, &session);
         assert_ne!(derived, session.client_session_key, "DH-only break insufficient");
     }
 
@@ -1022,7 +1040,7 @@ mod p6_and_model_hybrid_security {
 
         let wrong_dh = [0u8; PUBLIC_KEY_LENGTH];
         let derived = adversary_derive_session_key(
-            &wrong_dh, &wrong_dh, &wrong_dh, &session.client_kem_ss, &session,
+            &wrong_dh, &wrong_dh, &wrong_dh, &wrong_dh, &session.client_kem_ss, &session,
         );
         assert_ne!(derived, session.client_session_key, "KEM-only break insufficient");
     }
@@ -1038,13 +1056,16 @@ mod p6_and_model_hybrid_security {
         crypto::scalar_mult(&session.client_static_sk, &session.server_static_pk, &mut dh1).unwrap();
         crypto::scalar_mult(&session.client_ephemeral_sk, &session.server_static_pk, &mut dh2).unwrap();
         crypto::scalar_mult(&session.client_static_sk, &session.server_ephemeral_pk, &mut dh3).unwrap();
+        // 4DH: dh4 requires BOTH ephemeral secrets — confirms AND-model requires all 4
+        let mut dh4_both = [0u8; PUBLIC_KEY_LENGTH];
+        crypto::scalar_mult(&session.client_ephemeral_sk, &session.server_ephemeral_pk, &mut dh4_both).unwrap();
 
         let derived = adversary_derive_session_key(
-            &dh1, &dh2, &dh3, &session.client_kem_ss, &session,
+            &dh1, &dh2, &dh3, &dh4_both, &session.client_kem_ss, &session,
         );
         assert_eq!(
             derived, session.client_session_key,
-            "with ALL secrets, adversary must recover session key (positive control)"
+            "with ALL secrets (4DH + KEM), adversary must recover session key (positive control)"
         );
     }
 
@@ -1059,8 +1080,9 @@ mod p6_and_model_hybrid_security {
         crypto::scalar_mult(&session.client_static_sk, &session.server_ephemeral_pk, &mut dh3).unwrap();
 
         let wrong_dh2 = [0u8; PUBLIC_KEY_LENGTH];
+        let wrong_dh4 = [0u8; PUBLIC_KEY_LENGTH];
         let derived = adversary_derive_session_key(
-            &dh1, &wrong_dh2, &dh3, &session.client_kem_ss, &session,
+            &dh1, &wrong_dh2, &dh3, &wrong_dh4, &session.client_kem_ss, &session,
         );
         assert_ne!(
             derived, session.client_session_key,
@@ -1095,8 +1117,7 @@ mod p7_offline_dictionary_resistance {
 
     #[test]
     fn correct_password_opens_envelope() {
-        let kp = ResponderKeyPair::generate().unwrap();
-        let responder = OpaqueResponder::new(kp).unwrap();
+        let responder = OpaqueResponder::generate().unwrap();
         let record = register(PASSWORD, &responder);
 
         let (c_sk, _, s_sk, _) = authenticate(PASSWORD, &responder, &record);
@@ -1178,8 +1199,7 @@ mod p7_offline_dictionary_resistance {
 
     #[test]
     fn different_passwords_different_envelopes() {
-        let kp = ResponderKeyPair::generate().unwrap();
-        let responder = OpaqueResponder::new(kp).unwrap();
+        let responder = OpaqueResponder::generate().unwrap();
 
         let record1 = register(b"password_alpha", &responder);
         let record2 = register(b"password_beta", &responder);
@@ -1188,8 +1208,7 @@ mod p7_offline_dictionary_resistance {
 
     #[test]
     fn record_uncorrelated_with_password() {
-        let kp = ResponderKeyPair::generate().unwrap();
-        let responder = OpaqueResponder::new(kp).unwrap();
+        let responder = OpaqueResponder::generate().unwrap();
 
         let passwords: &[&[u8]] = &[
             b"aaa", b"bbb", b"ccc", b"ddd", b"eee",

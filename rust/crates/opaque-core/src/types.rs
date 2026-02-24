@@ -32,7 +32,7 @@ pub mod pq {
     pub const KEM_SECRET_KEY_LENGTH: usize = 2400;
     pub const KEM_CIPHERTEXT_LENGTH: usize = 1088;
     pub const KEM_SHARED_SECRET_LENGTH: usize = 32;
-    pub const COMBINED_IKM_LENGTH: usize = 96 + KEM_SHARED_SECRET_LENGTH;
+    pub const COMBINED_IKM_LENGTH: usize = 128 + KEM_SHARED_SECRET_LENGTH;
 }
 
 pub const KE1_LENGTH: usize = KE1_BASE_LENGTH + pq::KEM_PUBLIC_KEY_LENGTH;
@@ -91,6 +91,8 @@ pub enum OpaqueError {
     AuthenticationError,
     #[error("invalid public key")]
     InvalidPublicKey,
+    #[error("account already registered")]
+    AlreadyRegistered,
 }
 
 impl OpaqueError {
@@ -102,6 +104,7 @@ impl OpaqueError {
             OpaqueError::ValidationError => -4,
             OpaqueError::AuthenticationError => -5,
             OpaqueError::InvalidPublicKey => -6,
+            OpaqueError::AlreadyRegistered => -7,
         }
     }
 }

@@ -88,7 +88,7 @@ pub fn combine_key_material(
     transcript_hash: &[u8],
     prk: &mut [u8; HASH_LENGTH],
 ) -> OpaqueResult<()> {
-    if classical_ikm.len() != 96
+    if classical_ikm.len() != 128
         || pq_shared_secret.len() != pq::KEM_SHARED_SECRET_LENGTH
         || transcript_hash.len() != HASH_LENGTH
     {

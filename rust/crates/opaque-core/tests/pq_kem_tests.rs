@@ -76,7 +76,7 @@ fn wrong_secret_key_different_shared_secret() {
 
 #[test]
 fn combine_key_material_produces_nonzero_prk() {
-    let classical_ikm = [0x42u8; 96];
+    let classical_ikm = [0x42u8; 128];
     let pq_ss = [0x43u8; pq::KEM_SHARED_SECRET_LENGTH];
     let transcript_hash = [0x44u8; HASH_LENGTH];
 
@@ -87,7 +87,7 @@ fn combine_key_material_produces_nonzero_prk() {
 
 #[test]
 fn combine_key_material_deterministic() {
-    let classical_ikm = [0x42u8; 96];
+    let classical_ikm = [0x42u8; 128];
     let pq_ss = [0x43u8; pq::KEM_SHARED_SECRET_LENGTH];
     let transcript_hash = [0x44u8; HASH_LENGTH];
 
