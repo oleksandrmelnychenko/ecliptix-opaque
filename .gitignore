@@ -3,8 +3,15 @@ rust/target/
 
 # Build
 build*/
+cmake-build-*/
 dist/
 dist-newstyle/
+
+# Dependencies (C++ era)
+.deps/
+
+# Swift
+swift/.build/
 
 # IDE
 .idea/

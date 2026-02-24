@@ -1,0 +1,371 @@
+(* ============================================================================
+   Ecliptix Hybrid PQ-OPAQUE — CryptoVerif Computational Security Model
+   Copyright (c) 2026 Oleksandr Melnychenko, Ukraine
+
+   This file specifies the COMPUTATIONAL security model for the PQ-OPAQUE
+   protocol using CryptoVerif (Bruno Blanchet, INRIA/ENS).
+
+   CryptoVerif proves security in the RANDOM ORACLE MODEL + STANDARD MODEL
+   for symmetric primitives, which corresponds to game-based security as
+   used in UC proofs for the (F_OPRF, F_KEM, F_MAC, F_HASH) hybrid model.
+
+   PROOF SCOPE:
+   - Session key secrecy (IND-based, not symbolic)
+   - Mutual authentication (injective agreement)
+   - Forward secrecy under (DH × PQ-KEM) AND-model
+   - Password secrecy against honest server
+
+   ASSUMPTIONS (stated explicitly for peer review):
+   1. DDH hardness in Ristretto255 group (used in OPRF and 4DH)
+   2. IND-CCA2 security of ML-KEM-768
+   3. PRF security of HMAC-SHA512 (used in HKDF)
+   4. PRF security of HKDF (used for key derivation)
+   5. Argon2id modeled as a random oracle (KSF)
+   6. Ristretto255 cofactor-cleared encoding is correct
+
+   NOTE: This model uses abstract group/KEM functions. The reduction from
+   concrete Ristretto255 to abstract group DH is stated as an assumption
+   (standard practice; see Bernstein et al., 2021). A full UC proof
+   (Canetti 2001) would require constructing an explicit simulator S and
+   showing the real/ideal indistinguishability; this is left as future work
+   (cf. Xu 2024 for the classical OPAQUE UC proof, which this work extends).
+
+   Tool: CryptoVerif 2.x — https://cryptoverif.inria.fr/
+   Usage: cryptoverif hybrid_pq_opaque_uc.ocv
+   ============================================================================ *)
+
+
+(* ─────────────────────────────────────────────────────────────────────────── *)
+(*  1. CHANNEL DECLARATIONS                                                    *)
+(* ─────────────────────────────────────────────────────────────────────────── *)
+
+channel c_net.           (* public network: attacker can read/write *)
+channel c_reg_req.       (* internal: registration request          *)
+channel c_reg_resp.      (* internal: registration response         *)
+channel c_ke1.           (* internal: KE1 message                   *)
+channel c_ke2.           (* internal: KE2 message                   *)
+channel c_ke3.           (* internal: KE3 message                   *)
+channel c_session_key.   (* oracle channel: session key output       *)
+
+
+(* ─────────────────────────────────────────────────────────────────────────── *)
+(*  2. TYPE DECLARATIONS                                                       *)
+(* ─────────────────────────────────────────────────────────────────────────── *)
+
+type scalar_t [large, fixed].   (* Ristretto255 scalar — 32 bytes   *)
+type point_t  [large, fixed].   (* Ristretto255 point  — 32 bytes   *)
+type kemPK_t  [large, fixed].   (* ML-KEM-768 encapsulation key     *)
+type kemSK_t  [large, fixed].   (* ML-KEM-768 decapsulation key     *)
+type kemCT_t  [large, fixed].   (* ML-KEM-768 ciphertext            *)
+type kemSS_t  [large, fixed].   (* ML-KEM-768 shared secret         *)
+type key_t    [large, fixed].   (* HKDF output / session key        *)
+type mac_t    [large, fixed].   (* HMAC-SHA512 output               *)
+type hash_t   [large, fixed].   (* SHA-512 output                   *)
+type nonce_t  [large, fixed].   (* 192-bit nonce                    *)
+type passwd_t [large].          (* password (variable length)        *)
+
+
+(* ─────────────────────────────────────────────────────────────────────────── *)
+(*  3. PRIMITIVE DECLARATIONS                                                  *)
+(* ─────────────────────────────────────────────────────────────────────────── *)
+
+(* --- Ristretto255 group operations --- *)
+
+(* Group scalar multiplication: point × scalar → point *)
+fun scalarmult(point_t, scalar_t): point_t.
+
+(* Base point multiplication *)
+const G: point_t.
+fun scalarmult_base(scalar_t): point_t
+reduc forall s: scalar_t; scalarmult_base(s) = scalarmult(G, s).
+
+(* DDH assumption: given (G, gA, gB, gAB), computationally indistinguishable
+   from (G, gA, gB, gR) for uniform gR *)
+proba P_DDH.
+equiv(ddh(scalarmult))
+    foreach i <= N do
+        a <-R scalar_t; b <-R scalar_t;
+        (O_A() := return(scalarmult_base(a)),
+         O_B() := return(scalarmult_base(b)),
+         O_DH() := return(scalarmult(scalarmult_base(b), a)))
+    <=(P_DDH(N))=>
+    foreach i <= N do
+        a <-R scalar_t; b <-R scalar_t; r <-R point_t;
+        (O_A() := return(scalarmult_base(a)),
+         O_B() := return(scalarmult_base(b)),
+         O_DH() := return(r)).
+
+
+(* --- ML-KEM-768 (IND-CCA2) --- *)
+
+fun kem_keygen_pk(kemSK_t): kemPK_t.
+
+(* Encapsulate: returns (ciphertext, shared_secret) *)
+fun kem_encap(kemPK_t): (kemCT_t, kemSS_t).
+
+(* Decapsulate: deterministic *)
+fun kem_decap(kemSK_t, kemCT_t): kemSS_t.
+
+(* Correctness: decap(sk, ct) = ss where (ct, ss) = encap(pk(sk)) *)
+equation forall sk: kemSK_t;
+    let (ct, ss) = kem_encap(kem_keygen_pk(sk)) in
+    kem_decap(sk, ct) = ss.
+
+(* IND-CCA2: ciphertext reveals nothing about shared secret *)
+proba P_KEM_CCA.
+equiv(ind_cca2(kem_encap))
+    foreach i <= N do
+        sk <-R kemSK_t;
+        (O_PK() := return(kem_keygen_pk(sk)),
+         O_Enc() := let (ct, ss) = kem_encap(kem_keygen_pk(sk)) in return(ct, ss),
+         O_Dec(ct': kemCT_t) := return(kem_decap(sk, ct')))
+    <=(P_KEM_CCA(N))=>
+    foreach i <= N do
+        sk <-R kemSK_t;
+        (O_PK() := return(kem_keygen_pk(sk)),
+         O_Enc() := ct <-R kemCT_t; ss <-R kemSS_t; return(ct, ss),
+         O_Dec(ct': kemCT_t) := return(kem_decap(sk, ct'))).
+
+
+(* --- OPRF (2HashDH over Ristretto255) --- *)
+
+(* OPRF evaluation: server computes y = H(pwd)^k where k is the OPRF key *)
+fun oprf_blind(passwd_t): (scalar_t, point_t).   (* (blind, blinded_element) *)
+fun oprf_eval(point_t, scalar_t): point_t.        (* server evaluation        *)
+fun oprf_finalize(passwd_t, scalar_t, point_t): hash_t. (* client finalization *)
+
+(* OPRF hiding: the blinded element reveals nothing about the password *)
+(* (This follows from the DDH assumption on Ristretto255) *)
+
+
+(* --- HKDF-SHA512 (modeled as a random oracle) --- *)
+
+expand ROM_hash_1(hash_t, bitstring, hash_t, HKDF_Extract, P_hash).
+expand ROM_hash_2(hash_t, bitstring, bitstring, hash_t, HKDF_Expand, P_hash).
+
+(* Hybrid combiner: HKDF-Extract(context || transcript_hash, DH_ikm || KEM_ss) *)
+fun combine_ikm(point_t, point_t, point_t, point_t, kemSS_t): bitstring
+[data].  (* 4×DH || KEM_ss *)
+
+fun derive_session_key(hash_t, bitstring): key_t
+[compos].  (* HKDF-Expand with session key label *)
+
+fun derive_master_key(hash_t, bitstring): key_t
+[compos].
+
+fun derive_mac_key(hash_t, bitstring): mac_t
+[compos].
+
+
+(* --- HMAC-SHA512 (PRF) --- *)
+
+proba P_PRF.
+expand PRF(mac_t, bitstring, mac_t, HMAC, P_PRF).
+
+
+(* ─────────────────────────────────────────────────────────────────────────── *)
+(*  4. IDEAL FUNCTIONALITY SKETCH (F_PQ-OPAQUE)                               *)
+(*                                                                             *)
+(*  The ideal functionality F_PQ-OPAQUE captures:                             *)
+(*  - Registration: stores (account_id → (oprf_key, static_pk))               *)
+(*  - Authentication: returns session key to both parties iff passwords match  *)
+(*  - Never reveals password to server                                         *)
+(*  - Session keys are uniformly random and fresh per session                  *)
+(*                                                                             *)
+(*  A full UC proof constructs simulator S such that:                          *)
+(*    ∀ PPT A: REAL_{A,Π}(λ) ≈_c IDEAL_{Sim_S,F_PQ-OPAQUE}(λ)               *)
+(*                                                                             *)
+(*  This requires 5 hybrid games (see Xu 2024, adapted for PQ):               *)
+(*    H0: Real protocol                                                        *)
+(*    H1: Replace OPRF output with random oracle                               *)
+(*    H2: Replace DH values with DDH challenger outputs                        *)
+(*    H3: Replace KEM shared secret with random (by IND-CCA2)                 *)
+(*    H4: Replace session key with uniform random (ideal)                      *)
+(*                                                                             *)
+(*  NOTE: The 4th DH (resp_eph × init_eph) is essential for H2→H3 step:      *)
+(*  without it, an adversary with both static LTKs can distinguish H2 from H3 *)
+(*  using the public ephemeral keys from the transcript.                       *)
+(* ─────────────────────────────────────────────────────────────────────────── *)
+
+
+(* ─────────────────────────────────────────────────────────────────────────── *)
+(*  5. PROTOCOL PROCESSES                                                      *)
+(* ─────────────────────────────────────────────────────────────────────────── *)
+
+let Initiator(
+    pwd: passwd_t,
+    responder_pk: point_t,         (* long-term server public key   *)
+    init_static_sk: scalar_t,
+    init_static_pk: point_t
+) =
+    (* KE1: blind password, generate ephemeral keys *)
+    let (blind, blinded_elem) = oprf_blind(pwd) in
+    init_eph_sk <-R scalar_t;
+    let init_eph_pk = scalarmult_base(init_eph_sk) in
+    pq_eph_sk <-R kemSK_t;
+    let pq_eph_pk = kem_keygen_pk(pq_eph_sk) in
+    init_nonce <-R nonce_t;
+
+    (* Send KE1 *)
+    out(c_net, (blinded_elem, init_eph_pk, init_nonce, pq_eph_pk));
+
+    (* Receive KE2 *)
+    in(c_net, (resp_nonce: nonce_t, resp_eph_pk: point_t, cred_resp: bitstring,
+               resp_mac: mac_t, kem_ct: kemCT_t));
+
+    (* Recover randomized password and open envelope *)
+    let oprf_out = oprf_finalize(pwd, blind, fst(cred_resp)) in
+    (* ... envelope decryption gives init_static_pk', resp_pk' ... *)
+    (* (simplified: assume envelope opens correctly) *)
+
+    (* 4DH: compute all four DH contributions *)
+    let dh1 = scalarmult(responder_pk, init_static_sk) in   (* static×static  *)
+    let dh2 = scalarmult(responder_pk, init_eph_sk)    in   (* static×eph     *)
+    let dh3 = scalarmult(resp_eph_pk,  init_static_sk) in   (* eph×static     *)
+    let dh4 = scalarmult(resp_eph_pk,  init_eph_sk)    in   (* eph×eph (UKS)  *)
+
+    (* PQ: decapsulate *)
+    let kem_ss = kem_decap(pq_eph_sk, kem_ct) in
+
+    (* Combine with AND-model: HKDF-Extract(context||transcript, DH₁‖DH₂‖DH₃‖DH₄‖KEM_ss) *)
+    let ikm = combine_ikm(dh1, dh2, dh3, dh4, kem_ss) in
+    let transcript = (init_eph_pk, resp_eph_pk, init_nonce, resp_nonce,
+                      init_static_pk, responder_pk, cred_resp, pq_eph_pk, kem_ct) in
+    let prk = HKDF_Extract(ikm, transcript) in
+
+    (* Derive keys *)
+    let session_key = derive_session_key(prk, session_key_label) in
+    let resp_mac_key = derive_mac_key(prk, resp_mac_label) in
+
+    (* Verify server MAC *)
+    if HMAC(resp_mac_key, transcript) = resp_mac then
+
+    (* Send KE3 *)
+    let init_mac_key = derive_mac_key(prk, init_mac_label) in
+    out(c_net, HMAC(init_mac_key, transcript));
+
+    (* Output session key *)
+    out(c_session_key, session_key).
+
+
+let Responder(
+    oprf_seed: key_t,              (* independent OPRF seed (NOT the signing key) *)
+    resp_static_sk: scalar_t,
+    resp_static_pk: point_t
+) =
+    in(c_net, (blinded_elem: point_t, init_eph_pk: point_t, init_nonce: nonce_t,
+               pq_eph_pk: kemPK_t));
+
+    (* Lookup credentials for account_id (modeled as oracle call) *)
+    in(c_reg_resp, (init_static_pk: point_t, envelope: bitstring));
+
+    (* OPRF evaluation using independent seed (not resp_static_sk) *)
+    let oprf_key = HMAC(oprf_seed, account_label) in
+    let evaluated = oprf_eval(blinded_elem, oprf_key) in
+
+    (* Generate responder ephemeral keys *)
+    resp_eph_sk <-R scalar_t;
+    let resp_eph_pk = scalarmult_base(resp_eph_sk) in
+    resp_nonce <-R nonce_t;
+
+    (* PQ: encapsulate to client's KEM public key *)
+    let (kem_ct, kem_ss) = kem_encap(pq_eph_pk) in
+
+    (* 4DH: compute all four DH contributions *)
+    let dh1 = scalarmult(init_static_pk, resp_static_sk) in  (* static×static *)
+    let dh2 = scalarmult(init_eph_pk,    resp_static_sk) in  (* eph×static    *)
+    let dh3 = scalarmult(init_static_pk, resp_eph_sk)    in  (* static×eph    *)
+    let dh4 = scalarmult(init_eph_pk,    resp_eph_sk)    in  (* eph×eph (UKS) *)
+
+    let cred_resp = (evaluated, envelope) in
+    let ikm = combine_ikm(dh1, dh2, dh3, dh4, kem_ss) in
+    let transcript = (init_eph_pk, resp_eph_pk, init_nonce, resp_nonce,
+                      init_static_pk, resp_static_pk, cred_resp, pq_eph_pk, kem_ct) in
+    let prk = HKDF_Extract(ikm, transcript) in
+
+    let session_key = derive_session_key(prk, session_key_label) in
+    let resp_mac_key = derive_mac_key(prk, resp_mac_label) in
+    let init_mac_key = derive_mac_key(prk, init_mac_label) in
+
+    out(c_net, (resp_nonce, resp_eph_pk, cred_resp,
+                HMAC(resp_mac_key, transcript), kem_ct));
+
+    (* Receive KE3 and verify *)
+    in(c_net, init_mac: mac_t);
+    if init_mac = HMAC(init_mac_key, transcript) then
+
+    out(c_session_key, session_key).
+
+
+(* ─────────────────────────────────────────────────────────────────────────── *)
+(*  6. SECURITY QUERIES                                                        *)
+(* ─────────────────────────────────────────────────────────────────────────── *)
+
+(* Q1: Session key secrecy — session key is computationally indistinguishable
+       from a random key to the network attacker *)
+query secret session_key.
+
+(* Q2: Mutual authentication — injective agreement on session key *)
+query x: key_t;
+    event(InitiatorFinished(x)) ==> event(ResponderStarted(x)).
+
+query x: key_t;
+    event(ResponderFinished(x)) ==> event(InitiatorStarted(x)).
+
+(* Q3: Injective (prevents replay) *)
+query x: key_t;
+    inj-event(InitiatorFinished(x)) ==> inj-event(ResponderStarted(x)).
+
+(* Q4: Password secrecy — password not deducible from transcript *)
+(* (Follows from OPRF hiding under DDH; formalized via OPRF game reduction) *)
+query x: passwd_t;
+    attacker(x) ==> false.
+
+
+(* ─────────────────────────────────────────────────────────────────────────── *)
+(*  7. MAIN PROCESS                                                            *)
+(* ─────────────────────────────────────────────────────────────────────────── *)
+
+process
+    (* Server setup: keypair + independent OPRF seed *)
+    resp_static_sk <-R scalar_t;
+    let resp_static_pk = scalarmult_base(resp_static_sk) in
+    oprf_seed <-R key_t;    (* stored independently of resp_static_sk *)
+
+    (* Client setup *)
+    init_static_sk <-R scalar_t;
+    let init_static_pk = scalarmult_base(init_static_sk) in
+
+    (* Password *)
+    pwd <-R passwd_t;
+
+    out(c_net, resp_static_pk);   (* server public key is public *)
+    out(c_net, init_static_pk);   (* client public key is public *)
+
+    (* Run arbitrarily many parallel sessions *)
+    ((!N Initiator(pwd, resp_static_pk, init_static_sk, init_static_pk)) |
+     (!N Responder(oprf_seed, resp_static_sk, resp_static_pk)))
+
+
+(* ─────────────────────────────────────────────────────────────────────────── *)
+(*  NOTES FOR PEER REVIEW                                                      *)
+(*                                                                             *)
+(*  1. This is a PROOF SKETCH / SKELETON. Full mechanical verification        *)
+(*     requires filling in the envelope construction, OPRF finalization,       *)
+(*     and credential retrieval oracle (out of scope for this file).           *)
+(*                                                                             *)
+(*  2. The 4DH structure is ESSENTIAL for the DDH game reduction:             *)
+(*     - Games H0..H2 replace DH outputs with random group elements           *)
+(*     - Without dh4 (eph×eph), the adversary with both LTKs can compute      *)
+(*       dh1, dh2, dh3 from the transcript, breaking the reduction            *)
+(*     - With dh4, even an adversary with both LTKs cannot compute dh4        *)
+(*       (requires at least one ephemeral secret key, which is erased)        *)
+(*                                                                             *)
+(*  3. The OPRF seed separation (oprf_seed ≠ resp_static_sk) is modeled by   *)
+(*     declaring them as independent random values. This is the computational  *)
+(*     justification for the implementation change in this commit.            *)
+(*                                                                             *)
+(*  4. For a full UC proof, instantiate the ideal functionality F_PQ-OPAQUE   *)
+(*     (sketched in Section 4 above) and construct the simulator S.           *)
+(*     Reference: Xu (2024) "UC Secure OPAQUE" — extend with PQ components.  *)
+(* ─────────────────────────────────────────────────────────────────────────── *)
