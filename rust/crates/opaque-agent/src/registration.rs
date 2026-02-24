@@ -21,7 +21,7 @@ pub fn create_registration_request(
     }
 
     state.initiator_private_key = crypto::random_nonzero_scalar();
-    state.initiator_public_key = crypto::scalarmult_base(&state.initiator_private_key);
+    state.initiator_public_key = crypto::scalarmult_base(&state.initiator_private_key)?;
 
     state.secure_key = secure_key.to_vec();
 
@@ -41,7 +41,7 @@ pub fn finalize_registration(
     record: &mut RegistrationRecord,
 ) -> OpaqueResult<()> {
     if registration_response.len() != REGISTRATION_RESPONSE_LENGTH {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidProtocolMessage);
     }
 
     let protocol::RegistrationResponseRef {
@@ -59,7 +59,7 @@ pub fn finalize_registration(
     oprf::finalize(
         &state.secure_key,
         &state.oblivious_prf_blind_scalar,
-        evaluated_element.try_into().map_err(|_| OpaqueError::InvalidInput)?,
+        evaluated_element.try_into().map_err(|_| OpaqueError::InvalidProtocolMessage)?,
         &mut oprf_output,
     )?;
 
@@ -68,7 +68,7 @@ pub fn finalize_registration(
 
     let rpk: &[u8; PUBLIC_KEY_LENGTH] = responder_public_key
         .try_into()
-        .map_err(|_| OpaqueError::InvalidInput)?;
+        .map_err(|_| OpaqueError::InvalidProtocolMessage)?;
     let mut env = Envelope::new();
     envelope::seal(
         &randomized_pwd,

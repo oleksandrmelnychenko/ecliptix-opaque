@@ -26,7 +26,7 @@ fn bench_ke1(c: &mut Criterion) {
         b.iter(|| {
             oprf::blind(input, &mut blinded, &mut blind_scalar).unwrap();
             let eph_sk = crypto::random_nonzero_scalar();
-            let _eph_pk = crypto::scalarmult_base(&eph_sk);
+            let _eph_pk = crypto::scalarmult_base(&eph_sk).unwrap();
         })
     });
 
@@ -38,7 +38,7 @@ fn bench_ke1(c: &mut Criterion) {
         b.iter(|| {
             oprf::blind(input, &mut blinded, &mut blind_scalar).unwrap();
             let eph_sk = crypto::random_nonzero_scalar();
-            let _eph_pk = crypto::scalarmult_base(&eph_sk);
+            let _eph_pk = crypto::scalarmult_base(&eph_sk).unwrap();
             pq_kem::keypair_generate(&mut kem_pk, &mut kem_sk).unwrap();
         })
     });
@@ -53,11 +53,11 @@ fn bench_ke1(c: &mut Criterion) {
 fn bench_ke2_no_ksf(c: &mut Criterion) {
     let resp_sk = crypto::random_nonzero_scalar();
     let resp_eph_sk = crypto::random_nonzero_scalar();
-    let resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk);
+    let resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk).unwrap();
     let init_static_sk = crypto::random_nonzero_scalar();
-    let init_static_pk = crypto::scalarmult_base(&init_static_sk);
+    let init_static_pk = crypto::scalarmult_base(&init_static_sk).unwrap();
     let init_eph_sk = crypto::random_nonzero_scalar();
-    let init_eph_pk = crypto::scalarmult_base(&init_eph_sk);
+    let init_eph_pk = crypto::scalarmult_base(&init_eph_sk).unwrap();
 
     let mut blinded = [0u8; PUBLIC_KEY_LENGTH];
     let mut blind_scalar = [0u8; PRIVATE_KEY_LENGTH];
@@ -155,11 +155,11 @@ fn bench_ke2_no_ksf(c: &mut Criterion) {
 fn bench_ke3_no_ksf(c: &mut Criterion) {
     let init_static_sk = crypto::random_nonzero_scalar();
     let init_eph_sk = crypto::random_nonzero_scalar();
-    let init_eph_pk = crypto::scalarmult_base(&init_eph_sk);
+    let init_eph_pk = crypto::scalarmult_base(&init_eph_sk).unwrap();
     let resp_static_sk = crypto::random_nonzero_scalar();
-    let resp_static_pk = crypto::scalarmult_base(&resp_static_sk);
+    let resp_static_pk = crypto::scalarmult_base(&resp_static_sk).unwrap();
     let resp_eph_sk = crypto::random_nonzero_scalar();
-    let resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk);
+    let resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk).unwrap();
 
     let input = b"benchmark password";
     let mut blinded = [0u8; PUBLIC_KEY_LENGTH];
@@ -262,9 +262,9 @@ fn bench_ke3_no_ksf(c: &mut Criterion) {
 
 fn bench_full_ake_no_ksf(c: &mut Criterion) {
     let resp_static_sk = crypto::random_nonzero_scalar();
-    let resp_static_pk = crypto::scalarmult_base(&resp_static_sk);
+    let resp_static_pk = crypto::scalarmult_base(&resp_static_sk).unwrap();
     let init_static_sk = crypto::random_nonzero_scalar();
-    let init_static_pk = crypto::scalarmult_base(&init_static_sk);
+    let init_static_pk = crypto::scalarmult_base(&init_static_sk).unwrap();
 
     let input = b"benchmark password";
     let oprf_key = crypto::random_nonzero_scalar();
@@ -280,11 +280,11 @@ fn bench_full_ake_no_ksf(c: &mut Criterion) {
             let mut blind_scalar = [0u8; PRIVATE_KEY_LENGTH];
             oprf::blind(input, &mut blinded, &mut blind_scalar).unwrap();
             let init_eph_sk = crypto::random_nonzero_scalar();
-            let init_eph_pk = crypto::scalarmult_base(&init_eph_sk);
+            let init_eph_pk = crypto::scalarmult_base(&init_eph_sk).unwrap();
 
             // ── KE2 (responder) ───────────────────────────────────────────────
             let resp_eph_sk = crypto::random_nonzero_scalar();
-            let resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk);
+            let resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk).unwrap();
             let mut evaluated = [0u8; PUBLIC_KEY_LENGTH];
             oprf::evaluate(&blinded, &oprf_key, &mut evaluated).unwrap();
             let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];
@@ -352,14 +352,14 @@ fn bench_full_ake_no_ksf(c: &mut Criterion) {
             let mut blind_scalar = [0u8; PRIVATE_KEY_LENGTH];
             oprf::blind(input, &mut blinded, &mut blind_scalar).unwrap();
             let init_eph_sk = crypto::random_nonzero_scalar();
-            let init_eph_pk = crypto::scalarmult_base(&init_eph_sk);
+            let init_eph_pk = crypto::scalarmult_base(&init_eph_sk).unwrap();
             let mut kem_pk = vec![0u8; pq::KEM_PUBLIC_KEY_LENGTH];
             let mut kem_sk = vec![0u8; pq::KEM_SECRET_KEY_LENGTH];
             pq_kem::keypair_generate(&mut kem_pk, &mut kem_sk).unwrap();
 
             // ── KE2 (responder) ───────────────────────────────────────────────
             let resp_eph_sk = crypto::random_nonzero_scalar();
-            let resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk);
+            let resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk).unwrap();
             let mut evaluated = [0u8; PUBLIC_KEY_LENGTH];
             oprf::evaluate(&blinded, &oprf_key, &mut evaluated).unwrap();
             let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];

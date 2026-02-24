@@ -150,7 +150,7 @@ fn oprf_different_inputs_different_output() {
 #[test]
 fn finalize_empty_input_fails() {
     let blind = [1u8; PRIVATE_KEY_LENGTH];
-    let eval = crypto::scalarmult_base(&crypto::random_nonzero_scalar());
+    let eval = crypto::scalarmult_base(&crypto::random_nonzero_scalar()).unwrap();
     let mut output = [0u8; HASH_LENGTH];
     assert!(oprf::finalize(b"", &blind, &eval, &mut output).is_err());
 }

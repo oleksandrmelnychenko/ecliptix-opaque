@@ -25,7 +25,7 @@ pub fn generate_ke1(
     state.secure_key = secure_key.to_vec();
 
     state.initiator_ephemeral_private_key = crypto::random_nonzero_scalar();
-    state.initiator_ephemeral_public_key = crypto::scalarmult_base(&state.initiator_ephemeral_private_key);
+    state.initiator_ephemeral_public_key = crypto::scalarmult_base(&state.initiator_ephemeral_private_key)?;
 
     state.pq_ephemeral_public_key = vec![0u8; pq::KEM_PUBLIC_KEY_LENGTH];
     state.pq_ephemeral_secret_key = vec![0u8; pq::KEM_SECRET_KEY_LENGTH];
@@ -57,7 +57,7 @@ pub fn generate_ke3(
     ke3: &mut Ke3Message,
 ) -> OpaqueResult<()> {
     if ke2_data.len() != KE2_LENGTH {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidProtocolMessage);
     }
 
     let responder_public_key = initiator.responder_public_key();
@@ -80,7 +80,7 @@ pub fn generate_ke3(
     oprf::finalize(
         &state.secure_key,
         &state.oblivious_prf_blind_scalar,
-        evaluated_elem.try_into().map_err(|_| OpaqueError::InvalidInput)?,
+        evaluated_elem.try_into().map_err(|_| OpaqueError::InvalidProtocolMessage)?,
         &mut oprf_output,
     )?;
 
@@ -113,7 +113,7 @@ pub fn generate_ke3(
 
     let resp_eph_pk: &[u8; PUBLIC_KEY_LENGTH] = responder_ephemeral_public_key
         .try_into()
-        .map_err(|_| OpaqueError::InvalidInput)?;
+        .map_err(|_| OpaqueError::InvalidProtocolMessage)?;
 
     let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];
     let mut dh2 = [0u8; PUBLIC_KEY_LENGTH];

@@ -56,7 +56,7 @@ pub struct Ke3Ref<'a> {
 
 pub fn parse_registration_response(data: &[u8]) -> OpaqueResult<RegistrationResponseRef<'_>> {
     if data.len() != REGISTRATION_RESPONSE_LENGTH {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidProtocolMessage);
     }
     Ok(RegistrationResponseRef {
         evaluated_element: &data[REG_RESP_EVALUATED_OFFSET..REG_RESP_RESPONDER_KEY_OFFSET],
@@ -66,7 +66,7 @@ pub fn parse_registration_response(data: &[u8]) -> OpaqueResult<RegistrationResp
 
 pub fn parse_registration_record(data: &[u8]) -> OpaqueResult<RegistrationRecordRef<'_>> {
     if data.len() != REGISTRATION_RECORD_LENGTH {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidProtocolMessage);
     }
     Ok(RegistrationRecordRef {
         envelope: &data[REG_RECORD_ENVELOPE_OFFSET..REG_RECORD_INITIATOR_KEY_OFFSET],
@@ -76,7 +76,7 @@ pub fn parse_registration_record(data: &[u8]) -> OpaqueResult<RegistrationRecord
 
 pub fn parse_ke1(data: &[u8]) -> OpaqueResult<Ke1Ref<'_>> {
     if data.len() != KE1_LENGTH {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidProtocolMessage);
     }
     Ok(Ke1Ref {
         credential_request: &data[KE1_CRED_REQ_OFFSET..KE1_INITIATOR_PK_OFFSET],
@@ -88,7 +88,7 @@ pub fn parse_ke1(data: &[u8]) -> OpaqueResult<Ke1Ref<'_>> {
 
 pub fn parse_ke2(data: &[u8]) -> OpaqueResult<Ke2Ref<'_>> {
     if data.len() != KE2_LENGTH {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidProtocolMessage);
     }
     Ok(Ke2Ref {
         responder_nonce: &data[KE2_RESP_NONCE_OFFSET..KE2_RESP_PK_OFFSET],
@@ -101,7 +101,7 @@ pub fn parse_ke2(data: &[u8]) -> OpaqueResult<Ke2Ref<'_>> {
 
 pub fn parse_ke3(data: &[u8]) -> OpaqueResult<Ke3Ref<'_>> {
     if data.len() != KE3_LENGTH {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidProtocolMessage);
     }
     Ok(Ke3Ref {
         initiator_mac: data,
@@ -117,7 +117,7 @@ pub fn write_registration_record(
         || initiator_public_key.len() != PUBLIC_KEY_LENGTH
         || out.len() < REGISTRATION_RECORD_LENGTH
     {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidProtocolMessage);
     }
     out[REG_RECORD_ENVELOPE_OFFSET..REG_RECORD_INITIATOR_KEY_OFFSET].copy_from_slice(envelope);
     out[REG_RECORD_INITIATOR_KEY_OFFSET..REGISTRATION_RECORD_LENGTH]
@@ -138,7 +138,7 @@ pub fn write_ke1(
         || pq_ephemeral_public_key.len() != pq::KEM_PUBLIC_KEY_LENGTH
         || out.len() < KE1_LENGTH
     {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidProtocolMessage);
     }
     out[KE1_CRED_REQ_OFFSET..KE1_INITIATOR_PK_OFFSET].copy_from_slice(credential_request);
     out[KE1_INITIATOR_PK_OFFSET..KE1_INITIATOR_NONCE_OFFSET].copy_from_slice(initiator_public_key);
@@ -162,7 +162,7 @@ pub fn write_ke2(
         || kem_ciphertext.len() != pq::KEM_CIPHERTEXT_LENGTH
         || out.len() < KE2_LENGTH
     {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidProtocolMessage);
     }
     out[KE2_RESP_NONCE_OFFSET..KE2_RESP_PK_OFFSET].copy_from_slice(responder_nonce);
     out[KE2_RESP_PK_OFFSET..KE2_CRED_RESP_OFFSET].copy_from_slice(responder_public_key);
@@ -174,7 +174,7 @@ pub fn write_ke2(
 
 pub fn write_ke3(initiator_mac: &[u8], out: &mut [u8]) -> OpaqueResult<()> {
     if initiator_mac.len() != MAC_LENGTH || out.len() < KE3_LENGTH {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidProtocolMessage);
     }
     out[..KE3_LENGTH].copy_from_slice(initiator_mac);
     Ok(())

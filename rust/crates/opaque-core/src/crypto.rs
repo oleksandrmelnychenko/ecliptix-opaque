@@ -407,12 +407,18 @@ pub fn random_nonzero_scalar() -> [u8; PRIVATE_KEY_LENGTH] {
     }
 }
 
-pub fn scalarmult_base(scalar: &[u8; PRIVATE_KEY_LENGTH]) -> [u8; PUBLIC_KEY_LENGTH] {
+pub fn scalarmult_base(scalar: &[u8; PRIVATE_KEY_LENGTH]) -> OpaqueResult<[u8; PUBLIC_KEY_LENGTH]> {
     let mut result = [0u8; PUBLIC_KEY_LENGTH];
     unsafe {
-        libsodium_sys::crypto_scalarmult_ristretto255_base(result.as_mut_ptr(), scalar.as_ptr());
+        if libsodium_sys::crypto_scalarmult_ristretto255_base(
+            result.as_mut_ptr(),
+            scalar.as_ptr(),
+        ) != 0
+        {
+            return Err(OpaqueError::CryptoError);
+        }
     }
-    result
+    Ok(result)
 }
 
 pub fn scalar_invert(

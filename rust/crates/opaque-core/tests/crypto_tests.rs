@@ -51,7 +51,7 @@ fn derive_key_pair_empty_seed_fails() {
 #[test]
 fn scalar_mult_base_and_scalar_mult_consistent() {
     let scalar = crypto::random_nonzero_scalar();
-    let base_result = crypto::scalarmult_base(&scalar);
+    let base_result = crypto::scalarmult_base(&scalar).unwrap();
 
     crypto::validate_ristretto_point(&base_result).unwrap();
     assert!(!base_result.iter().all(|&b| b == 0));
@@ -60,7 +60,7 @@ fn scalar_mult_base_and_scalar_mult_consistent() {
 #[test]
 fn scalar_mult_produces_valid_point() {
     let scalar = crypto::random_nonzero_scalar();
-    let point = crypto::scalarmult_base(&scalar);
+    let point = crypto::scalarmult_base(&scalar).unwrap();
 
     let scalar2 = crypto::random_nonzero_scalar();
     let mut result = [0u8; PUBLIC_KEY_LENGTH];
@@ -84,7 +84,7 @@ fn validate_ristretto_point_rejects_garbage() {
 #[test]
 fn validate_public_key_accepts_valid() {
     let scalar = crypto::random_nonzero_scalar();
-    let pk = crypto::scalarmult_base(&scalar);
+    let pk = crypto::scalarmult_base(&scalar).unwrap();
     crypto::validate_public_key(&pk).unwrap();
 }
 

@@ -4,7 +4,7 @@ use opaque_core::types::*;
 
 fn setup_keys() -> ([u8; PRIVATE_KEY_LENGTH], [u8; PUBLIC_KEY_LENGTH]) {
     let sk = crypto::random_nonzero_scalar();
-    let pk = crypto::scalarmult_base(&sk);
+    let pk = crypto::scalarmult_base(&sk).unwrap();
     (sk, pk)
 }
 

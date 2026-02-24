@@ -115,7 +115,7 @@ fn create_registration_response_empty_account_fails() {
     let mut resp = RegistrationResponse::new();
 
     let scalar = crypto::random_nonzero_scalar();
-    let point = crypto::scalarmult_base(&scalar);
+    let point = crypto::scalarmult_base(&scalar).unwrap();
 
     assert!(create_registration_response(&responder, &point, b"", &mut resp).is_err());
 }

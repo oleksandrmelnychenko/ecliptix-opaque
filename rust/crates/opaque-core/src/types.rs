@@ -79,20 +79,24 @@ pub mod pq_labels {
 
 #[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
 pub enum OpaqueError {
-    #[error("invalid input")]
+    #[error("invalid input parameter")]
     InvalidInput,
     #[error("cryptographic operation failed")]
     CryptoError,
-    #[error("memory error")]
-    MemoryError,
-    #[error("validation error")]
+    #[error("protocol message has invalid format or length")]
+    InvalidProtocolMessage,
+    #[error("validation failed")]
     ValidationError,
-    #[error("authentication error")]
+    #[error("authentication failed")]
     AuthenticationError,
     #[error("invalid public key")]
     InvalidPublicKey,
     #[error("account already registered")]
     AlreadyRegistered,
+    #[error("malformed ML-KEM key or ciphertext")]
+    InvalidKemInput,
+    #[error("envelope has invalid format")]
+    InvalidEnvelope,
 }
 
 impl OpaqueError {
@@ -100,11 +104,13 @@ impl OpaqueError {
         match self {
             OpaqueError::InvalidInput => -1,
             OpaqueError::CryptoError => -2,
-            OpaqueError::MemoryError => -3,
+            OpaqueError::InvalidProtocolMessage => -3,
             OpaqueError::ValidationError => -4,
             OpaqueError::AuthenticationError => -5,
             OpaqueError::InvalidPublicKey => -6,
             OpaqueError::AlreadyRegistered => -7,
+            OpaqueError::InvalidKemInput => -8,
+            OpaqueError::InvalidEnvelope => -9,
         }
     }
 }

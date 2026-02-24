@@ -20,21 +20,24 @@ pub fn generate_ke2(
     ke2: &mut Ke2Message,
     state: &mut ResponderState,
 ) -> OpaqueResult<()> {
-    if ke1_data.len() != KE1_LENGTH || account_id.is_empty() {
+    if ke1_data.len() != KE1_LENGTH {
+        return Err(OpaqueError::InvalidProtocolMessage);
+    }
+    if account_id.is_empty() {
         return Err(OpaqueError::InvalidInput);
     }
     if credentials.initiator_public_key.iter().all(|&b| b == 0) {
         return Err(OpaqueError::InvalidPublicKey);
     }
     if credentials.envelope.len() != ENVELOPE_LENGTH {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidEnvelope);
     }
 
     let ke1 = protocol::parse_ke1(ke1_data)?;
     let kp = responder.keypair();
 
     let init_eph_pk: &[u8; PUBLIC_KEY_LENGTH] = ke1.initiator_public_key
-        .try_into().map_err(|_| OpaqueError::InvalidInput)?;
+        .try_into().map_err(|_| OpaqueError::InvalidProtocolMessage)?;
     let init_static_pk = &credentials.initiator_public_key;
 
     crypto::validate_ristretto_point(ke1.credential_request)?;
@@ -47,7 +50,7 @@ pub fn generate_ke2(
     state.handshake_complete = false;
 
     state.responder_ephemeral_private_key = crypto::random_nonzero_scalar();
-    state.responder_ephemeral_public_key = crypto::scalarmult_base(&state.responder_ephemeral_private_key);
+    state.responder_ephemeral_public_key = crypto::scalarmult_base(&state.responder_ephemeral_private_key)?;
 
     crypto::random_bytes(&mut ke2.responder_nonce)?;
     ke2.responder_public_key = state.responder_ephemeral_public_key;
@@ -56,7 +59,7 @@ pub fn generate_ke2(
     crypto::derive_oprf_key(responder.oprf_seed(), account_id, &mut oprf_key)?;
 
     let cred_req: &[u8; PUBLIC_KEY_LENGTH] = ke1.credential_request
-        .try_into().map_err(|_| OpaqueError::InvalidInput)?;
+        .try_into().map_err(|_| OpaqueError::InvalidProtocolMessage)?;
     let mut evaluated_elem = [0u8; PUBLIC_KEY_LENGTH];
     oprf::evaluate(cred_req, &oprf_key, &mut evaluated_elem)?;
     oprf_key.zeroize();
@@ -148,7 +151,7 @@ pub fn responder_finish(
     master_key: &mut Vec<u8>,
 ) -> OpaqueResult<()> {
     if ke3_data.len() != KE3_LENGTH {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidProtocolMessage);
     }
     if state.session_key.is_empty() || state.master_key.len() != MASTER_KEY_LENGTH {
         return Err(OpaqueError::ValidationError);

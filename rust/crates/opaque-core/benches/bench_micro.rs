@@ -8,14 +8,14 @@ fn bench_ristretto_keygen(c: &mut Criterion) {
     c.bench_function("ristretto255/keygen", |b| {
         b.iter(|| {
             let scalar = crypto::random_nonzero_scalar();
-            crypto::scalarmult_base(&scalar)
+            crypto::scalarmult_base(&scalar).unwrap()
         })
     });
 }
 
 fn bench_ristretto_dh(c: &mut Criterion) {
     let scalar = crypto::random_nonzero_scalar();
-    let point = crypto::scalarmult_base(&crypto::random_nonzero_scalar());
+    let point = crypto::scalarmult_base(&crypto::random_nonzero_scalar()).unwrap();
 
     c.bench_function("ristretto255/single_dh", |b| {
         let mut result = [0u8; PUBLIC_KEY_LENGTH];
@@ -29,9 +29,9 @@ fn bench_ristretto_3dh(c: &mut Criterion) {
     let sk1 = crypto::random_nonzero_scalar();
     let sk2 = crypto::random_nonzero_scalar();
     let sk3 = crypto::random_nonzero_scalar();
-    let pk1 = crypto::scalarmult_base(&crypto::random_nonzero_scalar());
-    let pk2 = crypto::scalarmult_base(&crypto::random_nonzero_scalar());
-    let pk3 = crypto::scalarmult_base(&crypto::random_nonzero_scalar());
+    let pk1 = crypto::scalarmult_base(&crypto::random_nonzero_scalar()).unwrap();
+    let pk2 = crypto::scalarmult_base(&crypto::random_nonzero_scalar()).unwrap();
+    let pk3 = crypto::scalarmult_base(&crypto::random_nonzero_scalar()).unwrap();
 
     c.bench_function("ristretto255/3dh", |b| {
         let mut r1 = [0u8; PUBLIC_KEY_LENGTH];

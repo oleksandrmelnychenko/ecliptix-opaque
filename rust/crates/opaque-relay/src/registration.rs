@@ -16,9 +16,10 @@ pub fn create_registration_response(
     account_id: &[u8],
     response: &mut RegistrationResponse,
 ) -> OpaqueResult<()> {
-    if registration_request.len() != REGISTRATION_REQUEST_LENGTH
-        || account_id.is_empty()
-    {
+    if registration_request.len() != REGISTRATION_REQUEST_LENGTH {
+        return Err(OpaqueError::InvalidProtocolMessage);
+    }
+    if account_id.is_empty() {
         return Err(OpaqueError::InvalidInput);
     }
 
@@ -33,7 +34,7 @@ pub fn create_registration_response(
 
     let blinded: &[u8; PUBLIC_KEY_LENGTH] = registration_request
         .try_into()
-        .map_err(|_| OpaqueError::InvalidInput)?;
+        .map_err(|_| OpaqueError::InvalidProtocolMessage)?;
     let mut evaluated = [0u8; PUBLIC_KEY_LENGTH];
     oprf::evaluate(blinded, &oprf_key, &mut evaluated)?;
     oprf_key.zeroize();

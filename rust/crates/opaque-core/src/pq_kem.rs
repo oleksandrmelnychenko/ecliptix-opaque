@@ -19,7 +19,7 @@ pub fn keypair_generate(
     if public_key.len() != pq::KEM_PUBLIC_KEY_LENGTH
         || secret_key.len() != pq::KEM_SECRET_KEY_LENGTH
     {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidKemInput);
     }
 
     let mut rng = rand::rngs::OsRng;
@@ -42,10 +42,10 @@ pub fn encapsulate(
         || ciphertext.len() != pq::KEM_CIPHERTEXT_LENGTH
         || shared_secret.len() != pq::KEM_SHARED_SECRET_LENGTH
     {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidKemInput);
     }
 
-    let ek_array: ml_kem::Encoded<EK> = public_key.try_into().map_err(|_| OpaqueError::InvalidInput)?;
+    let ek_array: ml_kem::Encoded<EK> = public_key.try_into().map_err(|_| OpaqueError::InvalidKemInput)?;
     let ek = EK::from_bytes(&ek_array);
 
     let mut rng = rand::rngs::OsRng;
@@ -68,13 +68,13 @@ pub fn decapsulate(
         || ciphertext.len() != pq::KEM_CIPHERTEXT_LENGTH
         || shared_secret.len() != pq::KEM_SHARED_SECRET_LENGTH
     {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidKemInput);
     }
 
-    let dk_array: ml_kem::Encoded<DK> = secret_key.try_into().map_err(|_| OpaqueError::InvalidInput)?;
+    let dk_array: ml_kem::Encoded<DK> = secret_key.try_into().map_err(|_| OpaqueError::InvalidKemInput)?;
     let dk = DK::from_bytes(&dk_array);
 
-    let ct: ml_kem::Ciphertext<MlKem768> = ciphertext.try_into().map_err(|_| OpaqueError::InvalidInput)?;
+    let ct: ml_kem::Ciphertext<MlKem768> = ciphertext.try_into().map_err(|_| OpaqueError::InvalidKemInput)?;
 
     let ss = dk.decapsulate(&ct).map_err(|_| OpaqueError::CryptoError)?;
     shared_secret.copy_from_slice(ss.as_ref());

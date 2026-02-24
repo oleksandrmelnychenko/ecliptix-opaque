@@ -56,7 +56,7 @@ pub struct ResponderKeyPair {
 impl ResponderKeyPair {
     pub fn generate() -> OpaqueResult<Self> {
         let private_key = opaque_core::crypto::random_nonzero_scalar();
-        let public_key = opaque_core::crypto::scalarmult_base(&private_key);
+        let public_key = opaque_core::crypto::scalarmult_base(&private_key)?;
         Ok(Self {
             private_key,
             public_key,
@@ -72,7 +72,7 @@ impl ResponderKeyPair {
         let sk: &[u8; PRIVATE_KEY_LENGTH] = private_key
             .try_into()
             .map_err(|_| OpaqueError::InvalidInput)?;
-        let derived = opaque_core::crypto::scalarmult_base(sk);
+        let derived = opaque_core::crypto::scalarmult_base(sk)?;
         if !constant_time_eq(public_key, &derived) {
             return Err(OpaqueError::InvalidPublicKey);
         }

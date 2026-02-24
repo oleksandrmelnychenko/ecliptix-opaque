@@ -20,7 +20,7 @@ pub fn seal(
         return Err(OpaqueError::InvalidInput);
     }
     if envelope.nonce.len() != NONCE_LENGTH {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidEnvelope);
     }
 
     crypto::random_bytes(&mut envelope.nonce)?;
@@ -43,9 +43,9 @@ pub fn seal(
     envelope.ciphertext.resize(PLAINTEXT_LEN, 0);
     envelope.auth_tag.resize(SECRETBOX_MAC_LENGTH, 0);
     let nonce: &[u8; NONCE_LENGTH] = envelope.nonce.as_slice().try_into()
-        .map_err(|_| OpaqueError::InvalidInput)?;
+        .map_err(|_| OpaqueError::InvalidEnvelope)?;
     let tag: &mut [u8; SECRETBOX_MAC_LENGTH] = envelope.auth_tag.as_mut_slice().try_into()
-        .map_err(|_| OpaqueError::InvalidInput)?;
+        .map_err(|_| OpaqueError::InvalidEnvelope)?;
 
     crypto::encrypt_envelope(
         &auth_key,
@@ -77,7 +77,7 @@ pub fn open(
         || envelope.ciphertext.len() != PLAINTEXT_LEN
         || envelope.auth_tag.len() != SECRETBOX_MAC_LENGTH
     {
-        return Err(OpaqueError::InvalidInput);
+        return Err(OpaqueError::InvalidEnvelope);
     }
 
     let mut hash = [0u8; HASH_LENGTH];
@@ -90,9 +90,9 @@ pub fn open(
 
     let mut plaintext = [0u8; PLAINTEXT_LEN];
     let nonce: &[u8; NONCE_LENGTH] = envelope.nonce.as_slice().try_into()
-        .map_err(|_| OpaqueError::InvalidInput)?;
+        .map_err(|_| OpaqueError::InvalidEnvelope)?;
     let tag: &[u8; SECRETBOX_MAC_LENGTH] = envelope.auth_tag.as_slice().try_into()
-        .map_err(|_| OpaqueError::InvalidInput)?;
+        .map_err(|_| OpaqueError::InvalidEnvelope)?;
 
     let result = crypto::decrypt_envelope(
         &auth_key,
@@ -114,7 +114,7 @@ pub fn open(
         .copy_from_slice(&plaintext[PUBLIC_KEY_LENGTH..PUBLIC_KEY_LENGTH + PRIVATE_KEY_LENGTH]);
     initiator_public_key.copy_from_slice(&plaintext[PUBLIC_KEY_LENGTH + PRIVATE_KEY_LENGTH..]);
 
-    let derived_pk = crypto::scalarmult_base(initiator_private_key);
+    let derived_pk = crypto::scalarmult_base(initiator_private_key)?;
 
     if !constant_time_eq(initiator_public_key, &derived_pk) {
         plaintext.zeroize();
