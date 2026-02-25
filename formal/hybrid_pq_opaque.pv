@@ -4,7 +4,7 @@
  * ============================================================
  *
  * This model verifies the Hybrid PQ-OPAQUE protocol that combines
- * classical 3DH (Ristretto255) with ML-KEM-768 post-quantum KEM.
+ * classical 4DH (Ristretto255) with ML-KEM-768 post-quantum KEM.
  * Envelope encryption uses XSalsa20-Poly1305 (modeled as ideal AEAD).
  *
  * Properties verified:
@@ -87,8 +87,11 @@ fun aenc(key, nonce, bitstring): envelope.
 reduc forall k: key, n: nonce, m: bitstring;
   adec(k, n, aenc(k, n, m)) = m.
 
+(* ----- Envelope key derivation (binds responder public key) ----- *)
+fun envelope_key_derive(key, point): key.  (* SHA-512(ENVELOPE_CONTEXT || pkS || rwd)[0:32] *)
+
 (* ----- Concatenation for IKM ----- *)
-fun concat_ikm(key, key, key, key): bitstring.  (* dh1||dh2||dh3||kem_ss *)
+fun concat_ikm(key, key, key, key, key): bitstring.  (* dh1||dh2||dh3||dh4||kem_ss *)
 fun concat_transcript(bitstring): bitstring.     (* hash of transcript elements *)
 
 (* ----- Hash ----- *)
@@ -141,7 +144,7 @@ let ClientRegister(pwd: password, pkS: point) =
   in(secure_reg, (evaluated: point, server_pk_confirm: point));
   let oprf_out = oprf_finalize(evaluated, r_reg, pwd) in
   let rwd = argon2id(oprf_out, pwd) in
-  let env_key = hkdf_expand(rwd, lbl_envelope) in
+  let env_key = envelope_key_derive(rwd, pkS) in
   new skC: scalar;
   let pkC = ec_pk(skC) in
   new env_nonce: nonce;
@@ -183,25 +186,27 @@ let ClientAuth(pwd: password, pkS: point) =
 
   let oprf_out = oprf_finalize(evaluated_elem, r_auth, pwd) in
   let rwd = argon2id(oprf_out, pwd) in
-  let env_key = hkdf_expand(rwd, lbl_envelope) in
+  let env_key = envelope_key_derive(rwd, pkS) in
 
   (* Decrypt envelope to recover client credentials *)
   let (pkS_rec: point, skC_rec: scalar, pkC_rec: point) = adec(env_key, env_nonce, env) in
 
   event ClientStartsAuth(pkC_rec, pkS);
 
-  (* 3DH client side - use recovered credentials *)
+  (* 4DH client side - use recovered credentials *)
   let dh1 = ec_dh(skC_rec, pkS) in
   let dh2 = ec_dh(ekC, pkS) in
   let dh3 = ec_dh(skC_rec, eS) in
+  let dh4 = ec_dh(ekC, eS) in            (* ephemeral x ephemeral — UKS resistance *)
 
   (* KEM decapsulation *)
   let kem_ss = kem_decaps(kem_skC, kem_ct) in
 
   (* Transcript & key derivation *)
-  let transcript = hash((eC, eS, nonceC, nonceS, pkC_rec, pkS, cred_resp, kem_pkC, kem_ct)) in
-  let combined_ikm = concat_ikm(dh1, dh2, dh3, kem_ss) in
-  let salt = hash((lbl_combiner, transcript)) in
+  let raw_transcript = (eC, eS, nonceC, nonceS, pkC_rec, pkS, cred_resp, kem_pkC, kem_ct) in
+  let transcript_hash = hash((lbl_transcript, raw_transcript)) in
+  let combined_ikm = concat_ikm(dh1, dh2, dh3, dh4, kem_ss) in
+  let salt = (lbl_combiner, transcript_hash) in
   let prk = hkdf_extract(salt, combined_ikm) in
 
   let session_key = hkdf_expand(prk, lbl_session) in
@@ -210,10 +215,10 @@ let ClientAuth(pwd: password, pkS: point) =
   let init_mac_key = hkdf_expand(prk, lbl_init_mac) in
 
   (* Verify server MAC *)
-  let expected_resp_mac = hmac_compute(resp_mac_key, transcript) in
+  let expected_resp_mac = hmac_compute(resp_mac_key, raw_transcript) in
   if resp_mac = expected_resp_mac then
 
-  let init_mac = hmac_compute(init_mac_key, transcript) in
+  let init_mac = hmac_compute(init_mac_key, raw_transcript) in
   event ClientCompletesAuth(pkC_rec, pkS, session_key);
   out(c, init_mac).
 
@@ -232,10 +237,11 @@ let ServerAuth(skS: scalar, pkS: point,
   let evaluated = oprf_eval(blinded, oprf_key) in
   let cred_resp = (evaluated, env, env_nonce) in
 
-  (* 3DH server side *)
+  (* 4DH server side *)
   let dh1 = ec_dh(skS, pkC) in
   let dh2 = ec_dh(skS, eC) in
   let dh3 = ec_dh(ekS, pkC) in
+  let dh4 = ec_dh(ekS, eC) in            (* ephemeral x ephemeral — UKS resistance *)
 
   (* KEM encapsulation *)
   new kem_rand: nonce;
@@ -243,9 +249,10 @@ let ServerAuth(skS: scalar, pkS: point,
   let kem_ss = kem_shared(kem_pkC, kem_rand) in
 
   (* Transcript & key derivation *)
-  let transcript = hash((eC, eS, nonceC, nonceS, pkC, pkS, cred_resp, kem_pkC, kem_ct)) in
-  let combined_ikm = concat_ikm(dh1, dh2, dh3, kem_ss) in
-  let salt = hash((lbl_combiner, transcript)) in
+  let raw_transcript = (eC, eS, nonceC, nonceS, pkC, pkS, cred_resp, kem_pkC, kem_ct) in
+  let transcript_hash = hash((lbl_transcript, raw_transcript)) in
+  let combined_ikm = concat_ikm(dh1, dh2, dh3, dh4, kem_ss) in
+  let salt = (lbl_combiner, transcript_hash) in
   let prk = hkdf_extract(salt, combined_ikm) in
 
   let session_key = hkdf_expand(prk, lbl_session) in
@@ -253,14 +260,14 @@ let ServerAuth(skS: scalar, pkS: point,
   let resp_mac_key = hkdf_expand(prk, lbl_resp_mac) in
   let init_mac_key = hkdf_expand(prk, lbl_init_mac) in
 
-  let resp_mac = hmac_compute(resp_mac_key, transcript) in
+  let resp_mac = hmac_compute(resp_mac_key, raw_transcript) in
   event ServerAcceptsAuth(pkS, pkC, session_key);
 
   out(c, (nonceS, eS, cred_resp, resp_mac, kem_ct));
 
   (* Receive KE3 *)
   in(c, init_mac: bitstring);
-  let expected_init_mac = hmac_compute(init_mac_key, transcript) in
+  let expected_init_mac = hmac_compute(init_mac_key, raw_transcript) in
   if init_mac = expected_init_mac then
   event ServerCompletesAuth(pkS, pkC, session_key);
   event SessionEstablished(pkC, pkS, session_key).

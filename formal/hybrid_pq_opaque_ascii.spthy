@@ -6,11 +6,11 @@
  * Date: February 2026
  * 
  * Protocol: Hybrid PQ-OPAQUE -- a post-quantum extension of OPAQUE [Jarecki et al. 2018]
- * that integrates ML-KEM-768 into the 3DH authenticated key exchange.
+ * that integrates ML-KEM-768 into the 4DH authenticated key exchange.
  *
  * Cryptographic primitives modeled:
  *   - OPRF on Ristretto255 (modeled as blind evaluation)
- *   - 3DH key exchange (three DH operations on elliptic curve)
+ *   - 4DH key exchange (four DH operations on elliptic curve)
  *   - ML-KEM-768 key encapsulation (modeled as IND-CCA KEM)
  *   - HKDF-Extract / HKDF-Expand (modeled as PRF)
  *   - HMAC-SHA-512 for MAC authentication
@@ -79,8 +79,8 @@ functions:
   label_transcript/0,
 
   /* Concatenation (explicit) */
-  cat3/3,                 /* concatenation of 3 DH values */
-  cat4/4                  /* concatenation of 3 DH + KEM shared secret */
+  cat4/4,                 /* concatenation of 4 DH values */
+  cat5/5                  /* concatenation of 4 DH + KEM shared secret */
 
 /* Equational theory for OPRF */
 equations:
@@ -145,7 +145,7 @@ rule Reg_Client_Finalize:
   let
     oprf_output = oprf_finalize(evaluated, ~r)
     rwd = argon2id(oprf_output, ~pwd)
-    envelope_key = hkdf_expand(rwd, 'envelope', '32')
+    envelope_key = h(<'envelope_key', rwd, pkS>)
     skC = ~skC_fresh
     pkC = pk(skC)
     envelope = aenc(envelope_key, ~env_nonce, <pkS, skC, pkC>)
@@ -187,7 +187,7 @@ rule Auth_Client_KE1:
 /* -----------------------------------------------------------
  * AUTHENTICATION PHASE
  * KE2: Server -> Client
- *   Processes KE1, computes 3DH + KEM encaps, derives keys, computes MAC
+ *   Processes KE1, computes 4DH + KEM encaps, derives keys, computes MAC
  * ----------------------------------------------------------- */
 rule Auth_Server_KE2:
   let
@@ -211,10 +211,11 @@ rule Auth_Server_KE2:
     /* Credential response (envelope nonce needed for client to decrypt) */
     cred_resp = <evaluated, envelope, env_nonce>
 
-    /* 3DH computation (server side) */
+    /* 4DH computation (server side) */
     dh1 = pkC ^ skS           /* static x static: pkC^skS */
     dh2 = eC ^ skS            /* ephemeral x static: eC^skS */
     dh3 = pkC ^ ~ekS          /* static x ephemeral: pkC^ekS */
+    dh4 = eC ^ ~ekS           /* ephemeral x ephemeral: UKS resistance */
 
     /* KEM encapsulation */
     kem_ct = kem_encaps(kem_pkC, ~kem_rand)
@@ -224,8 +225,8 @@ rule Auth_Server_KE2:
     transcript = <eC, eS, nonceC, ~nonceS, pkC, pkS, cred_resp, kem_pkC, kem_ct>
     transcript_hash = h(<label_transcript, transcript>)
 
-    /* Hybrid key combiner: HKDF-Extract(label||transcript_hash, dh1||dh2||dh3||kem_ss) */
-    combined_ikm = cat4(dh1, dh2, dh3, kem_shared)
+    /* Hybrid key combiner: HKDF-Extract(label||transcript_hash, dh1||dh2||dh3||dh4||kem_ss) */
+    combined_ikm = cat5(dh1, dh2, dh3, dh4, kem_shared)
     salt = <label_combiner, transcript_hash>
     prk = hkdf_extract(salt, combined_ikm)
 
@@ -257,7 +258,7 @@ rule Auth_Server_KE2:
 /* -----------------------------------------------------------
  * AUTHENTICATION PHASE
  * KE3: Client -> Server
- *   Processes KE2, opens envelope, mirrors 3DH + KEM decaps,
+ *   Processes KE2, opens envelope, mirrors 4DH + KEM decaps,
  *   verifies server MAC, sends client MAC
  * ----------------------------------------------------------- */
 rule Auth_Client_KE3:
@@ -277,7 +278,7 @@ rule Auth_Client_KE3:
     /* OPRF finalize */
     oprf_output = oprf_finalize(evaluated, r_auth)
     rwd = argon2id(oprf_output, pwd)
-    envelope_key = hkdf_expand(rwd, 'envelope', '32')
+    envelope_key = h(<'envelope_key', rwd, pkS>)
 
     /* Open envelope -> recover (pkS_recovered, skC_recovered, pkC_recovered) */
     envelope_contents = adec(envelope_key, env_nonce, envelope)
@@ -285,10 +286,11 @@ rule Auth_Client_KE3:
     skC_recovered = fst(snd(envelope_contents))
     pkC_recovered = snd(snd(envelope_contents))
 
-    /* 3DH computation (client side, mirrored) */
+    /* 4DH computation (client side, mirrored) */
     dh1 = pkS ^ skC            /* static x static: pkS^skC = pkC^skS */
     dh2 = pkS ^ ekC            /* static x ephemeral: pkS^ekC = eC^skS */
     dh3 = eS ^ skC             /* ephemeral x static: eS^skC = pkC^ekS */
+    dh4 = eS ^ ekC             /* ephemeral x ephemeral: UKS resistance */
 
     /* KEM decapsulation */
     kem_shared = kem_decaps(kem_skC, kem_ct)
@@ -301,7 +303,7 @@ rule Auth_Client_KE3:
     transcript_hash = h(<label_transcript, transcript>)
 
     /* Hybrid key combiner */
-    combined_ikm = cat4(dh1, dh2, dh3, kem_shared)
+    combined_ikm = cat5(dh1, dh2, dh3, dh4, kem_shared)
     salt = <label_combiner, transcript_hash>
     prk = hkdf_extract(salt, combined_ikm)
 
@@ -454,7 +456,7 @@ lemma forward_secrecy_classical:
  * Quantum_DH_Oracle is available. The adversary can recover all DH
  * secrets, but cannot break KEM (no KEM oracle exists in the model).
  * Session key remains secret because HKDF-Extract over
- * dh1||dh2||dh3||kem_ss preserves the entropy from kem_ss.
+ * dh1||dh2||dh3||dh4||kem_ss preserves the entropy from kem_ss.
  * ----------------------------------------------------------- */
 lemma pq_forward_secrecy:
   "All C S sk #i #j #k.

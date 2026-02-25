@@ -79,12 +79,12 @@ brew install proverif           # macOS
 | Protocol Component | Tamarin Model | ProVerif Model |
 |---|---|---|
 | OPRF (Ristretto255) | Equational theory | Rewrite rules |
-| 3DH key exchange | DH builtins | Custom equations |
+| 4DH key exchange | DH builtins | Custom equations |
 | ML-KEM-768 | Functional KEM | Functional KEM |
 | HKDF-Extract/Expand | Uninterpreted functions | Uninterpreted functions |
 | HMAC-SHA-512 | Uninterpreted function | Uninterpreted function |
 | Argon2id | One-way function | One-way function |
-| XChaCha20-Poly1305 | Symmetric encryption | Authenticated encryption |
+| XSalsa20-Poly1305 | Symmetric encryption | Authenticated encryption |
 
 ## Relation to Paper
 

@@ -29,7 +29,7 @@ functions:
   kem_encaps/2,
   kem_decaps/2,
   kem_ss/2,
-  combine/4
+  combine/5
 
 equations:
   adec(k, n, aenc(k, n, m)) = m,
@@ -44,7 +44,7 @@ rule Setup:
 /* === REGISTRATION === */
 rule Register:
   let
-    envelope = aenc(kdf(argon2id(oprf(~pwd, ~ok), ~pwd), 'env'), ~n, ~skC)
+    envelope = aenc(h(<'envelope_key', argon2id(oprf(~pwd, ~ok), ~pwd), pk(skS)>), ~n, ~skC)
   in
   [ Fr(~pwd), Fr(~ok), Fr(~skC), Fr(~n), !Sk($S, skS) ]
   --[ PwdGen($C, ~pwd) ]->
@@ -55,10 +55,10 @@ rule Register:
 
 
 /* === AUTHENTICATION PHASE ===
- * The 3DH shared secret is modeled as h(<skC, skS, ekC, ekS>),
+ * The 4DH shared secret is modeled as h(<skC, skS, ekC, ekS>),
  * a function of ALL four private keys. This is correct because
- * dh(skC, pkS) || dh(ekC, pkS) || dh(skC, pkS_eph) is a
- * deterministic function of the four secret scalars.
+ * dh(skC, pkS) || dh(ekC, pkS) || dh(skC, pkS_eph) || dh(ekC, pkS_eph)
+ * is a deterministic function of the four secret scalars.
  * The adversary can only compute this if they know all four.
  */
 
@@ -78,11 +78,11 @@ rule KE2:
     ct = kem_encaps(kpk, ~kr)
     ks = kem_ss(kpk, ~kr)
 
-    /* 3DH model: shared secret = hash of all 4 private keys */
-    dh_secret = h(<'3dh', skC_from_rec, skS, ekC_from_wire, ~es>)
+    /* 4DH model: shared secret = hash of all 4 private keys */
+    dh_secret = h(<'4dh', skC_from_rec, skS, ekC_from_wire, ~es>)
 
     tr = h(<'tr', pk(ekC_from_wire), pk(~es), nc, ~ns, pkC, pk(skS), env, envn, kpk, ct>)
-    sk = kdf(combine(dh_secret, dh_secret, dh_secret, ks), tr)
+    sk = kdf(combine(dh_secret, dh_secret, dh_secret, dh_secret, ks), tr)
     rmk = kdf(sk, 'rmac')
     imk = kdf(sk, 'imac')
   in
@@ -101,14 +101,14 @@ rule KE2:
 rule KE3:
   let
     rwd = argon2id(ov, pwd)
-    ek2 = kdf(rwd, 'env')
+    ek2 = h(<'envelope_key', rwd, pk(skS)>)
     skCr = adec(ek2, envn, env)
     ks = kem_decaps(ksk, ct)
 
-    dh_secret = h(<'3dh', skC, skS, ek, ekS_from_wire>)
+    dh_secret = h(<'4dh', skC, skS, ek, ekS_from_wire>)
 
     tr = h(<'tr', pk(ek), pk(ekS_from_wire), nc, ns, pk(skC), pk(skS), env, envn, kem_pk(ksk), ct>)
-    sk = kdf(combine(dh_secret, dh_secret, dh_secret, ks), tr)
+    sk = kdf(combine(dh_secret, dh_secret, dh_secret, dh_secret, ks), tr)
     rmk = kdf(sk, 'rmac')
     imk = kdf(sk, 'imac')
   in
