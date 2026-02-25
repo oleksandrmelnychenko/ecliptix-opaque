@@ -4,9 +4,11 @@
 
 use std::ptr;
 
+use zeroize::Zeroize;
+
 use opaque_core::protocol;
 use opaque_core::types::{
-    pq, OpaqueError, OpaqueResult, HASH_LENGTH, KE1_LENGTH, KE2_LENGTH, KE3_LENGTH,
+    pq, OpaqueError, HASH_LENGTH, KE1_LENGTH, KE2_LENGTH, KE3_LENGTH,
     MASTER_KEY_LENGTH, OPRF_SEED_LENGTH, PRIVATE_KEY_LENGTH, PUBLIC_KEY_LENGTH,
     REGISTRATION_RECORD_LENGTH, REGISTRATION_REQUEST_LENGTH, REGISTRATION_RESPONSE_LENGTH,
     RESPONDER_CREDENTIALS_LENGTH,
@@ -16,6 +18,8 @@ use opaque_relay::{
     Ke2Message, OpaqueResponder, RegistrationResponse, ResponderCredentials, ResponderKeyPair,
     ResponderState,
 };
+
+use crate::result_to_int;
 
 struct RelayHandle {
     responder: OpaqueResponder,
@@ -30,13 +34,12 @@ struct RelayKeypairHandle {
     oprf_seed: [u8; OPRF_SEED_LENGTH],
 }
 
-fn result_to_int(r: OpaqueResult<()>) -> i32 {
-    match r {
-        Ok(()) => 0,
-        Err(e) => e.to_c_int(),
-    }
-}
-
+/// Generates a new relay keypair and OPRF seed.
+///
+/// # Safety
+///
+/// - `handle` must point to a valid `*mut c_void` location where the result is stored.
+/// - The returned handle must be freed with `opaque_relay_keypair_destroy`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_keypair_generate(
     handle: *mut *mut std::ffi::c_void,
@@ -53,6 +56,12 @@ pub unsafe extern "C" fn opaque_relay_keypair_generate(
     0
 }
 
+/// Destroys a relay keypair handle and zeroizes sensitive key material.
+///
+/// # Safety
+///
+/// - `handle` must be a pointer previously returned by `opaque_relay_keypair_generate`, or null.
+/// - Must not be called more than once on the same handle.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_keypair_destroy(handle: *mut std::ffi::c_void) {
     if !handle.is_null() {
@@ -60,9 +69,16 @@ pub unsafe extern "C" fn opaque_relay_keypair_destroy(handle: *mut std::ffi::c_v
     }
 }
 
-/// Retrieve the OPRF seed generated alongside the keypair.
-/// **Must be persisted to stable storage** along with the private key.
+/// Retrieves the OPRF seed generated alongside the keypair.
+///
+/// The seed **must be persisted to stable storage** along with the private key.
 /// Losing the seed makes all registered accounts unrecoverable.
+///
+/// # Safety
+///
+/// - `handle` must be a valid handle from `opaque_relay_keypair_generate`.
+/// - `oprf_seed` must point to a writable buffer of at least `seed_buffer_size` bytes.
+/// - `seed_buffer_size` must be at least `OPRF_SEED_LENGTH`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_keypair_get_oprf_seed(
     handle: *mut std::ffi::c_void,
@@ -77,6 +93,13 @@ pub unsafe extern "C" fn opaque_relay_keypair_get_oprf_seed(
     0
 }
 
+/// Copies the relay's public key from the keypair handle into the provided buffer.
+///
+/// # Safety
+///
+/// - `handle` must be a valid handle from `opaque_relay_keypair_generate`.
+/// - `public_key` must point to a writable buffer of at least `key_buffer_size` bytes.
+/// - `key_buffer_size` must be at least `PUBLIC_KEY_LENGTH` (32).
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_keypair_get_public_key(
     handle: *mut std::ffi::c_void,
@@ -91,6 +114,13 @@ pub unsafe extern "C" fn opaque_relay_keypair_get_public_key(
     0
 }
 
+/// Creates a new relay handle from a previously generated keypair.
+///
+/// # Safety
+///
+/// - `keypair_handle` must be a valid handle from `opaque_relay_keypair_generate`.
+/// - `handle` must point to a valid `*mut c_void` location where the result is stored.
+/// - The returned handle must be freed with `opaque_relay_destroy`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_create(
     keypair_handle: *mut std::ffi::c_void,
@@ -108,6 +138,13 @@ pub unsafe extern "C" fn opaque_relay_create(
     0
 }
 
+/// Destroys a relay handle and zeroizes sensitive data.
+///
+/// # Safety
+///
+/// - `handle` must be a pointer previously returned by `opaque_relay_create` or
+///   `opaque_relay_create_with_keys`, or null.
+/// - Must not be called more than once on the same handle.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_destroy(handle: *mut std::ffi::c_void) {
     if !handle.is_null() {
@@ -115,6 +152,12 @@ pub unsafe extern "C" fn opaque_relay_destroy(handle: *mut std::ffi::c_void) {
     }
 }
 
+/// Creates a new relay state handle for tracking protocol progress.
+///
+/// # Safety
+///
+/// - `handle` must point to a valid `*mut c_void` location where the result is stored.
+/// - The returned handle must be freed with `opaque_relay_state_destroy`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_state_create(
     handle: *mut *mut std::ffi::c_void,
@@ -129,6 +172,12 @@ pub unsafe extern "C" fn opaque_relay_state_create(
     0
 }
 
+/// Destroys a relay state handle and zeroizes sensitive data.
+///
+/// # Safety
+///
+/// - `handle` must be a pointer previously returned by `opaque_relay_state_create`, or null.
+/// - Must not be called more than once on the same handle.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_state_destroy(handle: *mut std::ffi::c_void) {
     if !handle.is_null() {
@@ -136,6 +185,18 @@ pub unsafe extern "C" fn opaque_relay_state_destroy(handle: *mut std::ffi::c_voi
     }
 }
 
+/// Creates a registration response for the given registration request and account identifier.
+///
+/// # Safety
+///
+/// - `relay_handle` must be a valid handle from `opaque_relay_create` or
+///   `opaque_relay_create_with_keys`.
+/// - `request_data` must point to a valid buffer of `request_length` bytes.
+/// - `request_length` must be exactly `REGISTRATION_REQUEST_LENGTH`.
+/// - `account_id` must point to a valid buffer of `account_id_length` bytes.
+/// - `account_id_length` must be greater than zero.
+/// - `response_data` must point to a writable buffer of at least `response_buffer_size` bytes.
+/// - `response_buffer_size` must be at least `REGISTRATION_RESPONSE_LENGTH`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_create_registration_response(
     relay_handle: *const std::ffi::c_void,
@@ -175,6 +236,14 @@ pub unsafe extern "C" fn opaque_relay_create_registration_response(
     }
 }
 
+/// Builds responder credentials from a stored registration record.
+///
+/// # Safety
+///
+/// - `registration_record` must point to a valid buffer of at least `record_length` bytes.
+/// - `record_length` must be at least `REGISTRATION_RECORD_LENGTH`.
+/// - `credentials_out` must point to a writable buffer of at least `credentials_out_length` bytes.
+/// - `credentials_out_length` must be at least `RESPONDER_CREDENTIALS_LENGTH`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_build_credentials(
     registration_record: *const u8,
@@ -205,6 +274,21 @@ pub unsafe extern "C" fn opaque_relay_build_credentials(
     ))
 }
 
+/// Generates the KE2 (second key-exchange) message by processing the agent's KE1 message.
+///
+/// # Safety
+///
+/// - `relay_handle` must be a valid handle from `opaque_relay_create` or
+///   `opaque_relay_create_with_keys`.
+/// - `ke1_data` must point to a valid buffer of `ke1_length` bytes.
+/// - `ke1_length` must be exactly `KE1_LENGTH`.
+/// - `account_id` must point to a valid buffer of `account_id_length` bytes.
+/// - `account_id_length` must be greater than zero.
+/// - `credentials_data` must point to a valid buffer of at least `credentials_length` bytes.
+/// - `credentials_length` must be at least `RESPONDER_CREDENTIALS_LENGTH`.
+/// - `ke2_data` must point to a writable buffer of at least `ke2_buffer_size` bytes.
+/// - `ke2_buffer_size` must be at least `KE2_LENGTH`.
+/// - `state_handle` must be a valid handle from `opaque_relay_state_create`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_generate_ke2(
     relay_handle: *const std::ffi::c_void,
@@ -216,7 +300,7 @@ pub unsafe extern "C" fn opaque_relay_generate_ke2(
     credentials_length: usize,
     ke2_data: *mut u8,
     ke2_buffer_size: usize,
-    state_handle: *const std::ffi::c_void,
+    state_handle: *mut std::ffi::c_void,
 ) -> i32 {
     if relay_handle.is_null()
         || ke1_data.is_null()
@@ -264,12 +348,24 @@ pub unsafe extern "C" fn opaque_relay_generate_ke2(
     ))
 }
 
+/// Finishes the AKE protocol on the relay side and extracts the session key and master key.
+///
+/// # Safety
+///
+/// - `_relay_handle` is currently unused but reserved; may be null.
+/// - `ke3_data` must point to a valid buffer of `ke3_length` bytes.
+/// - `ke3_length` must be exactly `KE3_LENGTH`.
+/// - `state_handle` must be a valid handle from `opaque_relay_state_create`.
+/// - `session_key` must point to a writable buffer of at least `session_key_buffer_size` bytes.
+/// - `session_key_buffer_size` must be at least `HASH_LENGTH`.
+/// - `master_key_out` must point to a writable buffer of at least `master_key_buffer_size` bytes.
+/// - `master_key_buffer_size` must be at least `MASTER_KEY_LENGTH`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_finish(
     _relay_handle: *const std::ffi::c_void,
     ke3_data: *const u8,
     ke3_length: usize,
-    state_handle: *const std::ffi::c_void,
+    state_handle: *mut std::ffi::c_void,
     session_key: *mut u8,
     session_key_buffer_size: usize,
     master_key_out: *mut u8,
@@ -298,9 +394,23 @@ pub unsafe extern "C" fn opaque_relay_finish(
     let copy_len = std::cmp::min(session_key_buffer_size, sk.len());
     ptr::copy_nonoverlapping(sk.as_ptr(), session_key, copy_len);
     ptr::copy_nonoverlapping(mk.as_ptr(), master_key_out, MASTER_KEY_LENGTH);
+    sk.zeroize();
+    mk.zeroize();
     0
 }
 
+/// Creates a relay handle from previously stored private key, public key, and OPRF seed.
+///
+/// # Safety
+///
+/// - `private_key` must point to a valid buffer of `private_key_len` bytes.
+/// - `private_key_len` must be exactly `PRIVATE_KEY_LENGTH`.
+/// - `public_key` must point to a valid buffer of `public_key_len` bytes.
+/// - `public_key_len` must be exactly `PUBLIC_KEY_LENGTH`.
+/// - `oprf_seed_ptr` must point to a valid buffer of `oprf_seed_len` bytes.
+/// - `oprf_seed_len` must be exactly `OPRF_SEED_LENGTH`.
+/// - `handle` must point to a valid `*mut c_void` location where the result is stored.
+/// - The returned handle must be freed with `opaque_relay_destroy`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_relay_create_with_keys(
     private_key: *const u8,
@@ -339,26 +449,31 @@ pub unsafe extern "C" fn opaque_relay_create_with_keys(
     0
 }
 
+/// Returns the byte length of a KE2 protocol message.
 #[no_mangle]
 pub extern "C" fn opaque_relay_get_ke2_length() -> usize {
     KE2_LENGTH
 }
 
+/// Returns the byte length of a registration record.
 #[no_mangle]
 pub extern "C" fn opaque_relay_get_registration_record_length() -> usize {
     REGISTRATION_RECORD_LENGTH
 }
 
+/// Returns the byte length of responder credentials.
 #[no_mangle]
 pub extern "C" fn opaque_relay_get_credentials_length() -> usize {
     RESPONDER_CREDENTIALS_LENGTH
 }
 
+/// Returns the byte length of a post-quantum KEM ciphertext.
 #[no_mangle]
 pub extern "C" fn opaque_relay_get_kem_ciphertext_length() -> usize {
     pq::KEM_CIPHERTEXT_LENGTH
 }
 
+/// Returns the byte length of an OPRF seed.
 #[no_mangle]
 pub extern "C" fn opaque_relay_get_oprf_seed_length() -> usize {
     OPRF_SEED_LENGTH

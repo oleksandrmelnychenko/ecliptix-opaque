@@ -11,6 +11,15 @@ use zeroize::Zeroize;
 
 use crate::state::{InitiatorState, OpaqueInitiator, RegistrationRecord, RegistrationRequest};
 
+/// Creates a registration request by blinding the user password with a random OPRF scalar.
+///
+/// Generates a fresh long-term Ristretto255 keypair for the initiator and stores it in
+/// `state`. The blinded element is written into `request`.
+///
+/// # Errors
+///
+/// Returns [`OpaqueError::InvalidInput`] if `secure_key` is empty or exceeds the
+/// maximum allowed length.
 pub fn create_registration_request(
     secure_key: &[u8],
     request: &mut RegistrationRequest,
@@ -34,6 +43,17 @@ pub fn create_registration_request(
     Ok(())
 }
 
+/// Finalizes registration by unblinding the OPRF output and sealing an envelope.
+///
+/// Verifies that the responder public key in the response matches the one stored
+/// in `initiator`, derives a randomized password, and seals the initiator key
+/// material into an encrypted envelope. The resulting [`RegistrationRecord`] is
+/// written to `record` and should be sent to the relay for storage.
+///
+/// # Errors
+///
+/// Returns an error if the response has an invalid length, the responder public key
+/// does not match, or any cryptographic operation fails.
 pub fn finalize_registration(
     initiator: &OpaqueInitiator,
     registration_response: &[u8],

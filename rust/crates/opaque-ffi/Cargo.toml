@@ -12,6 +12,7 @@ opaque-core = { workspace = true }
 opaque-agent = { workspace = true }
 opaque-relay = { workspace = true }
 libsodium-sys-stable = { workspace = true }
+zeroize = { workspace = true }
 
 [build-dependencies]
 cbindgen = "0.27"

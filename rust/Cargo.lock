@@ -815,6 +815,7 @@ dependencies = [
  "opaque-agent",
  "opaque-core",
  "opaque-relay",
+ "zeroize",
 ]
 
 [[package]]

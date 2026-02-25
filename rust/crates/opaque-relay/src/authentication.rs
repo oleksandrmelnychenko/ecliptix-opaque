@@ -12,6 +12,19 @@ use zeroize::Zeroize;
 
 use crate::state::{Ke2Message, OpaqueResponder, ResponderCredentials, ResponderState};
 
+/// Processes the initiator KE1 message and produces the KE2 response.
+///
+/// Performs the full responder-side AKE: derives a per-account OPRF key, evaluates
+/// the blinded credential request, generates an ephemeral Ristretto255 keypair,
+/// executes the 4DH exchange, encapsulates an ML-KEM-768 shared secret into the
+/// initiator ephemeral public key, combines both shared secrets via HKDF-Extract,
+/// computes the responder MAC, and pre-computes the expected initiator MAC for
+/// later verification in [`responder_finish`].
+///
+/// # Errors
+///
+/// Returns an error if `ke1_data` has an invalid length, `account_id` is empty,
+/// stored credentials are incomplete, or any cryptographic operation fails.
 pub fn generate_ke2(
     responder: &OpaqueResponder,
     ke1_data: &[u8],
@@ -144,6 +157,19 @@ pub fn generate_ke2(
     Ok(())
 }
 
+/// Verifies the initiator KE3 MAC and extracts the session and master keys.
+///
+/// Compares `ke3_data` against the expected initiator MAC computed during
+/// [`generate_ke2`]. On success, moves the session key and master key out of
+/// `state` and marks the handshake as complete. On failure, zeroizes all
+/// sensitive state.
+///
+/// # Errors
+///
+/// Returns [`OpaqueError::InvalidProtocolMessage`] if `ke3_data` has an
+/// invalid length, [`OpaqueError::ValidationError`] if the AKE has not
+/// been started, or [`OpaqueError::AuthenticationError`] if the MAC does
+/// not match.
 pub fn responder_finish(
     ke3_data: &[u8],
     state: &mut ResponderState,

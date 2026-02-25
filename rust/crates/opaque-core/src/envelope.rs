@@ -9,6 +9,17 @@ use crate::types::{
 };
 use zeroize::Zeroize;
 
+/// Seals the initiator's credentials into an encrypted envelope.
+///
+/// Derives an encryption key from the randomized password and responder public key,
+/// encrypts the credential triple (responder public key, initiator private key,
+/// initiator public key) with XSalsa20-Poly1305, and stores the result in `envelope`.
+///
+/// # Errors
+///
+/// Returns [`OpaqueError::InvalidInput`] if `randomized_pwd` is empty.
+/// Returns [`OpaqueError::InvalidEnvelope`] if the envelope nonce has an incorrect length.
+/// Returns [`OpaqueError::CryptoError`] if encryption fails.
 pub fn seal(
     randomized_pwd: &[u8],
     responder_public_key: &[u8; PUBLIC_KEY_LENGTH],
@@ -60,6 +71,18 @@ pub fn seal(
     Ok(())
 }
 
+/// Opens a sealed credential envelope and recovers the initiator's key material.
+///
+/// Derives the decryption key, authenticates and decrypts the ciphertext, then
+/// verifies that the recovered initiator public key matches the recovered private key.
+///
+/// # Errors
+///
+/// Returns [`OpaqueError::InvalidInput`] if `randomized_pwd` is empty.
+/// Returns [`OpaqueError::InvalidEnvelope`] if the envelope fields have incorrect lengths.
+/// Returns [`OpaqueError::AuthenticationError`] if the Poly1305 tag does not verify
+/// or the recovered key pair is inconsistent.
+/// Returns [`OpaqueError::CryptoError`] if decryption or key derivation fails.
 pub fn open(
     envelope: &Envelope,
     randomized_pwd: &[u8],

@@ -4,6 +4,8 @@
 
 use std::ptr;
 
+use zeroize::Zeroize;
+
 use opaque_agent::{
     create_registration_request, finalize_registration, generate_ke1, generate_ke3,
     initiator_finish, InitiatorState, Ke1Message, Ke3Message, OpaqueInitiator,
@@ -11,10 +13,12 @@ use opaque_agent::{
 };
 use opaque_core::protocol;
 use opaque_core::types::{
-    pq, OpaqueError, OpaqueResult, HASH_LENGTH, KE1_LENGTH, KE2_LENGTH, KE3_LENGTH,
+    pq, OpaqueError, HASH_LENGTH, KE1_LENGTH, KE2_LENGTH, KE3_LENGTH,
     MASTER_KEY_LENGTH, PUBLIC_KEY_LENGTH, REGISTRATION_RECORD_LENGTH,
     REGISTRATION_REQUEST_LENGTH, REGISTRATION_RESPONSE_LENGTH,
 };
+
+use crate::result_to_int;
 
 struct AgentHandle {
     initiator: OpaqueInitiator,
@@ -24,18 +28,23 @@ struct AgentStateHandle {
     state: InitiatorState,
 }
 
-fn result_to_int(r: OpaqueResult<()>) -> i32 {
-    match r {
-        Ok(()) => 0,
-        Err(e) => e.to_c_int(),
-    }
-}
-
+/// Initializes the libsodium library. Must be called before any other OPAQUE function.
+///
+/// Returns 0 on success, -1 on failure.
 #[no_mangle]
 pub extern "C" fn opaque_init() -> i32 {
+    // SAFETY: sodium_init is safe to call multiple times and from any thread.
     unsafe { libsodium_sys::sodium_init() }
 }
 
+/// Creates a new agent handle.
+///
+/// # Safety
+///
+/// - `relay_public_key` must point to a valid buffer of at least `key_length` bytes.
+/// - `key_length` must be exactly `PUBLIC_KEY_LENGTH` (32).
+/// - `handle` must point to a valid `*mut c_void` location where the result is stored.
+/// - The returned handle must be freed with `opaque_agent_destroy`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_agent_create(
     relay_public_key: *const u8,
@@ -54,6 +63,12 @@ pub unsafe extern "C" fn opaque_agent_create(
     0
 }
 
+/// Destroys an agent handle and zeroizes sensitive data.
+///
+/// # Safety
+///
+/// - `handle` must be a pointer previously returned by `opaque_agent_create`, or null.
+/// - Must not be called more than once on the same handle.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_agent_destroy(handle: *mut std::ffi::c_void) {
     if !handle.is_null() {
@@ -61,6 +76,12 @@ pub unsafe extern "C" fn opaque_agent_destroy(handle: *mut std::ffi::c_void) {
     }
 }
 
+/// Creates a new agent state handle for tracking protocol progress.
+///
+/// # Safety
+///
+/// - `handle` must point to a valid `*mut c_void` location where the result is stored.
+/// - The returned handle must be freed with `opaque_agent_state_destroy`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_agent_state_create(handle: *mut *mut std::ffi::c_void) -> i32 {
     if handle.is_null() {
@@ -73,6 +94,12 @@ pub unsafe extern "C" fn opaque_agent_state_create(handle: *mut *mut std::ffi::c
     0
 }
 
+/// Destroys an agent state handle and zeroizes sensitive data.
+///
+/// # Safety
+///
+/// - `handle` must be a pointer previously returned by `opaque_agent_state_create`, or null.
+/// - Must not be called more than once on the same handle.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_agent_state_destroy(handle: *mut std::ffi::c_void) {
     if !handle.is_null() {
@@ -80,6 +107,16 @@ pub unsafe extern "C" fn opaque_agent_state_destroy(handle: *mut std::ffi::c_voi
     }
 }
 
+/// Creates a registration request from the agent's secure key.
+///
+/// # Safety
+///
+/// - `agent_handle` must be a valid handle from `opaque_agent_create`.
+/// - `secure_key` must point to a valid buffer of `secure_key_length` bytes.
+/// - `secure_key_length` must be greater than zero.
+/// - `state_handle` must be a valid handle from `opaque_agent_state_create`.
+/// - `request_out` must point to a writable buffer of at least `request_length` bytes.
+/// - `request_length` must be at least `REGISTRATION_REQUEST_LENGTH`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_agent_create_registration_request(
     agent_handle: *mut std::ffi::c_void,
@@ -110,6 +147,16 @@ pub unsafe extern "C" fn opaque_agent_create_registration_request(
     result_to_int(result)
 }
 
+/// Finalizes registration by processing the relay's response and producing a registration record.
+///
+/// # Safety
+///
+/// - `agent_handle` must be a valid handle from `opaque_agent_create`.
+/// - `response` must point to a valid buffer of `response_length` bytes.
+/// - `response_length` must be exactly `REGISTRATION_RESPONSE_LENGTH`.
+/// - `state_handle` must be a valid handle from `opaque_agent_state_create`.
+/// - `record_out` must point to a writable buffer of at least `record_length` bytes.
+/// - `record_length` must be at least `REGISTRATION_RECORD_LENGTH`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_agent_finalize_registration(
     agent_handle: *mut std::ffi::c_void,
@@ -146,6 +193,16 @@ pub unsafe extern "C" fn opaque_agent_finalize_registration(
     ))
 }
 
+/// Generates the KE1 (first key-exchange) message from the agent's secure key.
+///
+/// # Safety
+///
+/// - `_agent_handle` is currently unused but reserved; may be null.
+/// - `secure_key` must point to a valid buffer of `secure_key_length` bytes.
+/// - `secure_key_length` must be greater than zero.
+/// - `state_handle` must be a valid handle from `opaque_agent_state_create`.
+/// - `ke1_out` must point to a writable buffer of at least `ke1_length` bytes.
+/// - `ke1_length` must be at least `KE1_LENGTH`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_agent_generate_ke1(
     _agent_handle: *mut std::ffi::c_void,
@@ -182,6 +239,16 @@ pub unsafe extern "C" fn opaque_agent_generate_ke1(
     ))
 }
 
+/// Generates the KE3 (third key-exchange) message by processing the relay's KE2 response.
+///
+/// # Safety
+///
+/// - `agent_handle` must be a valid handle from `opaque_agent_create`.
+/// - `ke2` must point to a valid buffer of `ke2_length` bytes.
+/// - `ke2_length` must be exactly `KE2_LENGTH`.
+/// - `state_handle` must be a valid handle from `opaque_agent_state_create`.
+/// - `ke3_out` must point to a writable buffer of at least `ke3_length` bytes.
+/// - `ke3_length` must be at least `KE3_LENGTH`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_agent_generate_ke3(
     agent_handle: *mut std::ffi::c_void,
@@ -214,6 +281,16 @@ pub unsafe extern "C" fn opaque_agent_generate_ke3(
     result_to_int(protocol::write_ke3(&ke3.initiator_mac, out))
 }
 
+/// Finishes the AKE protocol and extracts the session key and master key.
+///
+/// # Safety
+///
+/// - `_agent_handle` is currently unused but reserved; may be null.
+/// - `state_handle` must be a valid handle from `opaque_agent_state_create`.
+/// - `session_key_out` must point to a writable buffer of at least `session_key_length` bytes.
+/// - `session_key_length` must be at least `HASH_LENGTH`.
+/// - `master_key_out` must point to a writable buffer of at least `master_key_length` bytes.
+/// - `master_key_length` must be at least `MASTER_KEY_LENGTH`.
 #[no_mangle]
 pub unsafe extern "C" fn opaque_agent_finish(
     _agent_handle: *mut std::ffi::c_void,
@@ -243,34 +320,42 @@ pub unsafe extern "C" fn opaque_agent_finish(
     let copy_len = std::cmp::min(session_key_length, session_key.len());
     ptr::copy_nonoverlapping(session_key.as_ptr(), session_key_out, copy_len);
     ptr::copy_nonoverlapping(master_key.as_ptr(), master_key_out, MASTER_KEY_LENGTH);
+    session_key.zeroize();
+    master_key.zeroize();
     0
 }
 
+/// Returns the byte length of a KE1 protocol message.
 #[no_mangle]
 pub extern "C" fn opaque_get_ke1_length() -> usize {
     KE1_LENGTH
 }
 
+/// Returns the byte length of a KE2 protocol message.
 #[no_mangle]
 pub extern "C" fn opaque_get_ke2_length() -> usize {
     KE2_LENGTH
 }
 
+/// Returns the byte length of a KE3 protocol message.
 #[no_mangle]
 pub extern "C" fn opaque_get_ke3_length() -> usize {
     KE3_LENGTH
 }
 
+/// Returns the byte length of a registration record.
 #[no_mangle]
 pub extern "C" fn opaque_get_registration_record_length() -> usize {
     REGISTRATION_RECORD_LENGTH
 }
 
+/// Returns the byte length of a post-quantum KEM public key.
 #[no_mangle]
 pub extern "C" fn opaque_get_kem_public_key_length() -> usize {
     pq::KEM_PUBLIC_KEY_LENGTH
 }
 
+/// Returns the byte length of a post-quantum KEM ciphertext.
 #[no_mangle]
 pub extern "C" fn opaque_get_kem_ciphertext_length() -> usize {
     pq::KEM_CIPHERTEXT_LENGTH

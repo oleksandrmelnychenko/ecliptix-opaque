@@ -13,6 +13,17 @@ use zeroize::Zeroize;
 
 use crate::state::{InitiatorState, Ke1Message, Ke3Message, OpaqueInitiator};
 
+/// Generates the first key-exchange message (KE1) to begin authentication.
+///
+/// Creates an ephemeral Ristretto255 keypair, an ephemeral ML-KEM-768 keypair,
+/// a random nonce, and blinds the user password into a credential request.
+/// All ephemeral material is stored in `state`; the outgoing message is written
+/// to `ke1`.
+///
+/// # Errors
+///
+/// Returns [`OpaqueError::InvalidInput`] if `secure_key` is empty or exceeds the
+/// maximum allowed length.
 pub fn generate_ke1(
     secure_key: &[u8],
     ke1: &mut Ke1Message,
@@ -50,6 +61,19 @@ pub fn generate_ke1(
     Ok(())
 }
 
+/// Processes the relay KE2 message and produces the KE3 confirmation.
+///
+/// Performs the full initiator-side AKE: unblinds the OPRF output, derives the
+/// randomized password, opens the envelope to recover key material, executes the
+/// 4DH exchange and ML-KEM-768 decapsulation, combines both shared secrets via
+/// HKDF-Extract, verifies the responder MAC, and computes the initiator MAC for
+/// KE3. On success the session key and master key are stored in `state`.
+///
+/// # Errors
+///
+/// Returns an error if `ke2_data` has an invalid length, any public key is
+/// malformed, the envelope cannot be opened, or the responder MAC verification
+/// fails.
 pub fn generate_ke3(
     initiator: &OpaqueInitiator,
     ke2_data: &[u8],
@@ -213,6 +237,15 @@ pub fn generate_ke3(
     Ok(())
 }
 
+/// Extracts the session key and master key from the initiator state after a successful AKE.
+///
+/// Moves both keys out of `state` and zeroizes remaining sensitive material.
+/// This function should be called only after [`generate_ke3`] succeeds.
+///
+/// # Errors
+///
+/// Returns [`OpaqueError::InvalidInput`] if the session key or master key has not
+/// been derived (i.e., the AKE has not completed).
 pub fn initiator_finish(
     state: &mut InitiatorState,
     session_key: &mut Vec<u8>,

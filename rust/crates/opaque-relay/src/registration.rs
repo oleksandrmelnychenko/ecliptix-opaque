@@ -10,6 +10,16 @@ use zeroize::Zeroize;
 
 use crate::state::{OpaqueResponder, RegistrationResponse, ResponderCredentials};
 
+/// Evaluates the OPRF on the blinded request and builds a registration response.
+///
+/// Derives a per-account OPRF key from the relay OPRF seed and `account_id`,
+/// evaluates the blinded element from `registration_request`, and writes the
+/// result together with the relay public key into `response`.
+///
+/// # Errors
+///
+/// Returns an error if `registration_request` has an invalid length, is not a
+/// valid Ristretto255 point, `account_id` is empty, or the OPRF evaluation fails.
 pub fn create_registration_response(
     responder: &OpaqueResponder,
     registration_request: &[u8],
@@ -45,6 +55,17 @@ pub fn create_registration_response(
     Ok(())
 }
 
+/// Parses a registration record and stores it in the relay credential file.
+///
+/// Extracts the envelope and the initiator public key from `registration_record`
+/// and writes them into `credentials`. Refuses to overwrite previously stored
+/// credentials.
+///
+/// # Errors
+///
+/// Returns [`OpaqueError::AlreadyRegistered`] if credentials have already been
+/// populated, or an error if the record is malformed or the initiator public key
+/// is invalid.
 pub fn build_credentials(
     registration_record: &[u8],
     credentials: &mut ResponderCredentials,

@@ -9,9 +9,17 @@ use crate::types::{
 use ml_kem::{EncodedSizeUser, KemCore, MlKem768};
 use zeroize::Zeroize;
 
+/// Type alias for the ML-KEM-768 encapsulation (public) key.
 type EK = <MlKem768 as KemCore>::EncapsulationKey;
+/// Type alias for the ML-KEM-768 decapsulation (secret) key.
 type DK = <MlKem768 as KemCore>::DecapsulationKey;
 
+/// Generates a fresh ML-KEM-768 key pair using the OS random number generator.
+///
+/// # Errors
+///
+/// Returns [`OpaqueError::InvalidKemInput`] if `public_key` or `secret_key` has
+/// an incorrect length.
 pub fn keypair_generate(
     public_key: &mut [u8],
     secret_key: &mut [u8],
@@ -31,6 +39,15 @@ pub fn keypair_generate(
     Ok(())
 }
 
+/// Encapsulates a shared secret against an ML-KEM-768 public key.
+///
+/// Writes the KEM ciphertext to `ciphertext` and the shared secret to `shared_secret`.
+///
+/// # Errors
+///
+/// Returns [`OpaqueError::InvalidKemInput`] if any buffer has an incorrect length or
+/// the public key cannot be decoded.
+/// Returns [`OpaqueError::CryptoError`] if encapsulation fails.
 pub fn encapsulate(
     public_key: &[u8],
     ciphertext: &mut [u8],
@@ -57,6 +74,13 @@ pub fn encapsulate(
     Ok(())
 }
 
+/// Decapsulates a shared secret from an ML-KEM-768 ciphertext using the secret key.
+///
+/// # Errors
+///
+/// Returns [`OpaqueError::InvalidKemInput`] if any buffer has an incorrect length or
+/// the secret key / ciphertext cannot be decoded.
+/// Returns [`OpaqueError::CryptoError`] if decapsulation fails.
 pub fn decapsulate(
     secret_key: &[u8],
     ciphertext: &[u8],
@@ -82,6 +106,18 @@ pub fn decapsulate(
     Ok(())
 }
 
+/// Combines classical 4DH and post-quantum KEM key material into a single PRK.
+///
+/// Concatenates the 128-byte classical IKM (four 32-byte DH shares) with the
+/// 32-byte ML-KEM shared secret, then runs `HKDF-Extract` using the labeled
+/// transcript hash as salt.
+///
+/// # Errors
+///
+/// Returns [`OpaqueError::InvalidInput`] if `classical_ikm` is not 128 bytes,
+/// `pq_shared_secret` is not [`pq::KEM_SHARED_SECRET_LENGTH`] bytes, or
+/// `transcript_hash` is not [`HASH_LENGTH`] bytes.
+/// Returns [`OpaqueError::CryptoError`] if the HKDF-Extract step fails.
 pub fn combine_key_material(
     classical_ikm: &[u8],
     pq_shared_secret: &[u8],
