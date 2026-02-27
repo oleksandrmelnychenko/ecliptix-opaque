@@ -155,11 +155,11 @@ fn bench_ke2_no_ksf(c: &mut Criterion) {
 fn bench_ke3_no_ksf(c: &mut Criterion) {
     let init_static_sk = crypto::random_nonzero_scalar();
     let init_eph_sk = crypto::random_nonzero_scalar();
-    let init_eph_pk = crypto::scalarmult_base(&init_eph_sk).unwrap();
+    let _init_eph_pk = crypto::scalarmult_base(&init_eph_sk).unwrap();
     let resp_static_sk = crypto::random_nonzero_scalar();
     let resp_static_pk = crypto::scalarmult_base(&resp_static_sk).unwrap();
     let resp_eph_sk = crypto::random_nonzero_scalar();
-    let _resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk).unwrap();
+    let resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk).unwrap();
 
     let input = b"benchmark password";
     let mut blinded = [0u8; PUBLIC_KEY_LENGTH];
@@ -284,7 +284,7 @@ fn bench_full_ake_no_ksf(c: &mut Criterion) {
 
             // ── KE2 (responder) ───────────────────────────────────────────────
             let resp_eph_sk = crypto::random_nonzero_scalar();
-            let _resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk).unwrap();
+            let resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk).unwrap();
             let mut evaluated = [0u8; PUBLIC_KEY_LENGTH];
             oprf::evaluate(&blinded, &oprf_key, &mut evaluated).unwrap();
             let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];
@@ -359,7 +359,7 @@ fn bench_full_ake_no_ksf(c: &mut Criterion) {
 
             // ── KE2 (responder) ───────────────────────────────────────────────
             let resp_eph_sk = crypto::random_nonzero_scalar();
-            let _resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk).unwrap();
+            let resp_eph_pk = crypto::scalarmult_base(&resp_eph_sk).unwrap();
             let mut evaluated = [0u8; PUBLIC_KEY_LENGTH];
             oprf::evaluate(&blinded, &oprf_key, &mut evaluated).unwrap();
             let mut dh1 = [0u8; PUBLIC_KEY_LENGTH];

@@ -34,7 +34,10 @@ struct AgentStateHandle {
 #[no_mangle]
 pub extern "C" fn opaque_init() -> i32 {
     // SAFETY: sodium_init is safe to call multiple times and from any thread.
-    unsafe { libsodium_sys::sodium_init() }
+    // sodium_init returns 0 on success, 1 if already initialized, -1 on failure.
+    // Normalize to 0 (success) for both 0 and 1 to match the FFI convention.
+    let rc = unsafe { libsodium_sys::sodium_init() };
+    if rc >= 0 { 0 } else { -1 }
 }
 
 /// Creates a new agent handle.

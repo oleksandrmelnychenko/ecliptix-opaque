@@ -216,30 +216,47 @@ pub fn hmac_sha512(key: &[u8], message: &[u8], mac_out: &mut [u8; MAC_LENGTH]) -
         return Err(OpaqueError::InvalidInput);
     }
     // SAFETY: State is initialized by _init before use. Subsequent calls use the
-    // initialized state pointer. Return codes are checked.
+    // initialized state pointer. Return codes are checked. State is zeroized after use
+    // to scrub the HMAC key material (ipad/opad) from the stack.
     unsafe {
         let mut state =
             std::mem::MaybeUninit::<libsodium_sys::crypto_auth_hmacsha512_state>::uninit();
+        let state_ptr = state.as_mut_ptr();
         if libsodium_sys::crypto_auth_hmacsha512_init(
-            state.as_mut_ptr(),
+            state_ptr,
             key.as_ptr(),
             key.len(),
         ) != 0
         {
+            libsodium_sys::sodium_memzero(
+                state_ptr as *mut _,
+                std::mem::size_of::<libsodium_sys::crypto_auth_hmacsha512_state>(),
+            );
             return Err(OpaqueError::CryptoError);
         }
-        let state_ptr = state.as_mut_ptr();
         if libsodium_sys::crypto_auth_hmacsha512_update(
             state_ptr,
             message.as_ptr(),
             message.len() as u64,
         ) != 0
         {
+            libsodium_sys::sodium_memzero(
+                state_ptr as *mut _,
+                std::mem::size_of::<libsodium_sys::crypto_auth_hmacsha512_state>(),
+            );
             return Err(OpaqueError::CryptoError);
         }
         if libsodium_sys::crypto_auth_hmacsha512_final(state_ptr, mac_out.as_mut_ptr()) != 0 {
+            libsodium_sys::sodium_memzero(
+                state_ptr as *mut _,
+                std::mem::size_of::<libsodium_sys::crypto_auth_hmacsha512_state>(),
+            );
             return Err(OpaqueError::CryptoError);
         }
+        libsodium_sys::sodium_memzero(
+            state_ptr as *mut _,
+            std::mem::size_of::<libsodium_sys::crypto_auth_hmacsha512_state>(),
+        );
     }
     Ok(())
 }
@@ -312,7 +329,7 @@ pub fn key_derivation_expand(
     const HASH_LEN: usize = HASH_LENGTH;
     const MAX_BLOCKS: usize = 255;
 
-    let n = (okm.len() + HASH_LEN - 1) / HASH_LEN;
+    let n = okm.len().div_ceil(HASH_LEN);
     if n > MAX_BLOCKS {
         return Err(OpaqueError::InvalidInput);
     }
@@ -321,27 +338,30 @@ pub fn key_derivation_expand(
     let mut t_current = [0u8; HASH_LEN];
     let mut input = Vec::with_capacity(HASH_LEN + info.len() + 1);
 
-    for i in 1..=n {
-        input.clear();
-        if i > 1 {
-            input.extend_from_slice(&t_prev);
+    let result = (|| {
+        for i in 1..=n {
+            input.clear();
+            if i > 1 {
+                input.extend_from_slice(&t_prev);
+            }
+            input.extend_from_slice(info);
+            input.push(i as u8);
+
+            hmac_sha512(prk, &input, &mut t_current)?;
+
+            let copy_len = std::cmp::min(HASH_LEN, okm.len() - (i - 1) * HASH_LEN);
+            okm[(i - 1) * HASH_LEN..(i - 1) * HASH_LEN + copy_len]
+                .copy_from_slice(&t_current[..copy_len]);
+
+            std::mem::swap(&mut t_prev, &mut t_current);
         }
-        input.extend_from_slice(info);
-        input.push(i as u8);
-
-        hmac_sha512(prk, &input, &mut t_current)?;
-
-        let copy_len = std::cmp::min(HASH_LEN, okm.len() - (i - 1) * HASH_LEN);
-        okm[(i - 1) * HASH_LEN..(i - 1) * HASH_LEN + copy_len]
-            .copy_from_slice(&t_current[..copy_len]);
-
-        std::mem::swap(&mut t_prev, &mut t_current);
-    }
+        Ok(())
+    })();
 
     t_prev.zeroize();
     t_current.zeroize();
     input.zeroize();
-    Ok(())
+    result
 }
 
 /// Derives a per-account OPRF scalar key from the relay secret and account identifier.

@@ -329,6 +329,7 @@ pub unsafe extern "C" fn opaque_relay_generate_ke2(
     let mut creds = ResponderCredentials::new();
     creds.envelope = record_view.envelope.to_vec();
     creds.initiator_public_key.copy_from_slice(record_view.initiator_public_key);
+    creds.registered = true;
 
     let state = &mut (*(state_handle as *mut RelayStateHandle)).state;
     let mut ke2 = Ke2Message::new();

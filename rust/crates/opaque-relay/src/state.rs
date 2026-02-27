@@ -185,13 +185,15 @@ impl Default for Ke2Message {
 /// Per-account credentials stored by the relay after a successful registration.
 ///
 /// Contains the sealed envelope and the initiator long-term public key needed
-/// to run the AKE phase.
+/// to run the AKE phase. All sensitive fields are zeroized on drop.
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct ResponderCredentials {
     /// Sealed envelope (nonce + ciphertext + auth tag) created by the initiator.
     pub envelope: Vec<u8>,
     /// Long-term Ristretto255 public key of the initiator.
     pub initiator_public_key: [u8; PUBLIC_KEY_LENGTH],
     /// Indicates whether [`build_credentials`](crate::build_credentials) has been called. Prevents accidental overwrite.
+    #[zeroize(skip)]
     pub registered: bool,
 }
 

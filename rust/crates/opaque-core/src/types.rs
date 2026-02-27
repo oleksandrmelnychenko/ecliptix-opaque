@@ -182,7 +182,7 @@ pub type OpaqueResult<T> = Result<T, OpaqueError>;
 /// Wraps a `Vec<u8>` and implements `Zeroize + ZeroizeOnDrop` so that
 /// sensitive key material is scrubbed from memory when no longer needed.
 /// The `Debug` implementation redacts the contents.
-#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
 pub struct SecureBytes(Vec<u8>);
 
 impl SecureBytes {
@@ -221,11 +221,6 @@ impl SecureBytes {
         self.0.resize(new_len, 0);
     }
 
-    /// Consumes the buffer and returns the inner `Vec<u8>` without zeroizing.
-    pub fn into_vec(self) -> Vec<u8> {
-        let mut s = self;
-        std::mem::take(&mut s.0)
-    }
 }
 
 impl std::ops::Deref for SecureBytes {
@@ -250,12 +245,6 @@ impl AsRef<[u8]> for SecureBytes {
 impl From<Vec<u8>> for SecureBytes {
     fn from(v: Vec<u8>) -> Self {
         Self(v)
-    }
-}
-
-impl Default for SecureBytes {
-    fn default() -> Self {
-        Self(Vec::new())
     }
 }
 

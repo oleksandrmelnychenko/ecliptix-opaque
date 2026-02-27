@@ -69,6 +69,7 @@ impl Default for InitiatorState {
 }
 
 /// Blinded OPRF element sent by the initiator to begin password registration.
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct RegistrationRequest {
     /// Serialized blinded Ristretto255 point.
     pub data: [u8; REGISTRATION_REQUEST_LENGTH],
@@ -121,6 +122,7 @@ impl Default for RegistrationRecord {
 ///
 /// Carries the ephemeral public keys (classical and post-quantum), a random
 /// nonce, and the blinded OPRF credential request.
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct Ke1Message {
     /// Random nonce contributed by the initiator.
     pub initiator_nonce: [u8; NONCE_LENGTH],

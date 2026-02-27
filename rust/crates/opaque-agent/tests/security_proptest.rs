@@ -4,6 +4,8 @@ use opaque_core::protocol;
 use opaque_relay::*;
 use proptest::prelude::*;
 
+type AuthResult = Result<(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>), Box<dyn std::error::Error>>;
+
 const ACCOUNT_ID: &[u8] = b"alice@example.com";
 
 fn register(password: &[u8], responder: &OpaqueResponder) -> Vec<u8> {
@@ -32,7 +34,7 @@ fn authenticate(
     password: &[u8],
     responder: &OpaqueResponder,
     record_bytes: &[u8],
-) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
+) -> AuthResult {
     let initiator = OpaqueInitiator::new(responder.public_key()).unwrap();
 
     let mut client_state = InitiatorState::new();
