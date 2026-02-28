@@ -4,7 +4,7 @@
 
 use std::ptr;
 
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use opaque_agent::{
     create_registration_request, finalize_registration, generate_ke1, generate_ke3,
@@ -20,10 +20,12 @@ use opaque_core::types::{
 
 use crate::result_to_int;
 
+#[derive(Zeroize, ZeroizeOnDrop)]
 struct AgentHandle {
     initiator: OpaqueInitiator,
 }
 
+#[derive(Zeroize, ZeroizeOnDrop)]
 struct AgentStateHandle {
     state: InitiatorState,
 }

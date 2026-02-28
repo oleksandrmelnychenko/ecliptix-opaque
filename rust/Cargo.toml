@@ -12,12 +12,12 @@ version = "1.0.0"
 edition = "2021"
 license = "MIT"
 authors = ["Oleksandr Melnychenko <oleksandrmelnychenko@users.noreply.github.com>"]
-description = "Hybrid PQ-OPAQUE: Post-Quantum Password-Authenticated Key Exchange (3DH Ristretto255 + ML-KEM-768)"
+description = "Hybrid PQ-OPAQUE: Post-Quantum Password-Authenticated Key Exchange (4DH Ristretto255 + ML-KEM-768)"
 repository = "https://github.com/oleksandrmelnychenko/ecliptix-opaque"
 
 [workspace.dependencies]
 libsodium-sys-stable = { version = "1.22", features = ["fetch-latest"] }
-ml-kem = "0.2"
+ml-kem = "=0.2.3"
 zeroize = { version = "1", features = ["derive"] }
 rand = "0.8"
 rand_core = "0.6"
@@ -34,3 +34,4 @@ opaque-relay = { path = "crates/opaque-relay" }
 lto = true
 codegen-units = 1
 strip = "symbols"
+panic = "abort"

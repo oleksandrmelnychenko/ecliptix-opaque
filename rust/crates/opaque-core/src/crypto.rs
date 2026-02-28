@@ -624,12 +624,15 @@ pub fn sha512(input: &[u8], out: &mut [u8; HASH_LENGTH]) {
 /// Uses the streaming SHA-512 API to avoid allocating a contiguous buffer.
 pub fn sha512_multi(parts: &[&[u8]], out: &mut [u8; HASH_LENGTH]) {
     // SAFETY: State is initialized by _init before use. Subsequent _update and _final
-    // calls use the initialized state pointer.
+    // calls use the initialized state pointer. State is zeroized after use to scrub
+    // internal hash chain values from the stack.
     unsafe {
         let mut state =
             std::mem::MaybeUninit::<libsodium_sys::crypto_hash_sha512_state>::uninit();
-        libsodium_sys::crypto_hash_sha512_init(state.as_mut_ptr());
         let state_ptr = state.as_mut_ptr();
+        if libsodium_sys::crypto_hash_sha512_init(state_ptr) != 0 {
+            return;
+        }
         for part in parts {
             libsodium_sys::crypto_hash_sha512_update(
                 state_ptr,
@@ -638,5 +641,9 @@ pub fn sha512_multi(parts: &[&[u8]], out: &mut [u8; HASH_LENGTH]) {
             );
         }
         libsodium_sys::crypto_hash_sha512_final(state_ptr, out.as_mut_ptr());
+        libsodium_sys::sodium_memzero(
+            state_ptr as *mut _,
+            std::mem::size_of::<libsodium_sys::crypto_hash_sha512_state>(),
+        );
     }
 }

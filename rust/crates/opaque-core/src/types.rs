@@ -217,7 +217,11 @@ impl SecureBytes {
     }
 
     /// Resizes the buffer to `new_len`, zero-filling any new bytes.
+    /// When shrinking, the truncated portion is zeroized before deallocation.
     pub fn resize(&mut self, new_len: usize) {
+        if new_len < self.0.len() {
+            self.0[new_len..].zeroize();
+        }
         self.0.resize(new_len, 0);
     }
 

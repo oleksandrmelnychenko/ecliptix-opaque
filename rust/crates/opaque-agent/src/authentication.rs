@@ -11,7 +11,7 @@ use opaque_core::types::{
 use opaque_core::{crypto, envelope, oprf, pq_kem, protocol};
 use zeroize::Zeroize;
 
-use crate::state::{InitiatorState, Ke1Message, Ke3Message, OpaqueInitiator};
+use crate::state::{InitiatorPhase, InitiatorState, Ke1Message, Ke3Message, OpaqueInitiator};
 
 /// Generates the first key-exchange message (KE1) to begin authentication.
 ///
@@ -31,6 +31,9 @@ pub fn generate_ke1(
 ) -> OpaqueResult<()> {
     if secure_key.is_empty() || secure_key.len() > MAX_SECURE_KEY_LENGTH {
         return Err(OpaqueError::InvalidInput);
+    }
+    if state.phase != InitiatorPhase::Created {
+        return Err(OpaqueError::ValidationError);
     }
 
     state.secure_key = secure_key.to_vec();
@@ -58,6 +61,7 @@ pub fn generate_ke1(
 
     ke1.pq_ephemeral_public_key = state.pq_ephemeral_public_key.clone();
 
+    state.phase = InitiatorPhase::Ke1Generated;
     Ok(())
 }
 
@@ -82,6 +86,9 @@ pub fn generate_ke3(
 ) -> OpaqueResult<()> {
     if ke2_data.len() != KE2_LENGTH {
         return Err(OpaqueError::InvalidProtocolMessage);
+    }
+    if state.phase != InitiatorPhase::Ke1Generated {
+        return Err(OpaqueError::ValidationError);
     }
 
     let responder_public_key = initiator.responder_public_key();
@@ -132,6 +139,9 @@ pub fn generate_ke3(
     )?;
 
     if !constant_time_eq(&recovered_rpk, responder_public_key) {
+        recovered_isk.zeroize();
+        recovered_rpk.zeroize();
+        recovered_ipk.zeroize();
         return Err(OpaqueError::AuthenticationError);
     }
 
@@ -207,6 +217,25 @@ pub fn generate_ke3(
     crypto::hmac_sha512(&resp_mac_key, &mac_input, &mut expected_resp_mac)?;
 
     if !constant_time_eq(responder_mac, &expected_resp_mac) {
+        classical_ikm.zeroize();
+        mac_input.zeroize();
+        prk.zeroize();
+        dh1.zeroize();
+        dh2.zeroize();
+        dh3.zeroize();
+        dh4.zeroize();
+        kem_ss.zeroize();
+        oprf_output.zeroize();
+        randomized_pwd.zeroize();
+        resp_mac_key.zeroize();
+        expected_resp_mac.zeroize();
+        transcript_hash.zeroize();
+        session_key.zeroize();
+        master_key.zeroize();
+        recovered_isk.zeroize();
+        recovered_rpk.zeroize();
+        recovered_ipk.zeroize();
+        state.pq_shared_secret.zeroize();
         return Err(OpaqueError::AuthenticationError);
     }
 
@@ -233,7 +262,10 @@ pub fn generate_ke3(
     resp_mac_key.zeroize();
     expected_resp_mac.zeroize();
     init_mac_key.zeroize();
+    transcript_hash.zeroize();
+    master_key.zeroize();
 
+    state.phase = InitiatorPhase::Ke3Generated;
     Ok(())
 }
 
@@ -251,6 +283,9 @@ pub fn initiator_finish(
     session_key: &mut Vec<u8>,
     master_key: &mut Vec<u8>,
 ) -> OpaqueResult<()> {
+    if state.phase != InitiatorPhase::Ke3Generated {
+        return Err(OpaqueError::ValidationError);
+    }
     if state.session_key.is_empty() || state.master_key.len() != MASTER_KEY_LENGTH {
         return Err(OpaqueError::InvalidInput);
     }
@@ -263,5 +298,6 @@ pub fn initiator_finish(
     state.secure_key.zeroize();
     state.oblivious_prf_blind_scalar.zeroize();
 
+    state.phase = InitiatorPhase::Finished;
     Ok(())
 }

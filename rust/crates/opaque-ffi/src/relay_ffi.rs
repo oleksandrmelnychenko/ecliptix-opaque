@@ -4,7 +4,7 @@
 
 use std::ptr;
 
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use opaque_core::protocol;
 use opaque_core::types::{
@@ -21,14 +21,17 @@ use opaque_relay::{
 
 use crate::result_to_int;
 
+#[derive(Zeroize, ZeroizeOnDrop)]
 struct RelayHandle {
     responder: OpaqueResponder,
 }
 
+#[derive(Zeroize, ZeroizeOnDrop)]
 struct RelayStateHandle {
     state: ResponderState,
 }
 
+#[derive(Zeroize, ZeroizeOnDrop)]
 struct RelayKeypairHandle {
     keypair: ResponderKeyPair,
     oprf_seed: [u8; OPRF_SEED_LENGTH],
@@ -50,7 +53,10 @@ pub unsafe extern "C" fn opaque_relay_keypair_generate(
     let Ok(keypair) = ResponderKeyPair::generate() else {
         return OpaqueError::CryptoError.to_c_int();
     };
-    let oprf_seed = opaque_core::crypto::random_nonzero_scalar();
+    let mut oprf_seed = [0u8; OPRF_SEED_LENGTH];
+    if opaque_core::crypto::random_bytes(&mut oprf_seed).is_err() {
+        return OpaqueError::CryptoError.to_c_int();
+    }
     let boxed = Box::new(RelayKeypairHandle { keypair, oprf_seed });
     *handle = Box::into_raw(boxed) as *mut std::ffi::c_void;
     0
@@ -325,6 +331,11 @@ pub unsafe extern "C" fn opaque_relay_generate_ke2(
         Ok(v) => v,
         Err(e) => return e.to_c_int(),
     };
+
+    // Validate the initiator public key before constructing credentials
+    if opaque_core::crypto::validate_public_key(record_view.initiator_public_key).is_err() {
+        return OpaqueError::InvalidPublicKey.to_c_int();
+    }
 
     let mut creds = ResponderCredentials::new();
     creds.envelope = record_view.envelope.to_vec();

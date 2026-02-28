@@ -10,7 +10,7 @@ use opaque_core::types::{
 use opaque_core::{crypto, oprf, pq_kem, protocol};
 use zeroize::Zeroize;
 
-use crate::state::{Ke2Message, OpaqueResponder, ResponderCredentials, ResponderState};
+use crate::state::{Ke2Message, OpaqueResponder, ResponderCredentials, ResponderPhase, ResponderState};
 
 /// Processes the initiator KE1 message and produces the KE2 response.
 ///
@@ -35,6 +35,9 @@ pub fn generate_ke2(
 ) -> OpaqueResult<()> {
     if ke1_data.len() != KE1_LENGTH {
         return Err(OpaqueError::InvalidProtocolMessage);
+    }
+    if state.phase != ResponderPhase::Created {
+        return Err(OpaqueError::ValidationError);
     }
     if account_id.is_empty() {
         return Err(OpaqueError::InvalidInput);
@@ -153,7 +156,9 @@ pub fn generate_ke2(
     kem_ss.zeroize();
     resp_mac_key.zeroize();
     init_mac_key.zeroize();
+    transcript_hash.zeroize();
 
+    state.phase = ResponderPhase::Ke2Generated;
     Ok(())
 }
 
@@ -179,6 +184,9 @@ pub fn responder_finish(
     if ke3_data.len() != KE3_LENGTH {
         return Err(OpaqueError::InvalidProtocolMessage);
     }
+    if state.phase != ResponderPhase::Ke2Generated {
+        return Err(OpaqueError::ValidationError);
+    }
     if state.session_key.is_empty() || state.master_key.len() != MASTER_KEY_LENGTH {
         return Err(OpaqueError::ValidationError);
     }
@@ -190,6 +198,8 @@ pub fn responder_finish(
         state.master_key.zeroize();
         state.pq_shared_secret.zeroize();
         state.expected_initiator_mac.zeroize();
+        state.responder_ephemeral_private_key.zeroize();
+        state.responder_private_key.zeroize();
         state.handshake_complete = false;
         return Err(OpaqueError::AuthenticationError);
     }
@@ -200,6 +210,7 @@ pub fn responder_finish(
     state.pq_shared_secret.zeroize();
     state.expected_initiator_mac.zeroize();
     state.handshake_complete = true;
+    state.phase = ResponderPhase::Finished;
 
     Ok(())
 }

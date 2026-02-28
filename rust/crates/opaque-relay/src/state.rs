@@ -9,11 +9,27 @@ use opaque_core::types::{
 };
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+/// Tracks which protocol phase the responder state is in.
+///
+/// Enforces that protocol functions are called in the correct order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResponderPhase {
+    /// State has been created but no protocol function has been called.
+    Created,
+    /// `generate_ke2` has completed; awaiting KE3 from the initiator.
+    Ke2Generated,
+    /// `responder_finish` has been called; keys have been extracted.
+    Finished,
+}
+
 /// Mutable session state held by the responder across the AKE phase.
 ///
 /// All sensitive fields are zeroized on drop to prevent key material from lingering in memory.
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct ResponderState {
+    /// Current protocol phase. Prevents out-of-order function calls.
+    #[zeroize(skip)]
+    pub phase: ResponderPhase,
     /// Long-term Ristretto255 private key of the responder.
     pub responder_private_key: [u8; PRIVATE_KEY_LENGTH],
     /// Long-term Ristretto255 public key of the responder.
@@ -41,6 +57,7 @@ impl ResponderState {
     /// Creates a zero-initialized responder state.
     pub fn new() -> Self {
         Self {
+            phase: ResponderPhase::Created,
             responder_private_key: [0u8; PRIVATE_KEY_LENGTH],
             responder_public_key: [0u8; PUBLIC_KEY_LENGTH],
             responder_ephemeral_private_key: [0u8; PRIVATE_KEY_LENGTH],
@@ -124,6 +141,7 @@ impl ResponderKeyPair {
 /// Response sent by the relay during the registration phase.
 ///
 /// Contains the evaluated OPRF element and the relay long-term public key.
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct RegistrationResponse {
     /// Serialized registration response (evaluated OPRF element || responder public key).
     pub data: [u8; REGISTRATION_RESPONSE_LENGTH],
@@ -257,7 +275,8 @@ impl OpaqueResponder {
     /// Returns an error if keypair generation fails.
     pub fn generate() -> OpaqueResult<Self> {
         let keypair = ResponderKeyPair::generate()?;
-        let oprf_seed = opaque_core::crypto::random_nonzero_scalar();
+        let mut oprf_seed = [0u8; OPRF_SEED_LENGTH];
+        opaque_core::crypto::random_bytes(&mut oprf_seed)?;
         Ok(Self { keypair, oprf_seed })
     }
 

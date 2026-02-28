@@ -43,6 +43,7 @@ pub fn seal(
     );
     let mut auth_key = [0u8; SECRETBOX_KEY_LENGTH];
     auth_key.copy_from_slice(&hash[..SECRETBOX_KEY_LENGTH]);
+    hash.zeroize();
 
     const PLAINTEXT_LEN: usize = PUBLIC_KEY_LENGTH + PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH;
     let mut plaintext = [0u8; PLAINTEXT_LEN];
@@ -110,6 +111,7 @@ pub fn open(
     );
     let mut auth_key = [0u8; SECRETBOX_KEY_LENGTH];
     auth_key.copy_from_slice(&hash[..SECRETBOX_KEY_LENGTH]);
+    hash.zeroize();
 
     let mut plaintext = [0u8; PLAINTEXT_LEN];
     let nonce: &[u8; NONCE_LENGTH] = envelope.nonce.as_slice().try_into()

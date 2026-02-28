@@ -8,11 +8,29 @@ use opaque_core::types::{
 };
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+/// Tracks which protocol phase the initiator state is in.
+///
+/// Enforces that protocol functions are called in the correct order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitiatorPhase {
+    /// State has been created but no protocol function has been called.
+    Created,
+    /// `generate_ke1` has completed; awaiting KE2 from the relay.
+    Ke1Generated,
+    /// `generate_ke3` has completed; session keys are available.
+    Ke3Generated,
+    /// `initiator_finish` has been called; keys have been extracted.
+    Finished,
+}
+
 /// Mutable session state held by the initiator across registration and AKE phases.
 ///
 /// All sensitive fields are zeroized on drop to prevent key material from lingering in memory.
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct InitiatorState {
+    /// Current protocol phase. Prevents out-of-order function calls.
+    #[zeroize(skip)]
+    pub phase: InitiatorPhase,
     /// User password or secret used as OPRF input.
     pub secure_key: Vec<u8>,
     /// Long-term Ristretto255 private key of the initiator.
@@ -45,6 +63,7 @@ impl InitiatorState {
     /// Creates a zero-initialized initiator state.
     pub fn new() -> Self {
         Self {
+            phase: InitiatorPhase::Created,
             secure_key: Vec::new(),
             initiator_private_key: [0u8; PRIVATE_KEY_LENGTH],
             initiator_public_key: [0u8; PUBLIC_KEY_LENGTH],
@@ -181,6 +200,7 @@ impl Default for Ke3Message {
 ///
 /// Stores the relay public key so that every registration and authentication
 /// attempt can verify the relay identity.
+#[derive(Zeroize)]
 pub struct OpaqueInitiator {
     responder_public_key: [u8; PUBLIC_KEY_LENGTH],
 }

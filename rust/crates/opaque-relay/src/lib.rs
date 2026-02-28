@@ -20,5 +20,5 @@ pub use authentication::{generate_ke2, responder_finish};
 pub use registration::{build_credentials, create_registration_response};
 pub use state::{
     Ke2Message, OpaqueResponder, RegistrationResponse, ResponderCredentials, ResponderKeyPair,
-    ResponderState,
+    ResponderPhase, ResponderState,
 };

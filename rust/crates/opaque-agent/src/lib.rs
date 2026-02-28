@@ -19,6 +19,6 @@ mod state;
 pub use registration::{create_registration_request, finalize_registration};
 pub use authentication::{generate_ke1, generate_ke3, initiator_finish};
 pub use state::{
-    InitiatorState, Ke1Message, Ke3Message, OpaqueInitiator, RegistrationRecord,
+    InitiatorPhase, InitiatorState, Ke1Message, Ke3Message, OpaqueInitiator, RegistrationRecord,
     RegistrationRequest,
 };
